@@ -1,9 +1,0 @@
-/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/asyncssh/crypto/cipher.py:29: CryptographyDeprecationWarning: ARC4 has been moved to cryptography.hazmat.decrepit.ciphers.algorithms.ARC4 and will be removed from cryptography.hazmat.primitives.ciphers.algorithms in 48.0.0.
-  from cryptography.hazmat.primitives.ciphers.algorithms import AES, ARC4
-/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/asyncssh/crypto/cipher.py:30: CryptographyDeprecationWarning: TripleDES has been moved to cryptography.hazmat.decrepit.ciphers.algorithms.TripleDES and will be removed from cryptography.hazmat.primitives.ciphers.algorithms in 48.0.0.
-  from cryptography.hazmat.primitives.ciphers.algorithms import TripleDES
-[*] SSH Server listening on port 2222
-[*] Telnet Server listening on port 2223
-[*] HTTP Server listening on port 8080
-[*] MySQL Server listening on port 33060
-[DEBUG] exec_requested: ls -la; exit

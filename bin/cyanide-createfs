@@ -1,0 +1,107 @@
+#!/usr/bin/env python3
+import os
+import sys
+import argparse
+import stat
+from pathlib import Path
+
+# Add src to path to import core modules
+sys.path.append(os.path.join(os.path.dirname(__file__), '../src'))
+
+from core.filesystem_nodes import Directory, File
+from cyanide.fs.pickle import save_fs
+
+def create_fs_from_real(real_path: str) -> Directory:
+    """Recursively traverse a real filesystem path and build a FakeFilesystem tree."""
+    real_path = os.path.abspath(real_path)
+    if not os.path.exists(real_path):
+        raise ValueError(f"Path not found: {real_path}")
+
+    root_name = os.path.basename(real_path)
+    # Root of our pickle will act as the root directory
+    root_node = Directory(name="", perm="drwxr-xr-x", owner="root", group="root")
+
+    # If we are copying a specific folder, we treat it as mounting 'contents' to our root
+    # But usually we want to snapshot a folder structure to BE the root.
+    # Let's walk.
+    
+    # Map for keeping track of directory nodes
+    # Path -> Node
+    dir_map = {real_path: root_node}
+
+    for current_dir, dirs, files in os.walk(real_path):
+        current_node = dir_map[current_dir]
+        
+        # Process subdirectories
+        for d in dirs:
+            full_path = os.path.join(current_dir, d)
+            try:
+                st = os.stat(full_path)
+                # Map permissions generally (simplified for now)
+                perm_str = stat.filemode(st.st_mode)
+                
+                new_dir = Directory(
+                    name=d, 
+                    parent=current_node,
+                    perm=perm_str,
+                    owner="root", # You'd need a UID map here for realism
+                    group="root"
+                )
+                current_node.add_child(new_dir)
+                dir_map[full_path] = new_dir
+            except Exception as e:
+                print(f"Skipping dir {full_path}: {e}")
+
+        # Process files
+        for f in files:
+            full_path = os.path.join(current_dir, f)
+            try:
+                if os.path.islink(full_path):
+                    continue # Skip symlinks for now or handle them
+                
+                st = os.stat(full_path)
+                perm_str = stat.filemode(st.st_mode)
+                
+                try:
+                    with open(full_path, 'r', errors='ignore') as f_obj:
+                        content = f_obj.read()
+                except:
+                    content = ""
+
+                new_file = File(
+                    name=f,
+                    parent=current_node,
+                    content=str(content), # Ensure string
+                    perm=perm_str,
+                    owner="root",
+                    group="root"
+                )
+                current_node.add_child(new_file)
+            except Exception as e:
+                print(f"Skipping file {full_path}: {e}")
+                
+    return root_node
+
+def main():
+    parser = argparse.ArgumentParser(description="Create a cyanide fs.pickle from a real directory")
+    parser.add_argument("path", help="Path to the real directory content")
+    parser.add_argument("--output", "-o", default="share/cyanide/fs.pickle", help="Output pickle file")
+    
+    args = parser.parse_args()
+    
+    print(f"Creating FS from {args.path}...")
+    try:
+        root = create_fs_from_real(args.path)
+        
+        out_dir = os.path.dirname(args.output)
+        if out_dir and not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+            
+        save_fs(root, args.output)
+        print(f"Filesystem saved to {args.output}")
+    except Exception as e:
+        print(f"Error: {e}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()

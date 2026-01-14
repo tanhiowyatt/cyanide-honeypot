@@ -1,0 +1,113 @@
+#!/usr/bin/env python3
+import sys
+import os
+import subprocess
+import signal
+import time
+
+# Simple wrapper to manage the honeypot process
+# In a real Cowrie installation, this interacts with twistd, here we manage python3 main.py
+
+PID_FILE = "var/run/cyanide.pid"
+STDOUT_LOG = "var/log/cyanide.out"
+STDERR_LOG = "var/log/cyanide.err"
+
+def start():
+    # Ensure dirs exist
+    os.makedirs(os.path.dirname(PID_FILE), exist_ok=True)
+    os.makedirs(os.path.dirname(STDOUT_LOG), exist_ok=True)
+
+    if os.path.exists(PID_FILE):
+        print("Cyanide already running (pid file exists).")
+        return
+
+    # Load and print configuration info
+    try:
+        sys.path.append(os.path.join(os.getcwd(), 'src'))
+        from core.config import load_config
+        from pathlib import Path
+        
+        config = load_config(Path("etc/cyanide.cfg"))
+        if config:
+            print("\n" + "="*50)
+            print(" CYANIDE HONEYPOT STARTUP INFO")
+            print("="*50)
+            
+            # Network info
+            bind_ip = "0.0.0.0" # Default 
+            print(f"[*] Bind Address:   {bind_ip}")
+            
+            if config.get('ssh', {}).get('enabled'):
+                print(f"[*] SSH Port:       {config['ssh']['port']}")
+                
+            if config.get('telnet', {}).get('enabled'):
+                print(f"[*] Telnet Port:    {config['telnet']['port']}")
+                
+            # User info
+            users = [u['user'] for u in config.get('users', [])]
+            print(f"[*] Available Users: {', '.join(users)}")
+            print("="*50 + "\n")
+            
+    except Exception as e:
+        print(f"[!] Info: Could not load extra config info: {e}")
+
+    print("Starting Cyanide...")
+    # Adjust python path to include src
+    env = os.environ.copy()
+    env["PYTHONPATH"] = os.path.join(os.getcwd(), "src")
+    
+    # We execute main.py in the background
+    # Redirect output to a log file or /dev/null
+    with open(STDOUT_LOG, "w") as out, open(STDERR_LOG, "w") as err:
+        p = subprocess.Popen(
+            [sys.executable, "main.py"], 
+            cwd=os.getcwd(),
+            env=env,
+            stdout=out, 
+            stderr=err
+        )
+    
+    with open(PID_FILE, "w") as f:
+        f.write(str(p.pid))
+    print(f"Cyanide started with PID {p.pid}")
+
+def stop():
+    if not os.path.exists(PID_FILE):
+        print("Cyanide not running.")
+        return
+        
+    with open(PID_FILE, "r") as f:
+        pid = int(f.read().strip())
+    
+    print(f"Stopping Cyanide (PID {pid})...")
+    try:
+        os.kill(pid, signal.SIGTERM)
+        # Wait for it to die
+        time.sleep(1)
+    except ProcessLookupError:
+        print("Process not found.")
+    
+    os.remove(PID_FILE)
+    print("Stopped.")
+
+def usage():
+    print("Usage: bin/cyanide {start|stop|restart}")
+    sys.exit(1)
+
+def main():
+    if len(sys.argv) < 2:
+        usage()
+        
+    cmd = sys.argv[1]
+    if cmd == "start":
+        start()
+    elif cmd == "stop":
+        stop()
+    elif cmd == "restart":
+        stop()
+        start()
+    else:
+        usage()
+
+if __name__ == "__main__":
+    main()

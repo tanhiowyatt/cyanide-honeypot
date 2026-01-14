@@ -1,6 +1,6 @@
-
 from pathlib import PurePosixPath
 import datetime
+from .filesystem_nodes import Directory, File, Node
 
 class FakeFilesystem:
     """Simulated Linux filesystem for honeypot.
@@ -10,69 +10,130 @@ class FakeFilesystem:
     """
     
     def __init__(self):
-        """Initialize fake filesystem with realistic directory structure and files.
+        """Initialize fake filesystem with realistic directory structure and files."""
+        self.root = Directory(name="") # Root is nameless in path logic usually, but handled carefully
+        self._init_fs()
+
+    def _init_fs(self):
+        """Populate filesystem with default structure."""
+        # Helper to create dirs
+        def mkdir_p(path, owner="root", group="root", perm="drwxr-xr-x"):
+            parts = [p for p in path.split("/") if p]
+            current = self.root
+            for part in parts:
+                child = current.get_child(part)
+                if not child:
+                    child = Directory(part, parent=current, perm=perm, owner=owner, group=group)
+                    current.add_child(child)
+                current = child
+            return current
+
+        # Create directories
+        mkdir_p("/bin")
+        mkdir_p("/etc")
+        mkdir_p("/home")
+        mkdir_p("/home/admin", owner="admin", group="admin", perm="drwxr-x---")
+        mkdir_p("/proc", perm="dr-xr-xr-x")
+        mkdir_p("/tmp", perm="drwxrwxrwt")
+        mkdir_p("/var")
+        mkdir_p("/var/log")
+        mkdir_p("/var/www")
+        mkdir_p("/var/www/html")
+        mkdir_p("/var/lib/mysql", owner="mysql", group="mysql", perm="drwxr-x---")
+        mkdir_p("/var/spool/cron")
+        mkdir_p("/var/spool/cron/crontabs", group="crontab", perm="drwx-wx--T")
+        mkdir_p("/var/run")
+        mkdir_p("/usr/local/bin")
+
+        # Create files helper
+        def mkfile(path, content="", owner="root", group="root", perm="-rw-r--r--"):
+            parent_path = str(PurePosixPath(path).parent)
+            filename = PurePosixPath(path).name
+            parent = self.get_node(parent_path)
+            if parent and isinstance(parent, Directory):
+                f = File(filename, parent=parent, content=content, owner=owner, group=group, perm=perm)
+                parent.add_child(f)
+
+        # /etc files
+        mkfile("/etc/passwd", "root:x:0:0:root:/root:/bin/bash\nadmin:x:1000:1000:admin:/home/admin:/bin/bash\n")
+        mkfile("/etc/shadow", "root:$6$...\n", perm="-rw-r-----", group="shadow")
+        mkfile("/etc/hostname", "ubuntu-server\n")
+        mkfile("/etc/issue", "Ubuntu 22.04.3 LTS \\n \\l\n")
+
+        # /home/admin files
+        mkfile("/home/admin/file1.txt", "Just a boring file.\n", owner="admin", group="admin")
+        mkfile("/home/admin/secret.conf", "db_password=supersecret123\napi_key=XYZ-999-000\n", owner="admin", group="admin", perm="-rw-------")
+        mkfile("/home/admin/flag.txt", "flag{r3al_fl46_f0r_h0n3yp0t}\n", owner="admin", group="admin", perm="-r--------")
+
+        # /proc files
+        mkfile("/proc/cpuinfo", "processor       : 0\nvendor_id       : GenuineIntel\ncpu family      : 6\nmodel           : 142\nmodel name      : Intel(R) Core(TM) i7-8565U CPU @ 1.80GHz\n", perm="-r--r--r--")
+        mkfile("/proc/meminfo", "MemTotal:        8123456 kB\nMemFree:         123456 kB\nBuffers:          23456 kB\nCached:          456789 kB\n", perm="-r--r--r--")
+        mkfile("/proc/version", "Linux version 5.15.0-91-generic (buildd@lcy02-amd64-015) (gcc (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0, GNU ld (GNU Binutils for Ubuntu) 2.38) #101-Ubuntu SMP Tue Nov 14 13:30:08 UTC 2023\n", perm="-r--r--r--")
+
+        # /var/www
+        mkfile("/var/www/html/index.html", "<html><body><h1>It works!</h1><p>Apache Server at 127.0.0.1 Port 80</p></body></html>\n", owner="www-data", group="www-data")
+
+        # Cron
+        mkfile("/var/spool/cron/crontabs/root", "# m h  dom mon dow   command\n*/5 * * * * /usr/local/bin/backup_secrets.sh\n", perm="-rw-------", group="crontab")
+        mkfile("/usr/local/bin/backup_secrets.sh", "#!/bin/bash\ntar -czf /tmp/backup.tar.gz /home/admin/secret.conf\n", perm="-rwxr-xr-x")
         
-        Creates common Linux paths including /etc, /var, /proc, /home, and
-        populates them with typical configuration files, logs, and honeypot bait.
-        """
-        self.fs = {
-            "/": {"type": "dir", "perm": "drwxr-xr-x", "owner": "root", "group": "root", "size": 4096, "mtime": datetime.datetime.now()},
-            "/bin": {"type": "dir", "perm": "drwxr-xr-x", "owner": "root", "group": "root", "size": 4096, "mtime": datetime.datetime.now()},
-            "/etc": {"type": "dir", "perm": "drwxr-xr-x", "owner": "root", "group": "root", "size": 4096, "mtime": datetime.datetime.now()},
-            "/home": {"type": "dir", "perm": "drwxr-xr-x", "owner": "root", "group": "root", "size": 4096, "mtime": datetime.datetime.now()},
-            "/home/admin": {"type": "dir", "perm": "drwxr-x---", "owner": "admin", "group": "admin", "size": 4096, "mtime": datetime.datetime.now()},
-            "/proc": {"type": "dir", "perm": "dr-xr-xr-x", "owner": "root", "group": "root", "size": 0, "mtime": datetime.datetime.now()},
-            "/tmp": {"type": "dir", "perm": "drwxrwxrwt", "owner": "root", "group": "root", "size": 4096, "mtime": datetime.datetime.now()},
-            "/var": {"type": "dir", "perm": "drwxr-xr-x", "owner": "root", "group": "root", "size": 4096, "mtime": datetime.datetime.now()},
-            "/var/log": {"type": "dir", "perm": "drwxr-xr-x", "owner": "root", "group": "root", "size": 4096, "mtime": datetime.datetime.now()},
-            
-            # Files
-            "/etc/passwd": {"type": "file", "perm": "-rw-r--r--", "owner": "root", "group": "root", "size": 1234, "content": "root:x:0:0:root:/root:/bin/bash\nadmin:x:1000:1000:admin:/home/admin:/bin/bash\n"},
-            "/etc/shadow": {"type": "file", "perm": "-rw-r-----", "owner": "root", "group": "shadow", "size": 842, "content": "root:$6$...\n"},
-            "/etc/hostname": {"type": "file", "perm": "-rw-r--r--", "owner": "root", "group": "root", "size": 12, "content": "ubuntu-server\n"},
-            "/etc/issue": {"type": "file", "perm": "-rw-r--r--", "owner": "root", "group": "root", "size": 26, "content": "Ubuntu 22.04.3 LTS \\n \\l\n"},
-            
-            # Fake files
-            "/home/admin/file1.txt": {"type": "file", "perm": "-rw-r--r--", "owner": "admin", "group": "admin", "size": 23, "content": "Just a boring file.\n"},
-            "/home/admin/secret.conf": {"type": "file", "perm": "-rw-------", "owner": "admin", "group": "admin", "size": 156, "content": "db_password=supersecret123\napi_key=XYZ-999-000\n"},
-            "/home/admin/flag.txt": {"type": "file", "perm": "-r--------", "owner": "admin", "group": "admin", "size": 32, "content": "flag{r3al_fl46_f0r_h0n3yp0t}\n"},
-            
-            # Realistic /proc
-            "/proc/cpuinfo": {"type": "file", "perm": "-r--r--r--", "owner": "root", "group": "root", "size": 0, "content": "processor       : 0\nvendor_id       : GenuineIntel\ncpu family      : 6\nmodel           : 142\nmodel name      : Intel(R) Core(TM) i7-8565U CPU @ 1.80GHz\n"},
-            "/proc/meminfo": {"type": "file", "perm": "-r--r--r--", "owner": "root", "group": "root", "size": 0, "content": "MemTotal:        8123456 kB\nMemFree:         123456 kB\nBuffers:          23456 kB\nCached:          456789 kB\n"},
-            "/proc/version": {"type": "file", "perm": "-r--r--r--", "owner": "root", "group": "root", "size": 0, "content": "Linux version 5.15.0-91-generic (buildd@lcy02-amd64-015) (gcc (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0, GNU ld (GNU Binutils for Ubuntu) 2.38) #101-Ubuntu SMP Tue Nov 14 13:30:08 UTC 2023\n"},
+        # /var/run
+        mkfile("/var/run/utmp", "", perm="-rw-rw-r--", group="utmp")
 
-            # Vulnerable Services artifacts
-            "/var/www": {"type": "dir", "perm": "drwxr-xr-x", "owner": "root", "group": "root", "size": 4096, "mtime": datetime.datetime.now()},
-            "/var/www/html": {"type": "dir", "perm": "drwxr-xr-x", "owner": "root", "group": "root", "size": 4096, "mtime": datetime.datetime.now()},
-            "/var/www/html/index.html": {"type": "file", "perm": "-rw-r--r--", "owner": "www-data", "group": "www-data", "size": 154, "content": "<html><body><h1>It works!</h1><p>Apache Server at 127.0.0.1 Port 80</p></body></html>\n"},
-            
-            "/var/lib/mysql": {"type": "dir", "perm": "drwxr-x---", "owner": "mysql", "group": "mysql", "size": 4096, "mtime": datetime.datetime.now()},
-            
-            # Cron
-            "/var/spool/cron": {"type": "dir", "perm": "drwxr-xr-x", "owner": "root", "group": "root", "size": 4096, "mtime": datetime.datetime.now()},
-            "/var/spool/cron/crontabs": {"type": "dir", "perm": "drwx-wx--T", "owner": "root", "group": "crontab", "size": 4096, "mtime": datetime.datetime.now()},
-            "/var/spool/cron/crontabs/root": {"type": "file", "perm": "-rw-------", "owner": "root", "group": "crontab", "size": 128, "content": "# m h  dom mon dow   command\n*/5 * * * * /usr/local/bin/backup_secrets.sh\n"},
-            
-            "/usr/local/bin/backup_secrets.sh": {"type": "file", "perm": "-rwxr-xr-x", "owner": "root", "group": "root", "size": 100, "content": "#!/bin/bash\ntar -czf /tmp/backup.tar.gz /home/admin/secret.conf\n"},
 
-            # User activity
-            
-            # User activity
-            "/var/run": {"type": "dir", "perm": "drwxr-xr-x", "owner": "root", "group": "root", "size": 4096, "mtime": datetime.datetime.now()},
-            "/var/run/utmp": {"type": "file", "perm": "-rw-rw-r--", "owner": "root", "group": "utmp", "size": 0, "content": ""}, # Binary file usually, emptiness ok for simple cat, who/w will fake it
-        }
+    def get_node(self, path: str) -> Node:
+        """Retrieve a node from the filesystem tree."""
+        resolved = self.resolve(path)
+        if resolved == "/":
+            return self.root
+        
+        parts = [p for p in resolved.split("/") if p]
+        current = self.root
+        for part in parts:
+            if isinstance(current, Directory):
+                child = current.get_child(part)
+                if child:
+                    current = child
+                else:
+                    return None
+            else:
+                return None
+        return current
 
     def exists(self, path: str) -> bool:
-        return self.resolve(path) in self.fs
+        """Check if a path exists.
+        
+        Args:
+            path: Path to check.
+            
+        Returns:
+            bool: True if path exists, False otherwise.
+        """
+        return self.get_node(path) is not None
 
     def is_dir(self, path: str) -> bool:
-        path = self.resolve(path)
-        return self.exists(path) and self.fs[path]["type"] == "dir"
+        """Check if path is a directory.
+        
+        Args:
+            path: Path to check.
+            
+        Returns:
+            bool: True if path refers to a directory.
+        """
+        node = self.get_node(path)
+        return isinstance(node, Directory)
 
     def is_file(self, path: str) -> bool:
-        path = self.resolve(path)
-        return self.exists(path) and self.fs[path]["type"] == "file"
+        """Check if path is a file.
+        
+        Args:
+            path: Path to check.
+            
+        Returns:
+            bool: True if path refers to a file.
+        """
+        node = self.get_node(path)
+        return isinstance(node, File)
 
     def list_dir(self, path: str) -> list:
         """List contents of a directory.
@@ -82,33 +143,24 @@ class FakeFilesystem:
             
         Returns:
             list: List of filenames/directory names in the directory.
-                 Returns empty list if path doesn't exist or is not a directory.
         """
-        path = self.resolve(path)
-        if not self.is_dir(path):
-            return []
-        
-        # Determine direct children
-        children = []
-        path_depth = len(PurePosixPath(path).parts)
-        if path == "/": 
-            path_depth = 0 # Root handling
-            
-        for p in self.fs.keys():
-            if p == "/": continue
-            pp = PurePosixPath(p)
-            # Check if parent matches
-            if str(pp.parent) == path or (path == "/" and str(pp.parent) == "/"):
-                 # But Ensure we don't pick recursive children if logic is flawed
-                 # Using pathlib is better
-                 if pp.parent == PurePosixPath(path):
-                     children.append(pp.name)
-        return sorted(children)
+        node = self.get_node(path)
+        if isinstance(node, Directory):
+            return sorted(node.children.keys())
+        return []
 
     def get_content(self, path: str) -> str:
-        path = self.resolve(path)
-        if self.is_file(path):
-            return self.fs[path].get("content", "")
+        """Get file content.
+        
+        Args:
+            path: Path to file.
+            
+        Returns:
+            str: Content of the file, or empty string if not a file/not found.
+        """
+        node = self.get_node(path)
+        if isinstance(node, File):
+            return node.content
         return ""
 
     def resolve(self, path: str) -> str:
@@ -124,9 +176,7 @@ class FakeFilesystem:
             Handles parent directory (..) and current directory (.) references.
             Removes duplicate slashes and ensures proper path formatting.
         """
-        """Resolve path to absolute standard form."""
         # This is a simplified resolver
-        if not path.startswith("/"):
-            # Assume it's already absolute or caller handles cwd
-            pass
+        if not path:
+             return "/"
         return str(PurePosixPath(path))

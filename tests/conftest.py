@@ -5,44 +5,47 @@ import time
 import os
 import signal
 import sys
+import configparser
 from pathlib import Path
 
 # Add project root to sys.path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from honeypot import HoneypotServer
-import yaml
+# Import from src instead of honeypot
+sys.path.append(str(Path(__file__).parent.parent / "src"))
+from core.server import HoneypotServer
 
-CONFIG_PATH = Path("config.yaml")
+CONFIG_PATH = Path("etc/cyanide.cfg")
 
 @pytest.fixture(scope="session")
 def honeypot_server():
     """Start the honeypot server in a separate process for the session."""
-    config_path = Path("config.yaml").resolve()
-    with open(config_path) as f:
-        config = yaml.safe_load(f)
+    
+    # Load config manually to get ports
+    cfg = configparser.ConfigParser()
+    cfg.read(CONFIG_PATH)
+    ssh_port = cfg.getint("ssh", "listen_port", fallback=2222)
+    telnet_port = cfg.getint("telnet", "listen_port", fallback=2223)
     
     # Check if ports are available first, kill if needed
-    os.system(f"lsof -t -i :{config['ssh']['port']} | xargs kill -9 2>/dev/null || true")
-    os.system(f"lsof -t -i :{config['telnet']['port']} | xargs kill -9 2>/dev/null || true")
-    os.system(f"lsof -t -i :8080 | xargs kill -9 2>/dev/null || true")
-    os.system(f"lsof -t -i :33060 | xargs kill -9 2>/dev/null || true")
+    os.system(f"lsof -t -i :{ssh_port} | xargs kill -9 2>/dev/null || true")
+    os.system(f"lsof -t -i :{telnet_port} | xargs kill -9 2>/dev/null || true")
     
     # Start server as subprocess
     import subprocess
     
-    log_dir = Path("logs/logs_tests")
+    log_dir = Path("var/log/cyanide")
     log_dir.mkdir(parents=True, exist_ok=True)
     
-    # Set environment variable to redirect honeypot logs to /tmp during tests
-    # This keeps logs/logs_tests clean for pytest output only
     env = os.environ.copy()
-    env['TEST_LOG_DIR'] = '/tmp/honeypot_test_logs'
+    env['PYTHONPATH'] = str(Path().resolve() / "src")
+    # Redirect logs for tests? Use defaults for now.
     
-    with open(log_dir / "test_server.log", "w") as log_file:
+    # Run main.py
+    with open(log_dir / "test_server.out", "w") as out:
         process = subprocess.Popen(
-            [sys.executable, "honeypot.py"],
-            stdout=log_file,
+            [sys.executable, "main.py"],
+            stdout=out,
             stderr=subprocess.STDOUT,
             cwd=str(Path(".").resolve()),
             env=env
@@ -53,7 +56,7 @@ def honeypot_server():
     while time.time() - start_time < 10:
         import socket
         try:
-            with socket.create_connection(("127.0.0.1", config['ssh']['port']), timeout=0.1):
+            with socket.create_connection(("127.0.0.1", ssh_port), timeout=0.1):
                 created = True
                 break
         except (ConnectionRefusedError, OSError):

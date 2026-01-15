@@ -26,6 +26,7 @@ def load_config(path: Path = Path("etc/cyanide.cfg")):
     config = {
         "log_path": cfg.get("honeypot", "log_path", fallback="var/log/cyanide"),
         "fs_pickle": cfg.get("honeypot", "fs_pickle", fallback=None),
+        "quarantine_path": cfg.get("honeypot", "quarantine_path", fallback="var/quarantine"),
         "ssh": {
             "port": cfg.getint("ssh", "listen_port", fallback=2222),
             "enabled": cfg.getboolean("ssh", "enabled", fallback=True)

@@ -28,6 +28,10 @@ class HoneypotServer:
         log_path = os.getenv('TEST_LOG_DIR', config.get("log_path", "var/log/cyanide"))
         self.logger = CyanideLogger(log_path)
         
+        # Setup Quarantine
+        self.quarantine_path = Path(config.get("quarantine_path", "var/quarantine"))
+        self.quarantine_path.mkdir(parents=True, exist_ok=True)
+        
         self.users = self._load_users(config.get("users", []))
         self.active_sessions = 0
         self.max_sessions = config.get("max_sessions", 100)
@@ -61,6 +65,21 @@ class HoneypotServer:
             except Exception as e:
                 print(f"Error loading pickle FS: {e}")
         return FakeFilesystem()
+
+    def save_quarantine_file(self, filename: str, content: bytes):
+        """Save a file to the quarantine directory."""
+        try:
+            timestamp = int(time.time())
+            safe_name = f"{timestamp}_{Path(filename).name}"
+            target_path = self.quarantine_path / safe_name
+            
+            with open(target_path, "wb") as f:
+                f.write(content)
+                
+            return str(target_path)
+        except Exception as e:
+            print(f"[!] Error saving quarantine file: {e}")
+            return None
         
     async def start(self):
         """Start all honeypot services and enter main event loop."""

@@ -37,7 +37,8 @@ def load_config(path: Path = Path("etc/cyanide.cfg")):
         },
         "services": {
             "mysql": {
-                "enabled": False # Not present in default cyanide.cfg yet
+                "enabled": cfg.getboolean("services", "mysql_enabled", fallback=True),
+                "port": cfg.getint("services", "mysql_port", fallback=3306)
             }
         },
         # Default users if not handling auth backend yet

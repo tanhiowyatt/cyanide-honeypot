@@ -98,6 +98,22 @@ Connect to it (password `root` or `admin`):
 ssh -p 2222 root@localhost
 ```
 
+### 5. Docker Support
+
+You can also run Cyanide using Docker:
+
+```bash
+# Build and start in background
+docker-compose up -d --build
+
+# View logs
+docker-compose logs -f
+
+# Stop
+docker-compose down
+```
+
+
 ---
 
 ## 🛠️ Tools & Utilities

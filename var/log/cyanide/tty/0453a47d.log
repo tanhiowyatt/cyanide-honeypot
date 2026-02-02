@@ -1,0 +1,10 @@
+Session 0453a47d started at 1770069373.6454742
+1770069377.0578814 [IN] 'ls\n'
+1770069377.0596957 [OUT] "ls: cannot access '': No such file or directory\n"
+1770069377.0602605 [OUT] 'root@server:~$ '
+1770069387.7923822 [IN] 'cd \n'
+1770069387.7934866 [OUT] 'Command execution error: list index out of range\n'
+1770069387.7941754 [OUT] 'root@server:~$ '
+1770069392.467137 [IN] 'pwd\n'
+1770069392.4688146 [OUT] '/\n'
+1770069392.4695199 [OUT] 'root@server:~$ '

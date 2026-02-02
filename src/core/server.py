@@ -245,23 +245,17 @@ class HoneypotServer:
             )
             print(f"[*] Telnet Server listening on port {telnet_port}", flush=True)
 
-        # Start Telnet Server
-        telnet_enabled = self.config.get("telnet", {}).get("enabled", False)
-        if telnet_enabled:
-            telnet_port = self.config["telnet"]["port"]
-            telnet_server = await asyncio.start_server(
-                self.handle_telnet, "0.0.0.0", telnet_port, reuse_address=True
-            )
-            print(f"[*] Telnet Server listening on port {telnet_port}", flush=True)
+
 
         # Start Vulnerable Services (MySQL)
-        # Simplified MySQL Emulation
-        mysql_port = 3306
-        try:
-             await asyncio.start_server(self.handle_mysql, "0.0.0.0", mysql_port, reuse_address=True)
-             print(f"[*] MySQL Emulation listening on port {mysql_port}")
-        except Exception as e:
-             print(f"[!] MySQL Bind Error: {e}")
+        mysql_conf = self.config.get("services", {}).get("mysql", {})
+        if mysql_conf.get("enabled", False):
+            mysql_port = mysql_conf.get("port", 3306)
+            try:
+                 await asyncio.start_server(self.handle_mysql, "0.0.0.0", mysql_port, reuse_address=True)
+                 print(f"[*] MySQL Emulation listening on port {mysql_port}")
+            except Exception as e:
+                 print(f"[!] MySQL Bind Error: {e}")
         
         # Start Cleanup Task
         asyncio.create_task(self._cleanup_loop())
@@ -337,12 +331,18 @@ class HoneypotServer:
                 "src_ip": src_ip, "username": username, "password": password, "success": success
             })
             
+            if not success:
+                 writer.write(b"\r\nLogin incorrect\r\n")
+                 await writer.drain()
+                 writer.close()
+                 return
+
             # Shell loop
-            writer.write(b"\r\nWelcome to Ubuntu 22.04.3 LTS\r\n\r\n")
+            # Removed artificial banner to mimic real system behavior (banner handled by issue usually)
             
             # Use Factory
             fs = self.get_filesystem()
-            shell = ShellEmulator(fs, username if success else "user", quarantine_callback=self.save_quarantine_file)
+            shell = ShellEmulator(fs, username, quarantine_callback=self.save_quarantine_file)
             
             prompt = f"{username}@server:~$ "
             writer.write(prompt.encode())
@@ -369,6 +369,7 @@ class HoneypotServer:
                     import random
                     await asyncio.sleep(random.uniform(0.05, 0.3))
                     
+                    
                     stdout, stderr, rc = await shell.execute(cmd)
                     
                     # Confusion Metric
@@ -381,6 +382,15 @@ class HoneypotServer:
                          
                     output = stdout + stderr
                     writer.write(output.replace("\n", "\r\n").encode())
+                    
+                    # Update prompt
+                    cwd = shell.cwd
+                    if cwd.startswith(f"/home/{username}"):
+                        cwd = cwd.replace(f"/home/{username}", "~", 1)
+                    elif username == "root" and cwd.startswith("/root"):
+                        cwd = cwd.replace("/root", "~", 1)
+                        
+                    prompt = f"{username}@server:{cwd}$ "
                     writer.write(prompt.encode())
                     await writer.drain()
                     
@@ -421,7 +431,7 @@ class SSHServerFactory(asyncssh.SSHServer):
             "event": "auth", "protocol": "ssh", 
             "src_ip": self.src_ip, "username": username, "password": password, "success": success
         }))
-        return True
+        return success
 
     def sftp_factory(self, channel):
         """Create SFTP server instance sharing the connection's filesystem."""
@@ -444,8 +454,11 @@ class SSHSession(asyncssh.SSHServerSession):
         self.client_version = "unknown"
         self.username = "root"
         self.buf = ""
+        self.client_version = "unknown"
+        self.username = "root"
+        self.buf = ""
         self.shell = None
-        self.prompt = None 
+        # Prompt is dynamic now 
         # Biometrics
         self.keystrokes = [] # List of timestamps
         # Traffic
@@ -513,14 +526,22 @@ class SSHSession(asyncssh.SSHServerSession):
     def shell_requested(self):
         # Use shared FS
         self.shell = ShellEmulator(self.fs, self.username, quarantine_callback=self.honeypot.save_quarantine_file)
-        self.prompt = f"{self.username}@server:~$ "
         return True
+    
+    def _get_prompt(self):
+        if not self.shell: return "$ "
+        cwd = self.shell.cwd
+        if cwd.startswith(f"/home/{self.username}"):
+            cwd = cwd.replace(f"/home/{self.username}", "~", 1)
+        elif self.username == "root" and cwd.startswith("/root"):
+            cwd = cwd.replace("/root", "~", 1)
+        return f"{self.username}@server:{cwd}$ "
     
     def session_started(self):
         self._ensure_tty_log()
         if self.shell:
-            self.channel.write(f"Welcome into {self.username} shell\r\n")
-            self.channel.write(self.prompt)
+            # self.channel.write(f"Welcome into {self.username} shell\r\n")
+            self.channel.write(self._get_prompt())
     
     def _ensure_tty_log(self):
         # Setup TTY logging
@@ -590,8 +611,8 @@ class SSHSession(asyncssh.SSHServerSession):
                     
                 cmd = line.strip()
                 if not cmd:
-                    self.channel.write("\r\n" + self.prompt)
-                    self._log_tty("OUT", "\r\n" + self.prompt)
+                    self.channel.write("\r\n" + self._get_prompt())
+                    self._log_tty("OUT", "\r\n" + self._get_prompt())
                     continue
                     
                 self.commands.append(cmd)
@@ -638,9 +659,10 @@ class SSHSession(asyncssh.SSHServerSession):
                 self.bytes_out += len(response)
                 self._log_tty("OUT", response)
                 
-                self.channel.write(self.prompt)
-                self.bytes_out += len(self.prompt)
-                self._log_tty("OUT", self.prompt)
+                curr_prompt = self._get_prompt()
+                self.channel.write(curr_prompt)
+                self.bytes_out += len(curr_prompt)
+                self._log_tty("OUT", curr_prompt)
                 
         except Exception as e:
             print(f"[DEBUG] process_input error: {e}", flush=True)

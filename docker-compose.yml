@@ -1,0 +1,16 @@
+services:
+  cyanide:
+    build: .
+    container_name: cyanide_honeypot
+    ports:
+      - "2222:2222"
+      - "2223:2223"
+    volumes:
+      - ./var/log/cyanide:/app/var/log/cyanide
+      - ./var/quarantine:/app/var/quarantine
+      - ./share/cyanide/fs.pickle:/app/share/cyanide/fs.pickle
+      # Mount config if you want to edit it from outside (optional)
+      # - ./etc/cyanide.cfg:/app/etc/cyanide.cfg
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1

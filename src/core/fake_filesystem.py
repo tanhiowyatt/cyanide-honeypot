@@ -1,4 +1,5 @@
 from pathlib import PurePosixPath
+import posixpath
 import datetime
 from .filesystem_nodes import Directory, File, Node
 
@@ -45,7 +46,22 @@ class FakeFilesystem:
         mkdir_p("/var/spool/cron")
         mkdir_p("/var/spool/cron/crontabs", group="crontab", perm="drwx-wx--T")
         mkdir_p("/var/run")
-        mkdir_p("/usr/local/bin")
+        mkdir_p("/boot", perm="drwxr-xr-x")
+        mkdir_p("/dev", perm="drwxr-xr-x")
+        mkdir_p("/lib", perm="drwxr-xr-x")
+        mkdir_p("/lib64", perm="drwxr-xr-x")
+        mkdir_p("/media", perm="drwxr-xr-x")
+        mkdir_p("/mnt", perm="drwxr-xr-x")
+        mkdir_p("/opt", perm="drwxr-xr-x")
+        mkdir_p("/run", perm="drwxr-xr-x")
+        mkdir_p("/sbin", perm="drwxr-xr-x")
+        mkdir_p("/srv", perm="drwxr-xr-x")
+        mkdir_p("/sys", perm="dr-xr-xr-x")
+        mkdir_p("/usr/bin", perm="drwxr-xr-x")
+        mkdir_p("/usr/sbin", perm="drwxr-xr-x")
+        mkdir_p("/usr/lib", perm="drwxr-xr-x")
+        mkdir_p("/usr/share", perm="drwxr-xr-x")
+        mkdir_p("/root", owner="root", group="root", perm="drwx------")
 
         # Create files helper
         def mkfile(path, content="", owner="root", group="root", perm="-rw-r--r--"):
@@ -55,6 +71,22 @@ class FakeFilesystem:
             if parent and isinstance(parent, Directory):
                 f = File(filename, parent=parent, content=content, owner=owner, group=group, perm=perm)
                 parent.add_child(f)
+
+        # Populate /bin and /usr/bin with common binaries (placeholders)
+        bin_files = ["ls", "cd", "pwd", "cp", "mv", "rm", "cat", "more", "less", "grep", "awk", "sed", "bash", "sh", "dash", "ps", "kill", "chmod", "chown", "mkdir", "rmdir", "touch", "date", "tar", "gzip", "ping", "netstat", "vi", "nano", "su", "logname"]
+        sbin_files = ["ip", "ifconfig", "iptables", "reboot", "shutdown", "fdisk", "mkfs", "useradd", "userdel", "usermod", "sshd"]
+        
+        for b in bin_files:
+            mkfile(f"/bin/{b}", content="\x7fELF...", perm="-rwxr-xr-x")
+            
+        mkfile("/usr/bin/python3", content="\x7fELF...", perm="-rwxr-xr-x")
+        mkfile("/usr/bin/wget", content="\x7fELF...", perm="-rwxr-xr-x")
+        mkfile("/usr/bin/curl", content="\x7fELF...", perm="-rwxr-xr-x")
+        mkfile("/usr/bin/sudo", content="\x7fELF...", perm="-rwsr-xr-x")
+
+        for s in sbin_files:
+             mkfile(f"/sbin/{s}", content="\x7fELF...", perm="-rwxr-xr-x")
+             mkfile(f"/usr/sbin/{s}", content="\x7fELF...", perm="-rwxr-xr-x")
 
         # /etc files
         mkfile("/etc/passwd", "root:x:0:0:root:/root:/bin/bash\nadmin:x:1000:1000:admin:/home/admin:/bin/bash\n")
@@ -146,7 +178,7 @@ class FakeFilesystem:
              proc.add_child(DynamicFile("cpuinfo", gen_cpuinfo, parent=proc))
              proc.add_child(DynamicFile("meminfo", gen_meminfo, parent=proc))
              proc.add_child(DynamicFile("uptime", gen_uptime, parent=proc))
-             proc.add_child(File("version", proc_version, parent=proc, perm="-r--r--r--"))
+             proc.add_child(File("version", parent=proc, content=proc_version, perm="-r--r--r--"))
              
              # /proc/net
              net = Directory("net", parent=proc, perm="dr-xr-xr-x")
@@ -264,4 +296,4 @@ class FakeFilesystem:
         # This is a simplified resolver
         if not path:
              return "/"
-        return str(PurePosixPath(path))
+        return posixpath.normpath(str(PurePosixPath(path)))

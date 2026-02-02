@@ -1,0 +1,6 @@
+Session 667db218 started at 1770073921.0148633
+1770073921.2622907 [IN] '\n'
+1770073921.26326 [OUT] '\r\nroot@server:~$ '
+1770073924.2055953 [IN] 'ls\n'
+1770073924.2079525 [OUT] "ls: cannot access '': No such file or directory\n"
+1770073924.208804 [OUT] 'root@server:~$ '

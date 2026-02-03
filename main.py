@@ -8,11 +8,10 @@ from pathlib import Path
 # Fix path to include src if running from root
 sys.path.append(os.path.join(os.getcwd(), 'src'))
 
-from core.server import HoneypotServer
+from core import HoneypotServer, load_config
 
 CONFIG_PATH = Path("etc/cyanide.cfg")
 
-from core.config import load_config
 
 async def main():
     """Main entry point."""

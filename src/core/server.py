@@ -13,15 +13,14 @@ import json
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-from src.core.fake_filesystem import FakeFilesystem
-from src.core.shell_emulator import ShellEmulator
-# from src.utils.logging_system import HoneypotLogger # Deprecated
-from src.cyanide.logger import CyanideLogger
-from src.cyanide.fs.pickle import load_fs
-from src.core.sftp import CyanideSFTPServer
-from src.core.vt_scanner import VTScanner
-from src.core.geoip import GeoIP
-from src.core.stats import StatsManager
+from .fake_filesystem import FakeFilesystem
+from .shell_emulator import ShellEmulator
+from cyanide import CyanideLogger
+from cyanide.fs import load_fs
+from .sftp import CyanideSFTPServer
+from .vt_scanner import VTScanner
+from .geoip import GeoIP
+from .stats import StatsManager
 
 class HoneypotServer:
     """Main honeypot server orchestrating SSH, Telnet, and MySQL services."""
@@ -41,7 +40,12 @@ class HoneypotServer:
         self.users = self._load_users(config.get("users", []))
         self.active_sessions = 0
         self.max_sessions = config.get("max_sessions", 100)
+        self.max_sessions_per_ip = config.get("max_sessions_per_ip", 5)
+        self.sessions_per_ip = {} # Map of IP -> count
         self.session_timeout = config.get("session_timeout", 300)
+        
+        # Quarantine quota (in MB)
+        self.quarantine_max_mb = config.get("quarantine_max_size_mb", 500)
         
         # Preload FS if pickled
         self.fs_pickle_path = config.get("fs_pickle")
@@ -125,7 +129,7 @@ class HoneypotServer:
     def get_filesystem(self, session_id="unknown", src_ip="unknown"):
         """Factory to get the filesystem instance."""
         audit_hook = lambda a, p: self._fs_audit_hook(a, p, session_id, src_ip)
-        if self.fs_pickle_path and os.path.exists(self.fs_pickle_path):
+        if self.fs_pickle_path and os.path.isfile(self.fs_pickle_path):
             try:
                 root = load_fs(self.fs_pickle_path)
                 fs = FakeFilesystem(audit_callback=audit_hook, profile=self.profile)
@@ -155,8 +159,16 @@ class HoneypotServer:
             print(f"[!] Scan Error: {e}")
 
     def save_quarantine_file(self, filename: str, content: bytes, session_id="unknown", src_ip="unknown"):
-        """Save a file to the quarantine directory."""
+        """Save a file to the quarantine directory with quota check."""
         try:
+            # Check Disk Quota
+            current_size = sum(f.stat().st_size for f in self.quarantine_path.glob('*') if f.is_file())
+            content_size = len(content)
+            
+            if (current_size + content_size) > (self.quarantine_max_mb * 1024 * 1024):
+                print(f"[!] Quarantine Quota Reached ({self.quarantine_max_mb}MB). Rejecting {filename}")
+                return None
+
             timestamp = int(time.time())
             safe_name = f"{timestamp}_{Path(filename).name}"
             target_path = self.quarantine_path / safe_name
@@ -172,6 +184,34 @@ class HoneypotServer:
         except Exception as e:
             print(f"[!] Error saving quarantine file: {e}")
             return None
+    def _log_tty(self, session_obj, direction: str, data: str):
+        """Standard scriptreplay format: timing file + typescript file."""
+        if direction != "OUT":
+            return
+            
+        if hasattr(session_obj, 'tty_log_path') and hasattr(session_obj, 'tty_timing_path'):
+            try:
+                now = time.time()
+                elapsed = now - session_obj.last_log_time
+                session_obj.last_log_time = now
+                
+                # Convert to bytes if string
+                if isinstance(data, str):
+                    raw_bytes = data.encode('utf-8', 'ignore')
+                else:
+                    raw_bytes = data
+                
+                # Write timing: <interval> <bytes>
+                with open(session_obj.tty_timing_path, "a") as f:
+                    f.write(f"{elapsed:.6f} {len(raw_bytes)}\n")
+                    f.flush()
+                    
+                # Write raw data
+                with open(session_obj.tty_log_path, "ab", buffering=0) as f:
+                    f.write(raw_bytes)
+            except Exception as e:
+                pass
+
 
     async def start_metrics_server(self):
         """Start a lightweight HTTP server for metrics and stats."""
@@ -323,14 +363,36 @@ class HoneypotServer:
 
     async def handle_telnet(self, reader, writer):
         """Handle Telnet connections with interactive shell emulation."""
+        src_ip, src_port = writer.get_extra_info("peername")
+        
+        # Global limit
         if self.active_sessions >= self.max_sessions:
+            print(f"[!] Telnet: Global session limit reached ({self.max_sessions})")
             writer.close()
             return
             
+        # Per-IP limit
+        per_ip_count = self.sessions_per_ip.get(src_ip, 0)
+        if per_ip_count >= self.max_sessions_per_ip:
+            print(f"[!] Telnet: Per-IP limit reached for {src_ip} ({self.max_sessions_per_ip})")
+            writer.close()
+            return
+
         self.active_sessions += 1
+        self.sessions_per_ip[src_ip] = per_ip_count + 1
+        
         session_id = str(uuid.uuid4())[:8]
-        src_ip, src_port = writer.get_extra_info("peername")
         start_time = time.time()
+        self.last_log_time = start_time # For TTY logging
+        
+        # Setup TTY logging for Telnet
+        folder_name = f"telnet_{src_ip}_{session_id}"
+        log_dir = Path("var/log/cyanide/tty") / folder_name
+        log_dir.mkdir(parents=True, exist_ok=True)
+        self.tty_log_path = log_dir / f"{folder_name}.log"
+        self.tty_timing_path = log_dir / f"{folder_name}.timing"
+        open(self.tty_log_path, "wb").close()
+        open(self.tty_timing_path, "w").close()
         
         commands = []
         username = ""
@@ -377,8 +439,16 @@ class HoneypotServer:
             quarantine_hook = lambda f, c: self.save_quarantine_file(f, c, session_id, src_ip)
             shell = ShellEmulator(fs, username, quarantine_callback=quarantine_hook)
             
+            # Session state for Telnet
+            class TelnetState: pass
+            session_state = TelnetState()
+            session_state.tty_log_path = self.tty_log_path
+            session_state.tty_timing_path = self.tty_timing_path
+            session_state.last_log_time = self.last_log_time
+            
             prompt = f"{username}@server:~$ "
             writer.write(prompt.encode())
+            self._log_tty(session_state, "OUT", prompt)
             await writer.drain()
             
             while True:
@@ -415,7 +485,9 @@ class HoneypotServer:
                          })
                          
                     output = stdout + stderr
-                    writer.write(output.replace("\n", "\r\n").encode())
+                    resp = output.replace("\n", "\r\n").encode()
+                    writer.write(resp)
+                    self._log_tty(session_state, "OUT", resp)
                     
                     # Update prompt
                     cwd = shell.cwd
@@ -432,7 +504,9 @@ class HoneypotServer:
                     writer.write(b"\r\nTimeout.\r\n")
                     break
         except Exception as e:
-            pass
+            print(f"[!] Telnet: Connection Error from {src_ip}: {e}")
+            import traceback
+            traceback.print_exc()
         finally:
             duration = time.time() - start_time
             await self.logger.log_event_async({
@@ -440,6 +514,10 @@ class HoneypotServer:
                 "src_ip": src_ip, "username": username, "commands": commands, "duration": duration
             })
             self.active_sessions -= 1
+            if src_ip in self.sessions_per_ip:
+                self.sessions_per_ip[src_ip] = max(0, self.sessions_per_ip[src_ip] - 1)
+                if self.sessions_per_ip[src_ip] == 0:
+                    del self.sessions_per_ip[src_ip]
             self.stats.on_disconnect("telnet", src_ip)
             writer.close()
 
@@ -456,8 +534,33 @@ class SSHServerFactory(asyncssh.SSHServer):
     def connection_made(self, conn):
         self.src_ip = conn.get_extra_info("peername")[0]
         self.src_port = conn.get_extra_info("peername")[1]
+        
+        # Check limits early
+        if self.honeypot.active_sessions >= self.honeypot.max_sessions:
+             print(f"[!] SSH: Global limit reached")
+             conn.close()
+             return
+             
+        per_ip = self.honeypot.sessions_per_ip.get(self.src_ip, 0)
+        if per_ip >= self.honeypot.max_sessions_per_ip:
+             print(f"[!] SSH: Per-IP limit reached for {self.src_ip}")
+             conn.close()
+             return
+
+        self.honeypot.active_sessions += 1
+        self.honeypot.sessions_per_ip[self.src_ip] = per_ip + 1
+        
         # Create a filesystem instance for this connection with IP context
         self.fs = self.honeypot.get_filesystem(session_id="conn_"+self.conn_id, src_ip=self.src_ip)
+        
+    def connection_lost(self, exc):
+        # Transport level cleanup - handle leaks here
+        self.honeypot.active_sessions -= 1
+        if self.src_ip in self.honeypot.sessions_per_ip:
+            self.honeypot.sessions_per_ip[self.src_ip] = max(0, self.honeypot.sessions_per_ip[self.src_ip] - 1)
+            if self.honeypot.sessions_per_ip[self.src_ip] == 0:
+                del self.honeypot.sessions_per_ip[self.src_ip]
+        print(f"[*] SSH Connection Lost from {self.src_ip} (Active: {self.honeypot.active_sessions})")
         
     def password_auth_supported(self):
         return True
@@ -493,10 +596,8 @@ class SSHSession(asyncssh.SSHServerSession):
         self.client_version = "unknown"
         self.username = "root"
         self.buf = ""
-        self.client_version = "unknown"
-        self.username = "root"
-        self.buf = ""
         self.shell = None
+        self.last_log_time = time.time()
         # Prompt is dynamic now 
         # Biometrics
         self.keystrokes = [] # List of timestamps
@@ -542,7 +643,7 @@ class SSHSession(asyncssh.SSHServerSession):
              pass
 
     def connection_lost(self, exc):
-        """Log connection loss reason."""
+        """Log session disconnect."""
         reason = "clean"
         if exc:
             reason = f"error: {exc}"
@@ -590,25 +691,19 @@ class SSHSession(asyncssh.SSHServerSession):
             self.channel.write(self._get_prompt())
     
     def _ensure_tty_log(self):
-        # Setup TTY logging
-        # User requested: var/log/cyanide/tty (implied inside logs dir)
-        log_dir = Path("var/log/cyanide/tty")
+        # Setup TTY logging (scriptreplay compatible)
+        folder_name = f"ssh_{self.src_ip}_{self.session_id}"
+        log_dir = Path("var/log/cyanide/tty") / folder_name
         log_dir.mkdir(parents=True, exist_ok=True)
-        # Include IP in filename for easier tracing
-        self.tty_log_path = log_dir / f"{self.src_ip}_{self.session_id}.log"
-        # Create empty or start 
-        with open(self.tty_log_path, "w") as f:
-            f.write(f"Session {self.session_id} from {self.src_ip} started at {time.time()}\n")
+        
+        self.tty_log_path = log_dir / f"{folder_name}.log"
+        self.tty_timing_path = log_dir / f"{folder_name}.timing"
+        open(self.tty_log_path, "wb").close()
+        open(self.tty_timing_path, "w").close()
+        self.last_log_time = time.time()
             
     def _log_tty(self, direction: str, data: str):
-        # Simple line-oriented log
-        if hasattr(self, 'tty_log_path'):
-            try:
-                enc_data = repr(data)
-                with open(self.tty_log_path, "a") as f:
-                    f.write(f"{time.time()} [{direction}] {enc_data}\n")
-            except:
-                pass
+        self.honeypot._log_tty(self, direction, data)
 
     def env_received(self, name, value):
         """Log client environment variables."""
@@ -630,10 +725,15 @@ class SSHSession(asyncssh.SSHServerSession):
 
     async def _process_input(self, data):
         try:
-            # Jitter (Network Latency Simulation)
-            # Default 50ms - 300ms
-            import random
-            delay = random.uniform(0.05, 0.3)
+            # Enhanced Randomized Jitter
+            # Use a mix of stable and spikey delays to mimic human behavior or network issues
+            if random.random() < 0.1:
+                # 10% chance of a "network spike"
+                delay = random.uniform(0.5, 1.5)
+            else:
+                # Normal human-like typing jitter
+                delay = random.uniform(0.02, 0.15)
+                
             await asyncio.sleep(delay)
 
             # Record Keystroke Timing
@@ -738,11 +838,18 @@ class SSHSession(asyncssh.SSHServerSession):
 
     async def _async_exec(self, command):
         # Use Factory
+        self._ensure_tty_log()
         fs = self.honeypot.get_filesystem()
         shell = ShellEmulator(fs, self.username, quarantine_callback=self.honeypot.save_quarantine_file)
         stdout, stderr, rc = await shell.execute(command)
+        
         self.channel.write(stdout)
-        self.channel.write_stderr(stderr)
+        self.honeypot._log_tty(self, "OUT", stdout)
+        
+        if stderr:
+            self.channel.write_stderr(stderr)
+            self.honeypot._log_tty(self, "OUT", stderr)
+            
         self.channel.write_eof()
         await asyncio.sleep(0.01)
         self.channel.exit(rc)

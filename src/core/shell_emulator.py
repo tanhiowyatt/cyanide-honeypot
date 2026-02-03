@@ -4,24 +4,7 @@ from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
 from .fake_filesystem import FakeFilesystem
-# Commands
-from ..commands.cd import CdCommand
-from ..commands.ls import LsCommand
-from ..commands.pwd import PwdCommand
-from ..commands.cat import CatCommand
-from ..commands.whoami import WhoamiCommand
-from ..commands.id import IdCommand
-from ..commands.echo import EchoCommand
-from ..commands.uname import UnameCommand
-from ..commands.ps import PsCommand
-from ..commands.sudo import SudoCommand
-from ..commands.help import HelpCommand
-from ..commands.export import ExportCommand
-from ..commands.who import WhoCommand
-from ..commands.w import WCommand
-from ..commands.file_ops import TouchCommand, MkdirCommand, RmdirCommand, RmCommand, CpCommand, MvCommand
-from ..commands.text_ops import GrepCommand, HeadCommand, TailCommand
-from ..commands.misc import CurlCommand, PingCommand, EditorCommand
+from commands import COMMAND_MAP
 
 
 @dataclass
@@ -86,38 +69,13 @@ class ShellEmulator:
         return True
 
     def _register_commands(self):
-        """Register available commands."""
-        self.commands = {
-            "cd": CdCommand(self),
-            "ls": LsCommand(self),
-            "dir": LsCommand(self),
-            "pwd": PwdCommand(self),
-            "cat": CatCommand(self),
-            "whoami": WhoamiCommand(self),
-            "id": IdCommand(self),
-            "echo": EchoCommand(self),
-            "uname": UnameCommand(self),
-            "ps": PsCommand(self),
-            "sudo": SudoCommand(self),
-            "help": HelpCommand(self),
-            "export": ExportCommand(self),
-            "who": WhoCommand(self),
-            "w": WCommand(self),
-            "touch": TouchCommand(self),
-            "mkdir": MkdirCommand(self),
-            "rmdir": RmdirCommand(self),
-            "rm": RmCommand(self),
-            "cp": CpCommand(self),
-            "mv": MvCommand(self),
-            "grep": GrepCommand(self),
-            "head": HeadCommand(self),
-            "tail": TailCommand(self),
-            "curl": CurlCommand(self),
-            "ping": PingCommand(self),
-            "vi": EditorCommand(self),
-            "vim": EditorCommand(self),
-            "nano": EditorCommand(self),
-        }
+        """Register available commands using the central registry."""
+        self.commands = {}
+        for cmd_name, cmd_class in COMMAND_MAP.items():
+            self.commands[cmd_name] = cmd_class(self)
+            
+        # Add manual aliases
+        self.commands["dir"] = self.commands.get("ls")
 
     def resolve_path(self, path: str) -> str:
         """Resolve relative or absolute path to filesystem path."""
@@ -351,38 +309,6 @@ class ShellEmulator:
 
     def _write_file(self, path: str, content: str):
         """Helper to write to fake fs."""
-        # Resolve path
         abs_path = self.resolve_path(path)
-        
-        # Create file
-        # We need to rely on FakeFilesystem internals or helpers.
-        # Assuming we can just overwrite/create.
-        
-        # Hacky access to create file:
-        # We'll use the _init_fs's helper logic style or similar?
-        # self.fs.get_node ...
-        
-        # We need a proper 'write_file' or 'create_file' on fs.
-        # FakeFilesystem currently has no public write API shown in the view_file, 
-        # only 'mkfile' inside __init__.
-        # We need to add one or simulate it. 
-        # For now, let's assume we can try to traverse and add.
-        
-        from .filesystem_nodes import File, Directory
-        from pathlib import PurePosixPath
-        
-        parent_path = str(PurePosixPath(abs_path).parent)
-        filename = PurePosixPath(abs_path).name
-        
-        parent = self.fs.get_node(parent_path)
-        if isinstance(parent, Directory):
-            # Check if file exists to update
-            child = parent.get_child(filename)
-            if isinstance(child, File):
-                child.content = content
-            elif child is None:
-                new_file = File(filename, parent=parent, content=content, owner=self.username, group=self.username)
-                parent.add_child(new_file)
-            else:
-                 # It's a directory
-                 pass
+        self.fs.mkfile(abs_path, content=content, owner=self.username, group=self.username)
+

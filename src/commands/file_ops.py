@@ -2,7 +2,7 @@ import argparse
 import time
 from pathlib import PurePosixPath
 from .base import Command
-from ..core.filesystem_nodes import File, Directory
+from core.filesystem_nodes import File, Directory
 
 class FileOpCommand(Command):
     """Base for file operations."""

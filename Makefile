@@ -1,14 +1,35 @@
-.PHONY: test run clean install
+.PHONY: test run clean install build up down
 
-test:
-	mkdir -p logs/logs_tests
-	pytest --cov=src --cov=honeypot tests/integration -v 2>&1 | tee logs/logs_tests/test_output.log
-
-run:
-	python3 honeypot.py > logs/server/stdout.log 2>&1 & uvicorn web.app:app --host 0.0.0.0 --port 8000 > logs/server/dashboard.log 2>&1
-
+# Install dependencies
 install:
 	pip install -r requirements.txt
 
+# Start the honeypot locally
+run:
+	python3 main.py
+
+# Docker commands
+build:
+	docker-compose build
+
+up:
+	docker-compose up -d
+
+down:
+	docker-compose down
+
+# Specialized cleaning task
 clean:
-	rm -f server.log dashboard.log
+	find . -type d -name "__pycache__" -exec rm -rf {} +
+	find . -type f -name "*.pyc" -delete
+	find . -type f -name "*.pyo" -delete
+	find . -type f -name "*.pyd" -delete
+	find . -type f -name ".DS_Store" -delete
+	rm -rf .pytest_cache
+	rm -rf .coverage
+	rm -rf htmlcov
+	rm -f tests/verification_results.json
+
+# Run all tests
+test:
+	pytest tests/ -v

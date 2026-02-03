@@ -2,11 +2,7 @@ import pickle
 import io
 import builtins
 import typing
-try:
-    from src.core.filesystem_nodes import Node, Directory, File
-except ImportError:
-    # Fallback for when running from various contexts
-    from core.filesystem_nodes import Node, Directory, File
+from core.filesystem_nodes import Node, Directory, File
 
 import hmac
 import hashlib

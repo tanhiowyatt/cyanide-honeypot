@@ -1,5 +1,5 @@
 from .base import Command
-from ..core.filesystem_nodes import Directory
+from core.filesystem_nodes import Directory
 
 class LsCommand(Command):
     """List directory contents."""

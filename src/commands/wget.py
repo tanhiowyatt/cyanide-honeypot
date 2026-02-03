@@ -66,7 +66,7 @@ class WgetCommand(Command):
                  return output_msg, f"{filename}: No such file or directory\n", 1
                  
             # Add file
-            from ..core.filesystem_nodes import File, Directory
+            from core.filesystem_nodes import File, Directory
             parent_node = self.fs.get_node(parent_dir)
             if isinstance(parent_node, Directory):
                 # Check overwrite?

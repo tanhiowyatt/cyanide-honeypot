@@ -83,8 +83,6 @@ class File(Node):
         f.group = data.get("group", "root")
         if "mtime" in data:
             f.mtime = datetime.datetime.fromtimestamp(data["mtime"])
-        if "mtime" in data:
-            f.mtime = datetime.datetime.fromtimestamp(data["mtime"])
         return f
 
 class DynamicFile(File):

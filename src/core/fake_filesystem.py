@@ -19,77 +19,60 @@ class FakeFilesystem:
 
     def _init_fs(self):
         """Populate filesystem with default structure."""
-        # Helper to create dirs
-        def mkdir_p(path, owner="root", group="root", perm="drwxr-xr-x"):
-            parts = [p for p in path.split("/") if p]
-            current = self.root
-            for part in parts:
-                child = current.get_child(part)
-                if not child:
-                    child = Directory(part, parent=current, perm=perm, owner=owner, group=group)
-                    current.add_child(child)
-                current = child
-            return current
+
 
         # Create directories
-        mkdir_p("/bin")
-        mkdir_p("/etc")
-        mkdir_p("/home")
-        mkdir_p("/home/admin", owner="admin", group="admin", perm="drwxr-x---")
-        mkdir_p("/proc", perm="dr-xr-xr-x")
-        mkdir_p("/tmp", perm="drwxrwxrwt")
-        mkdir_p("/var")
-        mkdir_p("/var/log")
-        mkdir_p("/var/www")
-        mkdir_p("/var/www/html")
-        mkdir_p("/var/spool/cron")
-        mkdir_p("/var/spool/cron/crontabs", group="crontab", perm="drwx-wx--T")
-        mkdir_p("/var/run")
-        mkdir_p("/boot", perm="drwxr-xr-x")
-        mkdir_p("/dev", perm="drwxr-xr-x")
-        mkdir_p("/lib", perm="drwxr-xr-x")
-        mkdir_p("/lib64", perm="drwxr-xr-x")
-        mkdir_p("/media", perm="drwxr-xr-x")
-        mkdir_p("/mnt", perm="drwxr-xr-x")
-        mkdir_p("/opt", perm="drwxr-xr-x")
-        mkdir_p("/run", perm="drwxr-xr-x")
-        mkdir_p("/sbin", perm="drwxr-xr-x")
-        mkdir_p("/srv", perm="drwxr-xr-x")
-        mkdir_p("/sys", perm="dr-xr-xr-x")
-        mkdir_p("/usr/bin", perm="drwxr-xr-x")
-        mkdir_p("/usr/sbin", perm="drwxr-xr-x")
-        mkdir_p("/usr/lib", perm="drwxr-xr-x")
-        mkdir_p("/usr/share", perm="drwxr-xr-x")
-        mkdir_p("/root", owner="root", group="root", perm="drwx------")
+        self.mkdir_p("/bin")
+        self.mkdir_p("/etc")
+        self.mkdir_p("/home")
+        self.mkdir_p("/home/admin", owner="admin", group="admin", perm="drwxr-x---")
+        self.mkdir_p("/proc", perm="dr-xr-xr-x")
+        self.mkdir_p("/tmp", perm="drwxrwxrwt")
+        self.mkdir_p("/var")
+        self.mkdir_p("/var/log")
+        self.mkdir_p("/var/www")
+        self.mkdir_p("/var/www/html")
+        self.mkdir_p("/var/spool/cron")
+        self.mkdir_p("/var/spool/cron/crontabs", group="crontab", perm="drwx-wx--T")
+        self.mkdir_p("/var/run")
+        self.mkdir_p("/boot", perm="drwxr-xr-x")
+        self.mkdir_p("/dev", perm="drwxr-xr-x")
+        self.mkdir_p("/lib", perm="drwxr-xr-x")
+        self.mkdir_p("/lib64", perm="drwxr-xr-x")
+        self.mkdir_p("/media", perm="drwxr-xr-x")
+        self.mkdir_p("/mnt", perm="drwxr-xr-x")
+        self.mkdir_p("/opt", perm="drwxr-xr-x")
+        self.mkdir_p("/run", perm="drwxr-xr-x")
+        self.mkdir_p("/sbin", perm="drwxr-xr-x")
+        self.mkdir_p("/srv", perm="drwxr-xr-x")
+        self.mkdir_p("/sys", perm="dr-xr-xr-x")
+        self.mkdir_p("/usr/bin", perm="drwxr-xr-x")
+        self.mkdir_p("/usr/sbin", perm="drwxr-xr-x")
+        self.mkdir_p("/usr/lib", perm="drwxr-xr-x")
+        self.mkdir_p("/usr/share", perm="drwxr-xr-x")
+        self.mkdir_p("/root", owner="root", group="root", perm="drwx------")
 
-        # Create files helper
-        def mkfile(path, content="", owner="root", group="root", perm="-rw-r--r--"):
-            parent_path = str(PurePosixPath(path).parent)
-            filename = PurePosixPath(path).name
-            parent = self.get_node(parent_path)
-            if parent and isinstance(parent, Directory):
-                f = File(filename, parent=parent, content=content, owner=owner, group=group, perm=perm)
-                parent.add_child(f)
+
 
         # Populate /bin and /usr/bin with common binaries (placeholders)
         bin_files = ["ls", "cd", "pwd", "cp", "mv", "rm", "cat", "more", "less", "grep", "awk", "sed", "bash", "sh", "dash", "ps", "kill", "chmod", "chown", "mkdir", "rmdir", "touch", "date", "tar", "gzip", "ping", "netstat", "vi", "nano", "su", "logname"]
         sbin_files = ["ip", "ifconfig", "iptables", "reboot", "shutdown", "fdisk", "mkfs", "useradd", "userdel", "usermod", "sshd"]
         
         for b in bin_files:
-            mkfile(f"/bin/{b}", content="\x7fELF...", perm="-rwxr-xr-x")
+            self.mkfile(f"/bin/{b}", content="\x7fELF...", perm="-rwxr-xr-x")
             
-        mkfile("/usr/bin/python3", content="\x7fELF...", perm="-rwxr-xr-x")
-        mkfile("/usr/bin/wget", content="\x7fELF...", perm="-rwxr-xr-x")
-        mkfile("/usr/bin/curl", content="\x7fELF...", perm="-rwxr-xr-x")
-        mkfile("/usr/bin/sudo", content="\x7fELF...", perm="-rwsr-xr-x")
+        self.mkfile("/usr/bin/python3", content="\x7fELF...", perm="-rwxr-xr-x")
+        self.mkfile("/usr/bin/wget", content="\x7fELF...", perm="-rwxr-xr-x")
+        self.mkfile("/usr/bin/curl", content="\x7fELF...", perm="-rwxr-xr-x")
+        self.mkfile("/usr/bin/sudo", content="\x7fELF...", perm="-rwsr-xr-x")
 
         for s in sbin_files:
-             mkfile(f"/sbin/{s}", content="\x7fELF...", perm="-rwxr-xr-x")
-             mkfile(f"/usr/sbin/{s}", content="\x7fELF...", perm="-rwxr-xr-x")
+             self.mkfile(f"/sbin/{s}", content="\x7fELF...", perm="-rwxr-xr-x")
+             self.mkfile(f"/usr/sbin/{s}", content="\x7fELF...", perm="-rwxr-xr-x")
 
         # /etc files
-        mkfile("/etc/passwd", "root:x:0:0:root:/root:/bin/bash\nadmin:x:1000:1000:admin:/home/admin:/bin/bash\n")
-        mkfile("/etc/shadow", "root:$6$...\n", perm="-rw-r-----", group="shadow")
+        self.mkfile("/etc/passwd", "root:x:0:0:root:/root:/bin/bash\nadmin:x:1000:1000:admin:/home/admin:/bin/bash\n")
+        self.mkfile("/etc/shadow", "root:$6$...\n", perm="-rw-r-----", group="shadow")
         
         if self.profile:
              issue_content = self.profile.get("etc_issue", "Ubuntu 22.04.3 LTS \\n \\l\n\n")
@@ -98,9 +81,9 @@ class FakeFilesystem:
              issue_content = "Ubuntu 22.04.3 LTS \\n \\l\n\n"
              proc_version = "Linux version 5.15.0-91-generic (buildd@lcy02-amd64-015) (gcc (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0, GNU ld (GNU Binutils for Ubuntu) 2.38) #101-Ubuntu SMP Tue Nov 14 13:30:08 UTC 2023\n"
 
-        mkfile("/etc/issue", issue_content, perm="-r--r--r--")
-        mkfile("/etc/issue.net", issue_content, perm="-r--r--r--")
-        mkfile("/etc/hostname", "server\n", perm="-r--r--r--")
+        self.mkfile("/etc/issue", issue_content, perm="-r--r--r--")
+        self.mkfile("/etc/issue.net", issue_content, perm="-r--r--r--")
+        self.mkfile("/etc/hostname", "server\n", perm="-r--r--r--")
 
         # Fake History
         history_cmds = [
@@ -128,21 +111,22 @@ class FakeFilesystem:
             history_cmds.insert(1, "apt upgrade -y")
             
         history_content = "\n".join(history_cmds) + "\n"
-        mkfile("/root/.bash_history", history_content, owner="root", group="root", perm="-rw-------")
-        mkfile("/home/admin/.bash_history", history_content, owner="admin", group="admin", perm="-rw-------")
+        self.mkfile("/root/.bash_history", history_content, owner="root", group="root", perm="-rw-------")
+        self.mkfile("/home/admin/.bash_history", history_content, owner="admin", group="admin", perm="-rw-------")
         
         # /home/admin files
-        mkfile("/home/admin/file1.txt", "Just a boring file.\n", owner="admin", group="admin")
-        mkfile("/home/admin/secret.conf", "db_password=supersecret123\napi_key=XYZ-999-000\n", owner="admin", group="admin", perm="-rw-------")
-        mkfile("/home/admin/flag.txt", "flag{r3al_fl46_f0r_h0n3yp0t}\n", owner="admin", group="admin", perm="-r--------")
+        self.mkfile("/home/admin/file1.txt", "Just a boring file.\n", owner="admin", group="admin")
+        self.mkfile("/home/admin/secret.conf", "db_password=supersecret123\napi_key=XYZ-999-000\n", owner="admin", group="admin", perm="-rw-------")
+        self.mkfile("/home/admin/flag.txt", "flag{r3al_fl46_f0r_h0n3yp0t}\n", owner="admin", group="admin", perm="-r--------")
 
         # /root files (Sync with admin and add SSH keys)
-        mkdir_p("/root/.ssh", owner="root", group="root", perm="drwx------")
-        mkfile("/root/file1.txt", "Just a boring file.\n", owner="root", group="root")
-        mkfile("/root/secret.conf", "db_password=supersecret123\napi_key=XYZ-999-000\n", owner="root", group="root", perm="-rw-------")
-        mkfile("/root/flag.txt", "flag{r3al_fl46_f0r_h0n3yp0t}\n", owner="root", group="root", perm="-r--------")
-        mkfile("/root/.ssh/id_rsa", "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA75...\n-----END RSA PRIVATE KEY-----\n", owner="root", group="root", perm="-rw-------")
-        mkfile("/root/.ssh/authorized_keys", "ssh-rsa AAAAB3Nza... root@server\n", owner="root", group="root", perm="-rw-------")
+        self.mkdir_p("/root/.ssh", owner="root", group="root", perm="drwx------")
+        self.mkfile("/root/file1.txt", "Just a boring file.\n", owner="root", group="root")
+        self.mkfile("/root/secret.conf", "db_password=supersecret123\napi_key=XYZ-999-000\n", owner="root", group="root", perm="-rw-------")
+        self.mkfile("/root/flag.txt", "flag{r3al_fl46_f0r_h0n3yp0t}\n", owner="root", group="root", perm="-r--------")
+        self.mkfile("/root/.ssh/id_rsa", "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA75...\n-----END RSA PRIVATE KEY-----\n", owner="root", group="root", perm="-rw-------")
+        self.mkfile("/root/.ssh/authorized_keys", "ssh-rsa AAAAB3Nza... root@server\n", owner="root", group="root", perm="-rw-------")
+
 
         from .filesystem_nodes import DynamicFile
         import random
@@ -179,28 +163,64 @@ class FakeFilesystem:
             ]
             return header + "\n".join(lines) + "\n"
 
+        def gen_net_dev():
+            return "Inter-|   Receive                                                |  Transmit\n face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed\n    lo: 12345678    1234    0    0    0     0          0         0 12345678    1234    0    0    0     0       0          0\n  eth0: 98765432    9876    0    0    0     0          0         0 98765432    9876    0    0    0     0       0          0\n"
+
+        def gen_mounts():
+            return "/dev/sda1 / ext4 rw,relatime 0 1\nproc /proc proc rw,nosuid,nodev,noexec,relatime 0 0\nsysfs /sys sysfs rw,nosuid,nodev,noexec,relatime 0 0\ntmpfs /tmp tmpfs rw,nosuid,nodev,relatime 0 0\n"
+
         # Explicitly add dynamic files
         proc = self.get_node("/proc")
         if isinstance(proc, Directory):
              proc.add_child(DynamicFile("cpuinfo", gen_cpuinfo, parent=proc))
              proc.add_child(DynamicFile("meminfo", gen_meminfo, parent=proc))
              proc.add_child(DynamicFile("uptime", gen_uptime, parent=proc))
+             proc.add_child(DynamicFile("mounts", gen_mounts, parent=proc))
              proc.add_child(File("version", parent=proc, content=proc_version, perm="-r--r--r--"))
              
              # /proc/net
              net = Directory("net", parent=proc, perm="dr-xr-xr-x")
              proc.add_child(net)
              net.add_child(DynamicFile("tcp", gen_net_tcp, parent=net))
+             net.add_child(DynamicFile("dev", gen_net_dev, parent=net))
+
+        # /sys/class/net/eth0/address
+        self.mkdir_p("/sys/class/net/eth0")
+        self.mkfile("/sys/class/net/eth0/address", "02:42:ac:11:00:02\n", perm="-r--r--r--")
 
         # /var/www
-        mkfile("/var/www/html/index.html", "<html><body><h1>It works!</h1><p>Apache Server at 127.0.0.1 Port 80</p></body></html>\n", owner="www-data", group="www-data")
+        self.mkfile("/var/www/html/index.html", "<html><body><h1>It works!</h1><p>Apache Server at 127.0.0.1 Port 80</p></body></html>\n", owner="www-data", group="www-data")
 
         # Cron
-        mkfile("/var/spool/cron/crontabs/root", "# m h  dom mon dow   command\n*/5 * * * * /usr/local/bin/backup_secrets.sh\n", perm="-rw-------", group="crontab")
-        mkfile("/usr/local/bin/backup_secrets.sh", "#!/bin/bash\ntar -czf /tmp/backup.tar.gz /home/admin/secret.conf\n", perm="-rwxr-xr-x")
+        self.mkfile("/var/spool/cron/crontabs/root", "# m h  dom mon dow   command\n*/5 * * * * /usr/local/bin/backup_secrets.sh\n", perm="-rw-------", group="crontab")
+        self.mkfile("/usr/local/bin/backup_secrets.sh", "#!/bin/bash\ntar -czf /tmp/backup.tar.gz /home/admin/secret.conf\n", perm="-rwxr-xr-x")
         
         # /var/run
-        mkfile("/var/run/utmp", "", perm="-rw-rw-r--", group="utmp")
+        self.mkfile("/var/run/utmp", "", perm="-rw-rw-r--", group="utmp")
+
+    def mkdir_p(self, path: str, owner="root", group="root", perm="drwxr-xr-x"):
+        """Create a directory and all its parents (public)."""
+        parts = [p for p in path.split("/") if p]
+        current = self.root
+        for part in parts:
+            child = current.get_child(part)
+            if not child:
+                child = Directory(part, parent=current, perm=perm, owner=owner, group=group)
+                current.add_child(child)
+            current = child
+        return current
+
+    def mkfile(self, path: str, content="", owner="root", group="root", perm="-rw-r--r--"):
+        """Create a file at the specified path (public)."""
+        parent_path = str(PurePosixPath(path).parent)
+        filename = PurePosixPath(path).name
+        parent = self.get_node(parent_path)
+        if parent and isinstance(parent, Directory):
+            f = File(filename, parent=parent, content=content, owner=owner, group=group, perm=perm)
+            parent.add_child(f)
+            return f
+        return None
+
 
 
     def get_node(self, path: str) -> Node:

@@ -28,15 +28,18 @@ RUN chmod +x bin/*
 # Set environment variable for PYTHONPATH so imports work correctly
 ENV PYTHONPATH=/app/src
 
-# Create necessary directories that might not exist or be excluded
-RUN mkdir -p var/log/cyanide var/run var/quarantine
+# Create a non-privileged user and group
+RUN groupadd -r cyanide && useradd -r -g cyanide cyanide
 
-# Expose the SSH port
-EXPOSE 2222
-# Expose Telnet port if enabled (2223 default in config)
-EXPOSE 2223
-# Expose Metrics port
-EXPOSE 9090
+# Create necessary directories and set ownership
+RUN mkdir -p var/log/cyanide var/run var/quarantine \
+    && chown -R cyanide:cyanide /app
+
+# Expose ports
+EXPOSE 2222 2223 9090
+
+# Switch to non-root user
+USER cyanide
 
 # Run main.py when the container launches
 CMD ["python3", "main.py"]

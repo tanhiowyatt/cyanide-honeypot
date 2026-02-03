@@ -61,7 +61,7 @@ class SudoCommand(Command):
         # We need a new shell emulator for that user? 
         # Or just temporary context?
         # Creating a new emulator is safest to isolate permissions logic.
-        from ..core.shell_emulator import ShellEmulator
+        from core.shell_emulator import ShellEmulator
         
         temp_shell = ShellEmulator(self.fs, target_user, self.emulator.quarantine_callback)
         # Inherit CWD? Sudo usually keeps CWD unless -i

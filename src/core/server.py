@@ -81,6 +81,7 @@ class HoneypotServer:
 
         # ML Initialization
         self.ml_enabled = config.get("ml", {}).get("enabled", False)
+        self.ml_online_learning = config.get("ml", {}).get("online_learning", False)
         self.ml_filter = None
         if self.ml_enabled:
             print("[*] Initializing ML Anomaly Detector...")
@@ -91,9 +92,10 @@ class HoneypotServer:
                     if os.path.exists(model_file):
                         print(f"[*] Loading pre-trained ML model from {model_file}...")
                         self.ml_filter = HoneypotFilter.load(model_file)
+                        self.ml_filter.online_learning = self.ml_online_learning
                     else:
                         print("[!] Pre-trained model not found, starting fresh (WARMUP mode).")
-                        self.ml_filter = HoneypotFilter()
+                        self.ml_filter = HoneypotFilter(online_learning=self.ml_online_learning)
                 except (ImportError, ModuleNotFoundError) as e:
                     print(f"[!] ML Module could not be loaded: {e}")
                     self.ml_enabled = False
@@ -784,13 +786,47 @@ class SSHSession(asyncssh.SSHServerSession):
         # SSH Fingerprinting
         # Extract negotiated algorithms (HASSH-like data)
         try:
-             # asyncssh exposes these via get_extra_info on the connection
-             cipher = conn.get_extra_info("cipher", "unknown")
-             mac = conn.get_extra_info("mac", "unknown")
-             compression = conn.get_extra_info("compression", "unknown")
-             kex = conn.get_extra_info("kex", "unknown")
-             key_algo = conn.get_extra_info("server_host_key", "unknown")
+             # Helper for extraction
+             def get_val(key, internal_attr=None, decode=False):
+                 val = conn.get_extra_info(key)
+                 if val is not None: return val
+                 if internal_attr:
+                     val = getattr(conn, internal_attr, None)
+                     if val is not None:
+                         if decode and isinstance(val, bytes):
+                             return val.decode("utf-8", "ignore")
+                         return val
+                 return "unknown"
+
+             # KEX
+             kex = get_val("kex")
              
+             # Key Algo
+             key_algo = get_val("server_host_key")
+             if key_algo == "unknown":
+                 hk = getattr(conn, "_server_host_key", None)
+                 if hk and hasattr(hk, "algorithm"):
+                     key_algo = hk.algorithm.decode() if isinstance(hk.algorithm, bytes) else str(hk.algorithm)
+
+             # Cipher
+             cipher = get_val("cipher", "_enc_alg_cs", decode=True)
+             if cipher == "unknown":
+                 # Chacha20 poly1305 often stored in mac field in local implementations
+                 mac_raw = getattr(conn, "_mac_alg_cs", None)
+                 if mac_raw and b"chacha" in mac_raw:
+                     cipher = mac_raw.decode()
+             
+             # MAC
+             mac = get_val("mac", "_mac_alg_cs", decode=True)
+             
+             # Compression
+             compression = get_val("compression", "_compress_alg_cs", decode=True)
+             if compression == "unknown":
+                 if getattr(conn, "_compress_after_auth", False):
+                     compression = "zlib@openssh.com"
+                 else:
+                     compression = "none"
+
              fingerprint = {
                  "kex": kex,
                  "key_algo": key_algo,

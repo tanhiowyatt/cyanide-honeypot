@@ -50,7 +50,8 @@ def load_config(path: Path = Path("etc/cyanide.cfg")):
             "enabled": cfg.getboolean("ml", "enabled", fallback=False),
             "anomalies_log": cfg.get("ml", "anomalies_log", fallback="var/log/cyanide/cyanideML-anomalies-log.json"),
             "ml_log": cfg.get("ml", "ml_log", fallback="var/log/cyanide/cyanideML-log.json"),
-            "model_path": cfg.get("ml", "model_path", fallback="ai_models/cyanideML/cyanideML.pkl")
+            "model_path": cfg.get("ml", "model_path", fallback="ai_models/cyanideML/cyanideML.pkl"),
+            "online_learning": cfg.getboolean("ml", "online_learning", fallback=False)
         }
         
     return config

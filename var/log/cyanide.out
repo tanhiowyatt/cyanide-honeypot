@@ -85,3 +85,36 @@ Creating SSH listener on 0.0.0.0, port 2222
 {"eventid": "session_disconnect", "timestamp": "2026-02-06T02:19:54.152254", "session": "f8df06cd", "src_ip": "127.0.0.1", "reason": "clean"}
 [conn=3, chan=0] Received channel close
 [conn=3, chan=0] Channel closed
+[*] SSH Connection Lost from 127.0.0.1 (Active: 0)
+[conn=4] Accepted SSH client connection
+[conn=4]   Local address: 127.0.0.1, port 2222
+[conn=4]   Peer address: 127.0.0.1, port 52144
+[*] SSH Connection Lost from 127.0.0.1 (Active: 0)
+[conn=5] Accepted SSH client connection
+[conn=5]   Local address: 127.0.0.1, port 2222
+[conn=5]   Peer address: 127.0.0.1, port 52185
+[conn=5] Beginning auth for user root
+[conn=5] Auth for user root succeeded
+{"eventid": "auth", "timestamp": "2026-02-06T03:53:06.230081", "session": "conn_9b77a870", "src_ip": "127.0.0.1", "protocol": "ssh", "username": "root", "password": "admin", "success": true}
+[conn=5, chan=0] New SSH session requested
+{"eventid": "client_fingerprint", "timestamp": "2026-02-06T03:53:06.234242", "session": "dae78e72", "src_ip": "127.0.0.1", "protocol": "ssh", "fingerprint": {"kex": "unknown", "key_algo": "unknown", "cipher": "unknown", "mac": "unknown", "compression": "unknown"}, "client_version": "SSH-2.0-OpenSSH_10.0"}
+[conn=5, chan=0]   PTY created
+[conn=5, chan=0]   Line editor enabled
+[conn=5, chan=0]   Interactive shell requested
+{"eventid": "command.input", "timestamp": "2026-02-06T03:53:07.606920", "session": "dae78e72", "src_ip": "127.0.0.1", "username": "root", "protocol": "ssh", "input": "ls", "client_version": "SSH-2.0-OpenSSH_10.0"}
+{"eventid": "command.input", "timestamp": "2026-02-06T03:53:09.825909", "session": "dae78e72", "src_ip": "127.0.0.1", "username": "root", "protocol": "ssh", "input": "ls", "client_version": "SSH-2.0-OpenSSH_10.0"}
+{"eventid": "command.input", "timestamp": "2026-02-06T03:53:12.125770", "session": "dae78e72", "src_ip": "127.0.0.1", "username": "root", "protocol": "ssh", "input": "cd", "client_version": "SSH-2.0-OpenSSH_10.0"}
+{"eventid": "command.input", "timestamp": "2026-02-06T03:53:27.772198", "session": "dae78e72", "src_ip": "127.0.0.1", "username": "root", "protocol": "ssh", "input": "clear", "client_version": "SSH-2.0-OpenSSH_10.0"}
+{"eventid": "command_not_found", "timestamp": "2026-02-06T03:53:27.773447", "session": "dae78e72", "src_ip": "127.0.0.1", "cmd": "clear"}
+{"eventid": "command.input", "timestamp": "2026-02-06T03:53:31.110408", "session": "dae78e72", "src_ip": "127.0.0.1", "username": "root", "protocol": "ssh", "input": "clean", "client_version": "SSH-2.0-OpenSSH_10.0"}
+{"eventid": "command_not_found", "timestamp": "2026-02-06T03:53:31.110669", "session": "dae78e72", "src_ip": "127.0.0.1", "cmd": "clean"}
+{"eventid": "command.input", "timestamp": "2026-02-06T03:53:59.282795", "session": "dae78e72", "src_ip": "127.0.0.1", "username": "root", "protocol": "ssh", "input": "ls", "client_version": "SSH-2.0-OpenSSH_10.0"}
+{"eventid": "command.input", "timestamp": "2026-02-06T03:54:00.951501", "session": "dae78e72", "src_ip": "127.0.0.1", "username": "root", "protocol": "ssh", "input": "ls", "client_version": "SSH-2.0-OpenSSH_10.0"}
+{"eventid": "command.input", "timestamp": "2026-02-06T03:54:44.386644", "session": "dae78e72", "src_ip": "127.0.0.1", "username": "root", "protocol": "ssh", "input": "clean", "client_version": "SSH-2.0-OpenSSH_10.0"}
+{"eventid": "command_not_found", "timestamp": "2026-02-06T03:54:44.389190", "session": "dae78e72", "src_ip": "127.0.0.1", "cmd": "clean"}
+[conn=5, chan=0] Sending exit status 0
+[conn=5, chan=0] Closing channel
+[conn=5, chan=0] Closing channel
+{"eventid": "session_disconnect", "timestamp": "2026-02-06T03:54:52.580468", "session": "dae78e72", "src_ip": "127.0.0.1", "reason": "clean"}
+[conn=5, chan=0] Received channel close
+[conn=5, chan=0] Channel closed

@@ -1,0 +1,13 @@
+ls
+file1.txt  flag.txt  secret.conf
+root@server:~$ ls
+cd 
+root@server:~$ cd
+ls
+file1.txt  flag.txt  secret.conf
+root@server:~$ ls
+cd
+root@server:~$ cd
+test
+test: command not found
+root@server:~$ test

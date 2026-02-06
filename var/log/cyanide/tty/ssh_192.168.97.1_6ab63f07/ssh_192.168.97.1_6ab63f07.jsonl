@@ -1,0 +1,20 @@
+{"timestamp": 1770339327.40103, "direction": "IN", "data": "ls\n"}
+{"timestamp": 1770339327.4050741, "direction": "OUT", "data": "file1.txt  flag.txt  secret.conf\n"}
+{"timestamp": 1770339327.4067066, "direction": "OUT", "data": "root@server:~$ "}
+{"timestamp": 1770339327.407162, "direction": "IN", "data": "ls\n"}
+{"timestamp": 1770339335.6452317, "direction": "IN", "data": "cd \n"}
+{"timestamp": 1770339335.6522865, "direction": "OUT", "data": ""}
+{"timestamp": 1770339335.6537604, "direction": "OUT", "data": "root@server:~$ "}
+{"timestamp": 1770339335.6551347, "direction": "IN", "data": "cd\n"}
+{"timestamp": 1770339337.751428, "direction": "IN", "data": "ls\n"}
+{"timestamp": 1770339337.7533455, "direction": "OUT", "data": "file1.txt  flag.txt  secret.conf\n"}
+{"timestamp": 1770339337.7543888, "direction": "OUT", "data": "root@server:~$ "}
+{"timestamp": 1770339337.7549236, "direction": "IN", "data": "ls\n"}
+{"timestamp": 1770339341.4209616, "direction": "IN", "data": "cd\n"}
+{"timestamp": 1770339341.422209, "direction": "OUT", "data": ""}
+{"timestamp": 1770339341.4233124, "direction": "OUT", "data": "root@server:~$ "}
+{"timestamp": 1770339341.4240224, "direction": "IN", "data": "cd\n"}
+{"timestamp": 1770339363.595097, "direction": "IN", "data": "test\n"}
+{"timestamp": 1770339363.5991669, "direction": "OUT", "data": "test: command not found\n"}
+{"timestamp": 1770339363.5999506, "direction": "OUT", "data": "root@server:~$ "}
+{"timestamp": 1770339363.600425, "direction": "IN", "data": "test\n"}

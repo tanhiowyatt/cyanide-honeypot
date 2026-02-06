@@ -34,7 +34,7 @@ class HoneypotFilter:
             # Forcing import inside method to avoid early failures if not used immediately
             pass
     
-    def __init__(self, n_clusters=75, batch_size=100):
+    def __init__(self, n_clusters=75, batch_size=100, online_learning=True):
         self.feature_extractor = FeatureExtractor()
         
         self.kmeans = MiniBatchKMeans(
@@ -51,6 +51,7 @@ class HoneypotFilter:
         self.threshold = 1.0 # Initial fallback (orthogonal)
         self.is_fitted = False
         self.logs_processed = 0
+        self.online_learning = online_learning
         
     def _update_threshold(self):
         """
@@ -96,13 +97,19 @@ class HoneypotFilter:
         # 2. Inference
         if not self.is_fitted:
             # Cold start: Treat first batch as learning phase, not anomalies
-            self.buffer.append(vector)
-            if len(self.buffer) >= self.batch_size:
-                X = np.vstack(self.buffer)
-                self.kmeans.partial_fit(X)
-                self.is_fitted = True
-                self.buffer = []
-            return False, "WARMUP", 0.0
+            # Only if online learning is enabled, otherwise we can't do anything but return default
+            if self.online_learning:
+                self.buffer.append(vector)
+                if len(self.buffer) >= self.batch_size:
+                    X = np.vstack(self.buffer)
+                    self.kmeans.partial_fit(X)
+                    self.is_fitted = True
+                    self.buffer = []
+                return False, "WARMUP", 0.0
+            else:
+                # If not fitted and training disabled, we can't really judge.
+                # Assuming loaded model is fitted. if fresh and online_learning=False, it's a dummy pass.
+                return False, "WARMUP_DISABLED", 0.0
             
         # Get distance to nearest cluster
         # transform returns array of shape (1, n_clusters)
@@ -132,12 +139,13 @@ class HoneypotFilter:
         LOGS_PROCESSED_TOTAL.labels(status=status).inc()
             
         # 4. Online Learning (Buffer)
-        self.buffer.append(vector)
-        # Train every 1000 logs to reduce latency impact
-        if len(self.buffer) >= 1000: 
-            X = np.vstack(self.buffer)
-            self.kmeans.partial_fit(X)
-            self.buffer = []
+        if self.online_learning:
+            self.buffer.append(vector)
+            # Train every 1000 logs to reduce latency impact
+            if len(self.buffer) >= 1000: 
+                X = np.vstack(self.buffer)
+                self.kmeans.partial_fit(X)
+                self.buffer = []
             
         self.logs_processed += 1
         

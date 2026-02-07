@@ -1,11 +1,9 @@
-# Use an official Python runtime as a parent image
-FROM python:3.10-slim
+# Build Stage
+FROM python:3.11-slim as builder
 
-# Set the working directory in the container
 WORKDIR /app
 
-# Install system dependencies
-# asyncssh and some other libs might require build tools or specific libraries
+# Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libffi-dev \
@@ -13,38 +11,51 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy the requirements file into the container at /app
+# Install dependencies
 COPY requirements.txt .
+RUN pip install --user --no-cache-dir -r requirements.txt
 
-# Install any needed packages specified in requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+# Runtime Stage
+FROM python:3.11-slim
 
-# Copy the current directory contents into the container at /app
-COPY . .
+WORKDIR /app
 
-# Make sure the bin scripts are executable
-RUN chmod +x bin/*
+# Install runtime libs (if any needed)
+# libffi-dev and libssl-dev might be needed for runtime linking of some libs
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libffi-dev \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-# Set environment variable for PYTHONPATH so imports work correctly
-ENV PYTHONPATH=/app/src:/app
-
-# Run ML model update during build if possible (pre-train on repo logs)
-# We ignore failure if logs/data are missing
-RUN export PYTHONPATH=$PYTHONPATH:/app/ai_models && \
-    python3 ai_models/cyanideML/validate_model.py || true
-
-# Create a non-privileged user and group
+# Create non-root user
 RUN groupadd -r cyanide && useradd -r -g cyanide cyanide
 
-# Create necessary directories and set ownership
-RUN mkdir -p var/log/cyanide var/run var/quarantine \
-    && chown -R cyanide:cyanide /app
+# Copy installed python packages from builder
+COPY --from=builder /root/.local /home/cyanide/.local
 
-# Expose ports
-EXPOSE 2222 2223 9090
+# Update PATH
+ENV PATH=/home/cyanide/.local/bin:$PATH
+ENV PYTHONPATH=/app/src:/app
+
+# Copy project files
+COPY . .
+
+# Create necessary directories and set ownership
+# We need write access to var/log/cyanide, var/lib/cyanide, var/run and data/cyanide (for txtcmds/fs.pickle updates if any)
+# Note: config is mounted read-only usually, but data might be read-only too. 
+# Var is where we write.
+RUN mkdir -p var/log/cyanide/tty var/lib/cyanide/quarantine var/run \
+    && chown -R cyanide:cyanide /app/var /app/data
 
 # Switch to non-root user
 USER cyanide
 
-# Run main.py when the container launches
-CMD ["python3", "main.py"]
+# Expose ports (High ports for non-root)
+EXPOSE 2222 2223 9090
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python3 -c "import socket; s = socket.socket(socket.AF_INET, socket.SOCK_STREAM); result = s.connect_ex(('127.0.0.1', 2222)); exit(result)"
+
+# Run main.py
+CMD ["python3", "src/cyanide/main.py"]

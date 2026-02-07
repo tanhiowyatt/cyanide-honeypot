@@ -10,10 +10,26 @@ services:
       - "9090:9090" # Metrics
     volumes:
       - ../var/log/cyanide:/app/var/log/cyanide
-      - ../var/quarantine:/app/var/quarantine
-      - ../share/cyanide/fs.pickle:/app/share/cyanide/fs.pickle
-      # Mount config if you want to edit it from outside (optional)
-      # - ../etc/cyanide.cfg:/app/etc/cyanide.cfg
+      - ../var/lib/cyanide:/app/var/lib/cyanide
+      - ../data:/app/data:ro
+      - ../config:/app/config:ro
     restart: unless-stopped
+    read_only: true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
     environment:
       - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: [ "CMD", "python3", "-c", "import socket; s = socket.socket(socket.AF_INET, socket.SOCK_STREAM); result = s.connect_ex(('127.0.0.1', 2222)); exit(result)" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3

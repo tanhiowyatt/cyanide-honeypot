@@ -9,3 +9,4 @@ aiohttp==3.9.1
 scikit-learn
 numpy
 prometheus_client
+python-dotenv

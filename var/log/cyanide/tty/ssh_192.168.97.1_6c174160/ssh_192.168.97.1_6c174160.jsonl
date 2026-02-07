@@ -1,0 +1,5 @@
+{"timestamp": 1770473576.7211785, "direction": "IN", "data": "ls\n"}
+{"timestamp": 1770473576.7268977, "direction": "OUT", "data": "file1.txt  flag.txt  secret.conf\n"}
+{"timestamp": 1770473576.7282863, "direction": "OUT", "data": "root@server:~$ "}
+{"timestamp": 1770473576.728883, "direction": "IN", "data": "ls\n"}
+{"timestamp": 1770473581.488259, "direction": "IN", "data": "exit\n"}

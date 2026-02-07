@@ -1,26 +1,6 @@
-[*] OS Profile: Ubuntu 22.04 LTS
-[*] Initializing ML Anomaly Detector...
-[!] Pre-trained model not found, starting fresh (WARMUP mode).
+[*] OS Profile: Debian 11 (Bullseye)
 [*] Starting Cyanide Honeypot...
-[*] SSH Banner: SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.6
+[*] SSH Banner: SSH-2.0-OpenSSH_8.4p1 Debian-5+deb11u3
 Creating SSH listener on 0.0.0.0, port 2222
 [*] SSH Server (Emulated) listening on port 2222
 [*] Telnet Server (Emulated) listening on port 2223
-[*] Metrics Server listening on port 9090
-[conn=0] Accepted SSH client connection
-[conn=0]   Local address: 127.0.0.1, port 2222
-[conn=0]   Peer address: 127.0.0.1, port 63581
-[conn=0] Beginning auth for user root
-[conn=0] Auth for user root succeeded
-{"eventid": "auth", "timestamp": "2026-02-07T16:53:13.788149", "session": "conn_74411e49", "src_ip": "127.0.0.1", "protocol": "ssh", "username": "root", "password": "admin", "success": true}
-[conn=0, chan=0] New SSH session requested
-{"eventid": "client_fingerprint", "timestamp": "2026-02-07T16:53:13.790282", "session": "632ea168", "src_ip": "127.0.0.1", "protocol": "ssh", "fingerprint": {"kex": "unknown", "key_algo": "rsa-sha2-256", "cipher": "chacha20-poly1305@openssh.com", "mac": "chacha20-poly1305@openssh.com", "compression": "zlib@openssh.com"}, "client_version": "SSH-2.0-AsyncSSH_2.15.0"}
-[conn=0, chan=0]   Command: echo "Hello TTY"
-[DEBUG] exec_requested: echo "Hello TTY"
-{"eventid": "command.input", "timestamp": "2026-02-07T16:53:13.791416", "session": "632ea168", "src_ip": "127.0.0.1", "username": "root", "protocol": "ssh", "input": "echo \"Hello TTY\"", "client_version": "SSH-2.0-AsyncSSH_2.15.0"}
-[conn=0, chan=0] Sending exit status 0
-[conn=0, chan=0] Closing channel
-[conn=0, chan=0] Closing channel
-{"eventid": "session_disconnect", "timestamp": "2026-02-07T16:53:13.814006", "session": "632ea168", "src_ip": "127.0.0.1", "reason": "clean"}
-[conn=0, chan=0] Received channel close
-[conn=0, chan=0] Channel closed

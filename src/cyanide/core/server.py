@@ -11,6 +11,7 @@ import uuid
 import time
 import random
 import json
+import traceback
 from pathlib import Path
 from typing import Dict, Any, Optional
 
@@ -73,10 +74,10 @@ class HoneypotServer:
             self.profile = PROFILES[profile_key]
         else:
             if profile_key != "random":
-                print(f"[!] Unknown profile '{profile_key}', falling back to random.")
+                self.logger.log_event("system", "config_warning", {"message": f"Unknown profile '{profile_key}', falling back to random."})
             self.profile = random.choice(list(PROFILES.values()))
         
-        print(f"[*] OS Profile: {self.profile['name']}")
+        self.logger.log_event("system", "system_status", {"message": f"OS Profile: {self.profile['name']}"})
         
         # Stats Manager
         self.stats = StatsManager()
@@ -86,7 +87,7 @@ class HoneypotServer:
         self.ml_online_learning = config.get("ml", {}).get("online_learning", False)
         self.ml_filter = None
         if self.ml_enabled:
-            print("[*] Initializing ML Anomaly Detector...")
+            self.logger.log_event("system", "system_status", {"message": "Initializing ML Anomaly Detector..."})
             try:
                 try:
                     from cyanide.ml.cyanideML import HoneypotFilter
@@ -96,14 +97,14 @@ class HoneypotServer:
                     model_path = Path(config_path)
                     
                     if model_path.exists():
-                        print(f"[*] Loading pre-trained ML model from {model_path}...")
+                        self.logger.log_event("system", "system_status", {"message": f"Loading pre-trained ML model from {model_path}..."})
                         self.ml_filter = HoneypotFilter.load(str(model_path))
                         self.ml_filter.online_learning = self.ml_online_learning
                     else:
-                        print("[!] Pre-trained model not found, starting fresh (WARMUP mode).")
+                        self.logger.log_event("system", "system_warning", {"message": "Pre-trained model not found, starting fresh (WARMUP mode)."})
                         self.ml_filter = HoneypotFilter(online_learning=self.ml_online_learning)
                 except (ImportError, ModuleNotFoundError) as e:
-                    print(f"[!] ML Module could not be loaded: {e}")
+                    self.logger.log_event("system", "error", {"message": f"ML Module could not be loaded: {e}"})
                     self.ml_enabled = False
                     return
                 
@@ -115,10 +116,17 @@ class HoneypotServer:
                 if kb_file.exists():
                     self.kb.load(str(kb_file))
                 else:
-                    print(f"[!] Knowledge Base file not found at {kb_file}")
+                    self.logger.log_event("system", "error", {"message": f"Knowledge Base file not found at {kb_file}"})
             except Exception as e:
-                print(f"[!] Failed to init ML model: {e}")
+                self.logger.log_event("system", "error", {"message": f"Failed to init ML model: {e}"})
+            except Exception as e:
+                self.logger.log_event("system", "error", {"message": f"Failed to init ML model: {e}"})
                 self.ml_enabled = False
+        
+        self.ssh_server = None
+        self.telnet_server = None
+        self.metrics_server = None
+
 
     def _analyze_command(self, cmd, username, src_ip, session_id, protocol):
         """Run command through ML filter and alert if anomaly."""
@@ -167,8 +175,6 @@ class HoneypotServer:
                 f.write(json.dumps(ml_log_entry) + "\n")
 
             if is_anomaly:
-                print(f"[!] ML ANOMALY: {reason} from {src_ip}")
-                
                 # Log to generic logger
                 asyncio.create_task(self.logger.log_event_async({
                     "event": "ml_anomaly",
@@ -179,7 +185,7 @@ class HoneypotServer:
                 }))
                 
         except Exception as e:
-            print(f"[!] ML Error: {e}")
+            self.logger.log_event(session_id, "error", {"message": f"ML Error: {e}"})
 
     async def log_geoip(self, session_id, ip, protocol):
         """Async GeoIP enrichment logging."""
@@ -244,7 +250,7 @@ class HoneypotServer:
                 fs.root = root # Hot-swap root
                 return fs
             except Exception as e:
-                print(f"Error loading pickle FS: {e}")
+                self.logger.log_event(session_id, "error", {"message": f"Error loading pickle FS: {e}"})
         return FakeFilesystem(audit_callback=audit_hook, profile=self.profile)
 
     async def _scan_and_log(self, filename: str, content: bytes, session_id="unknown", src_ip="unknown"):
@@ -264,7 +270,12 @@ class HoneypotServer:
                 })
                 self.stats.on_malware(filename, result.get("malicious", False))
         except Exception as e:
-            print(f"[!] Scan Error: {e}")
+            await self.logger.log_event_async({
+                "event": "scan_error",
+                "session_id": session_id,
+                "src_ip": src_ip,
+                "message": f"Scan Error: {e}"
+            })
 
     def save_quarantine_file(self, filename: str, content: bytes, session_id="unknown", src_ip="unknown"):
         """Save a file to the quarantine directory with quota check."""
@@ -274,7 +285,7 @@ class HoneypotServer:
             content_size = len(content)
             
             if (current_size + content_size) > (self.quarantine_max_mb * 1024 * 1024):
-                print(f"[!] Quarantine Quota Reached ({self.quarantine_max_mb}MB). Rejecting {filename}")
+                self.logger.log_event(session_id, "quarantine_warning", {"message": f"Quarantine Quota Reached ({self.quarantine_max_mb}MB). Rejecting {filename}"})
                 return None
 
             timestamp = int(time.time())
@@ -290,7 +301,7 @@ class HoneypotServer:
                 
             return str(target_path)
         except Exception as e:
-            print(f"[!] Error saving quarantine file: {e}")
+            self.logger.log_event(session_id, "error", {"message": f"Error saving quarantine file: {e}"})
             return None
     def _log_tty(self, session_obj, direction: str, data: str):
         """Dual format logging: JSONL for reading + Timing/TS for scriptreplay."""
@@ -311,7 +322,7 @@ class HoneypotServer:
                 with open(session_obj.tty_log_path_jsonl, "a") as f:
                     f.write(json.dumps(entry) + "\n")
             except Exception as e:
-                print(f"[!] Error saving JSONL TTY: {e}")
+                self.logger.log_event("system", "tty_error", {"message": f"Error saving JSONL TTY: {e}"})
 
         # 2. Timing + TypeScript Log (scriptreplay)
         if hasattr(session_obj, 'tty_log_path') and hasattr(session_obj, 'tty_timing_path'):
@@ -329,7 +340,7 @@ class HoneypotServer:
                     else:
                         f_log.write(data)
             except Exception as e:
-                print(f"[!] Error saving scriptreplay TTY: {e}")
+                self.logger.log_event("system", "tty_error", {"message": f"Error saving scriptreplay TTY: {e}"})
 
     async def start_metrics_server(self):
         """Start a lightweight HTTP server for metrics and stats."""
@@ -377,7 +388,7 @@ class HoneypotServer:
                              ml_metrics = generate_latest().decode()
                              content += "\n" + ml_metrics
                          except Exception as e:
-                             print(f"Error generating ML metrics: {e}")
+                             self.logger.log_event("system", "metrics_error", {"message": f"Error generating ML metrics: {e}"})
                              
                     content_type = "text/plain; version=0.0.4; charset=utf-8"
                 elif path == "/stats":
@@ -399,18 +410,18 @@ class HoneypotServer:
                 writer.write(response)
                 await writer.drain()
             except Exception as e:
-                print(f"[!] Metrics Handler Error: {e}")
+                self.logger.log_event("system", "metrics_handler_error", {"message": f"Metrics Handler Error: {e}"})
             finally:
                 writer.close()
                 await writer.wait_closed()
 
         try:
-            server = await asyncio.start_server(handle_request, "0.0.0.0", port)
-            print(f"[*] Metrics Server listening on port {port}")
-            async with server:
-                await server.serve_forever()
+            self.metrics_server = await asyncio.start_server(handle_request, "0.0.0.0", port)
+            self.logger.log_event("system", "service_started", {"service": "metrics", "port": port})
+            async with self.metrics_server:
+                await self.metrics_server.serve_forever()
         except Exception as e:
-            print(f"[!] Metrics Server Error: {e}")
+            self.logger.log_event("system", "metrics_server_error", {"message": f"Metrics Server Error: {e}"})
 
     async def start(self):
         """Start all honeypot services and enter main event loop."""
@@ -432,16 +443,16 @@ class HoneypotServer:
                 # Anti-Fingerprinting
                 # Use consistent banner from profile
                 chosen_version = self.profile["ssh_banner"]
-                print(f"[*] SSH Banner: {chosen_version}")
+                self.logger.log_event("system", "system_status", {"message": f"SSH Banner: {chosen_version}"})
                 
-                ssh_server = await asyncssh.listen(
+                self.ssh_server = await asyncssh.listen(
                     "0.0.0.0", ssh_port,
                     server_host_keys=[ssh_key],
                     server_factory=lambda: SSHServerFactory(self),
                     reuse_address=True,
                     server_version=chosen_version
                 )
-                print(f"[*] SSH Server (Emulated) listening on port {ssh_port}", flush=True)
+                self.logger.log_event("system", "service_started", {"service": "ssh_emulated", "port": ssh_port})
             elif backend_mode == "proxy" or backend_mode == "pool":
                  # Use TCP Proxy for pure SSH monitoring (simplest approach for "Pure Proxy" request)
                  # Or use the specific SSH Proxy implementation if we want to dissect packets?
@@ -468,10 +479,10 @@ class HoneypotServer:
             backend_mode = telnet_conf.get("backend_mode", "emulated")
 
             if backend_mode == "emulated":
-                telnet_server = await asyncio.start_server(
+                self.telnet_server = await asyncio.start_server(
                     self.handle_telnet, "0.0.0.0", telnet_port, reuse_address=True
                 )
-                print(f"[*] Telnet Server (Emulated) listening on port {telnet_port}", flush=True)
+                self.logger.log_event("system", "service_started", {"service": "telnet_emulated", "port": telnet_port})
             elif backend_mode == "pool" or backend_mode == "proxy":
                  selector = self.vm_pool.get_target if backend_mode == "pool" else None
                  t_host = telnet_conf.get("target_host", "127.0.0.1")
@@ -498,7 +509,7 @@ class HoneypotServer:
                 )
                 await smtp_proxy.start()
             except Exception as e:
-                print(f"[!] Failed to start SMTP Proxy: {e}")
+                self.logger.log_event("system", "smtp_proxy_error", {"message": f"Failed to start SMTP Proxy: {e}"})
 
 
 
@@ -508,8 +519,29 @@ class HoneypotServer:
         # Start Cleanup Task
         asyncio.create_task(self._cleanup_loop())
         
+
         # Keep running
-        await asyncio.Future()
+        try:
+            self._stop_event = asyncio.Event()
+            await self._stop_event.wait()
+        except asyncio.CancelledError:
+            await self.stop()
+
+    async def stop(self):
+        """Stop all services."""
+        self.logger.log_event("system", "system_status", {"message": "Stopping Honeypot Server..."})
+        if self.ssh_server:
+            self.ssh_server.close()
+            await self.ssh_server.wait_closed()
+        if self.telnet_server:
+            self.telnet_server.close()
+            await self.telnet_server.wait_closed()
+        if self.metrics_server:
+            self.metrics_server.close()
+            await self.metrics_server.wait_closed()
+        if hasattr(self, '_stop_event'):
+            self._stop_event.set()
+
 
     async def _cleanup_loop(self):
         """Background task for automatic file cleanup."""
@@ -520,10 +552,10 @@ class HoneypotServer:
         manager = CleanupManager(self.config)
         
         if not manager.enabled:
-            print("[*] Cleanup: Disabled")
+            self.logger.log_event("system", "cleanup_status", {"message": "Cleanup: Disabled"})
             return
             
-        print(f"[*] Cleanup: Enabled (Every {manager.interval}s, older than {manager.retention_days}d)")
+        self.logger.log_event("system", "cleanup_status", {"message": f"Cleanup: Enabled (Every {manager.interval}s, older than {manager.retention_days}d)"})
         
         while True:
             try:
@@ -535,7 +567,7 @@ class HoneypotServer:
                        "bytes_freed": stats["bytes_freed"]
                    })
             except Exception as e:
-                print(f"[!] Cleanup Error: {e}")
+                self.logger.log_event("system", "cleanup_error", {"message": f"Cleanup Error: {e}"})
                 
             await asyncio.sleep(manager.interval)
 
@@ -545,14 +577,14 @@ class HoneypotServer:
         
         # Global limit
         if self.active_sessions >= self.max_sessions:
-            print(f"[!] Telnet: Global session limit reached ({self.max_sessions})")
+            self.logger.log_event("system", "connection_rejected", {"src_ip": src_ip, "reason": "global_limit_reached"})
             writer.close()
             return
             
         # Per-IP limit
         per_ip_count = self.sessions_per_ip.get(src_ip, 0)
         if per_ip_count >= self.max_sessions_per_ip:
-            print(f"[!] Telnet: Per-IP limit reached for {src_ip} ({self.max_sessions_per_ip})")
+            self.logger.log_event("system", "connection_rejected", {"src_ip": src_ip, "reason": "per_ip_limit_reached"})
             writer.close()
             return
 
@@ -662,7 +694,6 @@ class HoneypotServer:
                          self._analyze_command(cmd, username, src_ip, session_id, "telnet")
                     
                     # Jitter
-                    import random
                     await asyncio.sleep(random.uniform(0.05, 0.3))
                     
                     
@@ -696,9 +727,8 @@ class HoneypotServer:
                     writer.write(b"\r\nTimeout.\r\n")
                     break
         except Exception as e:
-            print(f"[!] Telnet: Connection Error from {src_ip}: {e}")
-            import traceback
-            traceback.print_exc()
+            self.logger.log_event("system", "telnet_error", {"src_ip": src_ip, "message": f"Telnet Connection Error: {e}"})
+            self.logger.log_event(session_id, "telnet_exception", {"traceback": traceback.format_exc()})
         finally:
             duration = time.time() - start_time
             await self.logger.log_event_async({
@@ -729,13 +759,13 @@ class SSHServerFactory(asyncssh.SSHServer):
         
         # Check limits early
         if self.honeypot.active_sessions >= self.honeypot.max_sessions:
-             print(f"[!] SSH: Global limit reached")
+             self.honeypot.logger.log_event("system", "connection_rejected", {"src_ip": self.src_ip, "reason": "global_limit_reached"})
              conn.close()
              return
              
         per_ip = self.honeypot.sessions_per_ip.get(self.src_ip, 0)
         if per_ip >= self.honeypot.max_sessions_per_ip:
-             print(f"[!] SSH: Per-IP limit reached for {self.src_ip}")
+             self.honeypot.logger.log_event("system", "connection_rejected", {"src_ip": self.src_ip, "reason": "per_ip_limit_reached"})
              conn.close()
              return
 
@@ -752,7 +782,7 @@ class SSHServerFactory(asyncssh.SSHServer):
             self.honeypot.sessions_per_ip[self.src_ip] = max(0, self.honeypot.sessions_per_ip[self.src_ip] - 1)
             if self.honeypot.sessions_per_ip[self.src_ip] == 0:
                 del self.honeypot.sessions_per_ip[self.src_ip]
-        print(f"[*] SSH Connection Lost from {self.src_ip} (Active: {self.honeypot.active_sessions})")
+        self.honeypot.logger.log_event("system", "ssh_connection_lost", {"src_ip": self.src_ip, "active_sessions": self.honeypot.active_sessions})
         
     def password_auth_supported(self):
         return True
@@ -1058,7 +1088,7 @@ class SSHSession(asyncssh.SSHServerSession):
                 self._log_tty("IN", cmd + "\n")
                 
         except Exception as e:
-            print(f"[DEBUG] process_input error: {e}", flush=True)
+            self.honeypot.logger.log_event(self.session_id, "debug", {"message": f"process_input error: {e}"})
     
     async def _close_session(self):
         await asyncio.sleep(0.01)
@@ -1067,7 +1097,7 @@ class SSHSession(asyncssh.SSHServerSession):
         self.channel.close()
 
     def exec_requested(self, command):
-        print(f"[DEBUG] exec_requested: {command}", flush=True)
+        self.honeypot.logger.log_event(self.session_id, "debug", {"message": f"exec_requested: {command}"})
         self.commands.append(command)
         asyncio.create_task(self.honeypot.logger.log_command(
             self.session_id, "ssh", self.src_ip, self.username, command,

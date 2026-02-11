@@ -8,7 +8,7 @@ from pathlib import Path
 # Add src to path to import core modules
 sys.path.append(os.path.join(os.path.dirname(__file__), '../src'))
 
-from core.filesystem_nodes import Directory, File
+from cyanide.core.filesystem_nodes import Directory, File
 from cyanide.fs.pickle import save_fs
 
 def create_fs_from_real(real_path: str) -> Directory:
@@ -85,7 +85,7 @@ def create_fs_from_real(real_path: str) -> Directory:
 def main():
     parser = argparse.ArgumentParser(description="Create a cyanide fs.pickle from a real directory")
     parser.add_argument("path", help="Path to the real directory content")
-    parser.add_argument("--output", "-o", default="share/cyanide/fs.pickle", help="Output pickle file")
+    parser.add_argument("--output", "-o", default="data/cyanide/fs.pickle", help="Output pickle file")
     
     args = parser.parse_args()
     

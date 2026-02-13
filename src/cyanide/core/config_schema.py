@@ -41,6 +41,7 @@ class CyanideConfig(BaseModel):
     fs_yaml: Optional[str] = None
     quarantine_path: str = "var/lib/cyanide/quarantine"
     os_profile: str = "random"
+    dns_cache_ttl: int = 60
     custom_profile: Dict[str, str] = Field(default_factory=dict)
     
     # Core (Session Manager)

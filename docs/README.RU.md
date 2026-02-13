@@ -113,6 +113,12 @@ metadata:
   ssh_banner: "SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.1"
   uname_r: "5.15.0-76-generic"
   uname_a: "Linux server 5.15.0-76-generic #46-Ubuntu SMP Fri Jul 10 00:24:02 UTC 2020 x86_64 x86_64 x86_64 GNU/Linux"
+
+### 🛡️ Безопасность и DNS
+Cyanide защищен от атак типа SSRF и DNS Rebinding:
+*   **Валидация IP**: `curl` и `wget` проверяют все IP-адреса хоста.
+*   **DNS Pinning**: Результаты DNS кешируются (настраивается через `dns_cache_ttl`) для предотвращения подмены IP во время запроса.
+*   **Health Check**: Эндпоинт `/health` (порт 9090) позволяет следить за состоянием сервисов.
 ```
 
 ### 🎯 Ручное редактирование

@@ -44,7 +44,12 @@ class Command:
             if hasattr(self.emulator, "dns_cache") and hostname in self.emulator.dns_cache:
                 ip_str, expiry = self.emulator.dns_cache[hostname]
                 if now < expiry:
+                    if hasattr(self.emulator, "stats"):
+                        self.emulator.stats.dns_cache_hits += 1
                     return True, "", ip_str
+
+            if hasattr(self.emulator, "stats"):
+                self.emulator.stats.dns_cache_misses += 1
 
             # Resolve to IP
             try:
@@ -66,8 +71,8 @@ class Command:
                 
                 # Cache the first valid IP
                 if hasattr(self.emulator, "dns_cache") and valid_ip:
-                    # 60 seconds TTL
-                    self.emulator.dns_cache[hostname] = (valid_ip, now + 60)
+                    ttl = self.emulator.config.get("dns_cache_ttl", 60) if hasattr(self.emulator, "config") else 60
+                    self.emulator.dns_cache[hostname] = (valid_ip, now + ttl)
                 
                 return True, "", valid_ip
                     

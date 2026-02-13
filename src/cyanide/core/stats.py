@@ -19,6 +19,8 @@ class StatsManager:
         self.honeytoken_triggers = Counter()
         self.malware_scans = Counter()
         self.malicious_files = Counter()
+        self.dns_cache_hits = 0
+        self.dns_cache_misses = 0
         
         # Recent activity (FIFO)
         self.recent_commands: List[Dict[str, Any]] = []
@@ -101,5 +103,14 @@ class StatsManager:
         # Malware
         lines.append(f"cyanide_malware_scans_total {sum(self.malware_scans.values())}")
         lines.append(f"cyanide_malicious_files_total {sum(self.malicious_files.values())}")
+        
+        # DNS Cache
+        lines.append("# HELP cyanide_dns_cache_hits_total Total DNS cache hits")
+        lines.append("# TYPE cyanide_dns_cache_hits_total counter")
+        lines.append(f"cyanide_dns_cache_hits_total {self.dns_cache_hits}")
+        
+        lines.append("# HELP cyanide_dns_cache_misses_total Total DNS cache misses")
+        lines.append("# TYPE cyanide_dns_cache_misses_total counter")
+        lines.append(f"cyanide_dns_cache_misses_total {self.dns_cache_misses}")
         
         return "\n".join(lines) + "\n"

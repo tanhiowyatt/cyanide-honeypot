@@ -8,6 +8,7 @@ General settings.
 *   `log_path`: Directory for logs.
 *   `data_path`: Directory for persistence.
 *   `fs_yaml`: Primary YAML filesystem template (optional if using profiles).
+*   `dns_cache_ttl`: TTL in seconds for DNS caching in URL validation (default 60).
 
 
 ## [server]
@@ -73,6 +74,8 @@ Protection against aggressive bot scanning.
 
 ## [security]
 *   `allow_local_network`: true/false (default false). Blocks `curl`/`wget` access to internal/loopback IPs to prevent SSRF.
+    -   Cyanide resolves hostnames and checks all returned IP addresses.
+    -   DNS resolution is cached and pinned for the duration of the request (see `dns_cache_ttl`) to prevent DNS rebinding attacks.
 
 ---
 
@@ -118,3 +121,8 @@ oracle = oracle
 test = 1234
 ```
 *Note: In 'emulated' mode, any username not in this list will fail authentication.*
+
+---
+
+## 📊 Next Steps
+For advanced monitoring, tracing, and metrics setup, see the **[Observability Guide](OBSERVABILITY.md)**.

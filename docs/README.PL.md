@@ -115,6 +115,12 @@ Wszystkie sesje są nagrywane w `var/log/cyanide/tty/`. Każda sesja ma własny 
    ssh_banner: "SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.1"
    uname_r: "5.15.0-76-generic"
    uname_a: "Linux server 5.15.0-76-generic #46-Ubuntu SMP Fri Jul 10 00:24:02 UTC 2020 x86_64 x86_64 x86_64 GNU/Linux"
+
+ ### 🛡️ Bezpieczeństwo i DNS
+ Cyanide jest chroniony przed atakami SSRF i DNS Rebinding:
+ *   **Walidacja IP**: `curl` i `wget` sprawdzają wszystkie adresy IP hosta.
+ *   **DNS Pinning**: Wyniki DNS są buforowane (konfigurowalne przez `dns_cache_ttl`), aby zapobiec podmianie IP podczas żądania.
+ *   **Health Check**: Endpoint `/health` (port 9090) pozwala monitorować stan usług.
  ```
  
  ### 🎯 Ręczna edycja

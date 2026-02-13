@@ -16,6 +16,10 @@ All notable changes to this project will be documented in this file.
     - Implemented a robust fallback mechanism in `yaml_fs.py` and `server.py` using `src/cyanide/core/defaults.py`.
     - Updated "random" profile selection to dynamically pick from available YAML files in `config/fs-config/`.
 - **Smoke Test Cleanup**: Updated `tests/smoke_test.py` to use the `requests` library instead of `urllib.request` for better consistency and cleaner code.
+- **Configurable DNS TTL**: Added `dns_cache_ttl` to `[honeypot]` section in `cyanide.cfg` (defaults to 60s).
+- **DNS Metrics**: Added `cyanide_dns_cache_hits_total` and `cyanide_dns_cache_misses_total` Prometheus metrics.
+- **Refined Health Check**: Improved `/health` endpoint to accurately check statuses of enabled services.
+- **Observability Docs**: Created `docs/OBSERVABILITY.md` with Jaeger/Tracing setup instructions.
 
 ### Fixed
 - Circular import between `server.py` and `yaml_fs.py` by moving profile constants to `src/cyanide/core/defaults.py`.

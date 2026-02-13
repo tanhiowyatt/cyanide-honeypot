@@ -44,6 +44,7 @@ The project is built on a modular principle using modern Python patterns:
 | `src/cyanide/commands/` | Implementations of emulated Linux commands |
 | `var/log/cyanide/` | JSON logs and TTY recordings |
 | `var/lib/cyanide/` | Data persistence and quarantine |
+| `docs/` | Comprehensive guides for **[Configuration](docs/configuration.md)** and **[Observability](docs/OBSERVABILITY.md)** |
 
 ---
 

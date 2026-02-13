@@ -341,13 +341,20 @@ class HoneypotServer:
                     content_type = "application/json"
                 elif path == "/health":
                     # Check core services
-                    ssh_status = "up" if self.ssh_server else "down"
-                    telnet_status = "up" if self.telnet_server else "down" # Might be None if disabled
+                    ssh_conf = self.config.get("ssh", {})
+                    telnet_conf = self.config.get("telnet", {})
                     
-                    # If enabled in config but server is None, that's an issue (unless starting up)
-                    # For now, just report status
+                    ssh_status = "up" if self.ssh_server else ("down" if ssh_conf.get("enabled", True) else "disabled")
+                    telnet_status = "up" if self.telnet_server else ("down" if telnet_conf.get("enabled", False) else "disabled")
+                    
+                    is_healthy = True
+                    if ssh_conf.get("enabled", True) and not self.ssh_server:
+                        is_healthy = False
+                    if telnet_conf.get("enabled", False) and not self.telnet_server:
+                        is_healthy = False
+                        
                     status_data = {
-                        "status": "healthy",
+                        "status": "healthy" if is_healthy else "unhealthy",
                         "ssh": ssh_status,
                         "telnet": telnet_status,
                         "uptime": time.time() - self.stats.start_time

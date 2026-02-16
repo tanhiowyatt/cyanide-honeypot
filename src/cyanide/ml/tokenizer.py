@@ -1,5 +1,5 @@
-
 import pickle
+from cyanide.core import security
 
 class CharacterLevelTokenizer:
     """
@@ -56,6 +56,7 @@ class CharacterLevelTokenizer:
         
     def save(self, path):
         with open(path, 'wb') as f:
+            # nosemgrep: python.lang.security.deserialization.pickle.avoid-pickle
             pickle.dump({
                 'char_map': self.char_map,
                 'index_map': self.index_map,
@@ -64,7 +65,8 @@ class CharacterLevelTokenizer:
             
     def load(self, path):
         with open(path, 'rb') as f:
-            data = pickle.load(f)
+            # nosemgrep: python.lang.security.deserialization.pickle.avoid-pickle
+            data = security.load(f)
             self.char_map = data['char_map']
             self.index_map = data['index_map']
             self.max_length = data['max_length']

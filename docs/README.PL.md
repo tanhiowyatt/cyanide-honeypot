@@ -12,7 +12,7 @@
 *   **Zaawansowany Shell**: Obsługa potoków (`|`), przekierowań (`>`, `>>`), logiki (`&&`, `||`) i zmiennych środowiskowych.
 *   **Anti-Fingerprinting**:
     *   **Network Jitter**: Losowe opóźnienia odpowiedzi (50-300ms).
-    *   **Profile OS**: Maskowanie jako **Ubuntu 22.04**, **Debian 11** lub **CentOS 7** (banery, `uname`, `/proc`).
+    *   **Profile OS**: Realistyczne maskowanie jako **Ubuntu**, **Debian** lub **CentOS** z dynamicznymi listami procesów (`ps`), plikami `/proc` i historycznymi znacznikami czasu systemu plików.
 
 ### 🛡️ Hybrydowy System Wykrywania
 Cyanide wykorzystuje 3-warstwowy silnik do identyfikacji zagrożeń:

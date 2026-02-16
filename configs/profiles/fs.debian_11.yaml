@@ -1,9 +1,21 @@
 metadata:
   os_name: "Debian 11 (Bullseye)"
+  os_id: debian
+  os_pretty_name: "Debian GNU/Linux 11 (bullseye)"
+  os_version_id: "11"
+  os_version: "11 (bullseye)"
+  os_id_like: debian
+  install_date: "2024-01-31T10:00:00Z"
   ssh_banner: SSH-2.0-OpenSSH_8.4p1 Debian-5+deb11u3
   uname_r: 5.10.0-28-amd64
   uname_a: Linux server 5.10.0-28-amd64 #1 SMP Debian 5.10.209-2 (2024-01-31) x86_64 GNU/Linux
   proc_version: "Linux version 5.10.0-28-amd64 (debian-kernel@lists.debian.org) (gcc-10 (Debian 10.2.1-6) 10.2.1 20210110, GNU ld (GNU Binutils for Debian) 2.35.2) #1 SMP Debian 5.10.209-2 (2024-01-31)\n"
+  processes:
+    - {pid: 1, tty: "?", time: "00:00:15", cmd: "/sbin/init"}
+    - {pid: 2, tty: "?", time: "00:00:00", cmd: "[kthreadd]"}
+    - {pid: 3, tty: "?", time: "00:00:00", cmd: "[rcu_gp]"}
+    - {pid: 345, tty: "?", time: "00:00:02", cmd: "/lib/systemd/systemd-journald"}
+    - {pid: 890, tty: "?", time: "00:00:04", cmd: "/usr/sbin/sshd -D"}
 
 name: root
 type: directory
@@ -747,47 +759,6 @@ children:
     type: file
     perm: -rw-r--r--
     content: 'If you are reading this, you are in a honeypot!
-
-      '
-  - name: os-release
-    type: file
-    perm: -rw-r--r--
-    owner: root
-    group: root
-    content: 'PRETTY_NAME="Debian GNU/Linux 11 (bullseye)"
-
-      NAME="Debian GNU/Linux"
-
-      VERSION_ID="11"
-
-      VERSION="11 (bullseye)"
-
-      ID=debian
-
-      '
-  - name: debian_version
-    type: file
-    perm: -rw-r--r--
-    owner: root
-    group: root
-    content: '11.9
-
-      '
-  - name: issue
-    type: file
-    perm: -rw-r--r--
-    owner: root
-    group: root
-    content: 'Debian GNU/Linux 11 \n \l
-
-
-      '
-  - name: issue.net
-    type: file
-    perm: -rw-r--r--
-    owner: root
-    group: root
-    content: 'Debian GNU/Linux 11
 
       '
 - name: home

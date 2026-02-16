@@ -1,9 +1,29 @@
 metadata:
   os_name: Ubuntu 22.04 LTS
+  os_id: ubuntu
+  os_pretty_name: "Ubuntu 22.04.3 LTS (Jammy Jellyfish)"
+  os_version_id: "22.04"
+  os_version: "22.04.3 LTS (Jammy Jellyfish)"
+  os_id_like: debian
+  install_date: "2023-06-14T14:23:44Z"
   ssh_banner: SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.1
   uname_r: 5.15.0-76-generic
   uname_a: "Linux server 5.15.0-76-generic #81-Ubuntu SMP Wed Jun 14 14:23:44 UTC 2023 x86_64 x86_64 x86_64 GNU/Linux"
   proc_version: "Linux version 5.15.0-76-generic (buildd@lcy02-amd64-015) (gcc (Ubuntu 11.3.0-1ubuntu1~22.04.1) 11.3.0, GNU ld (GNU Binutils for Ubuntu) 2.38) #81-Ubuntu SMP Wed Jun 14 14:23:44 UTC 2023\n"
+  processes:
+    - {pid: 1, tty: "?", time: "00:00:15", cmd: "/sbin/init"}
+    - {pid: 2, tty: "?", time: "00:00:00", cmd: "[kthreadd]"}
+    - {pid: 3, tty: "?", time: "00:00:00", cmd: "[rcu_gp]"}
+    - {pid: 4, tty: "?", time: "00:00:00", cmd: "[rcu_par_gp]"}
+    - {pid: 6, tty: "?", time: "00:00:00", cmd: "[kworker/0:0H-kblockd]"}
+    - {pid: 9, tty: "?", time: "00:00:00", cmd: "[mm_percpu_wq]"}
+    - {pid: 10, tty: "?", time: "00:00:00", cmd: "[rcu_tasks_kthre]"}
+    - {pid: 345, tty: "?", time: "00:00:02", cmd: "/lib/systemd/systemd-journald"}
+    - {pid: 367, tty: "?", time: "00:00:01", cmd: "/lib/systemd/systemd-udevd"}
+    - {pid: 580, tty: "?", time: "00:00:00", cmd: "/usr/sbin/cron -f"}
+    - {pid: 585, tty: "?", time: "00:00:00", cmd: "/usr/bin/dbus-daemon --system --address=systemd: --nofork --nopidfile --systemd-activation --syslog-only"}
+    - {pid: 645, tty: "?", time: "00:00:00", cmd: "/usr/sbin/rsyslogd -n -iNONE"}
+    - {pid: 890, tty: "?", time: "00:00:04", cmd: "/usr/sbin/sshd -D"}
 
 name: root
 type: directory
@@ -747,61 +767,6 @@ children:
     type: file
     perm: -rw-r--r--
     content: 'If you are reading this, you are in a honeypot!
-
-      '
-  - name: os-release
-    type: file
-    perm: -rw-r--r--
-    owner: root
-    group: root
-    content: 'PRETTY_NAME="Ubuntu 22.04.3 LTS"
-
-      NAME="Ubuntu"
-
-      VERSION_ID="22.04"
-
-      VERSION="22.04.3 LTS (Jammy Jellyfish)"
-
-      ID=ubuntu
-
-      '
-  - name: lsb-release
-    type: file
-    perm: -rw-r--r--
-    owner: root
-    group: root
-    content: 'DISTRIB_ID=Ubuntu
-
-      DISTRIB_RELEASE=22.04
-
-      DISTRIB_CODENAME=jammy
-
-      DISTRIB_DESCRIPTION="Ubuntu 22.04.3 LTS"
-
-      '
-  - name: debian_version
-    type: file
-    perm: -rw-r--r--
-    owner: root
-    group: root
-    content: 'bookworm/sid
-
-      '
-  - name: issue
-    type: file
-    perm: -rw-r--r--
-    owner: root
-    group: root
-    content: 'Ubuntu 22.04.3 LTS \n \l
-
-
-      '
-  - name: issue.net
-    type: file
-    perm: -rw-r--r--
-    owner: root
-    group: root
-    content: 'Ubuntu 22.04.3 LTS
 
       '
 - name: home

@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.2] - 2026-02-17
+
+### Added
+- **OS Emulation Fidelity**: Significant overhaul of the environment masquerade system.
+    - **Data-Driven `ps`**: Process list is now defined in YAML profiles, removing hardcoded logic from the command itself.
+    - **Enriched `/etc/os-release`**: Dynamic generation supporting `ID_LIKE`, `VERSION_ID`, and `PRETTY_NAME` fields.
+    - **Historical Timestamps**: Simulation of an "aged" filesystem using `install_date` and stochastic offsets.
+    - **Dynamic `/proc` Files**: Real-time generation for `/proc/uptime` and `/proc/meminfo` using `DynamicFile` class.
+- **CI/CD Stabilization**: Optimized Docker builds and fixed dependency conflicts.
+
+### Fixed
+- **OpenTelemetry Polish**: Prevented `Overriding of current TracerProvider` warnings during tests.
+- **Pytest Coverage**: Resolved conflicts between `pyproject.toml` and `tox.ini` coverage settings.
+
 ## [2.1.1] - 2026-02-13
 
 ### Security

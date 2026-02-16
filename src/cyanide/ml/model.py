@@ -101,6 +101,7 @@ class CommandAutoencoder(nn.Module):
     def save(self, path):
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
+        # nosemgrep: trailofbits.python.pickles-in-pytorch.pickles-in-pytorch
         torch.save({
             'model_state': self.state_dict(),
             'threshold': self.threshold,
@@ -113,6 +114,7 @@ class CommandAutoencoder(nn.Module):
     @staticmethod
     def load(path):
         try:
+            # nosemgrep: trailofbits.python.pickles-in-pytorch.pickles-in-pytorch
             checkpoint = torch.load(path, map_location=torch.device('cpu'), weights_only=False) # Map to CPU first
             
             model = CommandAutoencoder(

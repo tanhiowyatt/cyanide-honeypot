@@ -20,7 +20,7 @@
 *   **Advanced Shell**: Supports pipes (`|`), redirections (`>`, `>>`), logic (`&&`, `||`), and environment variables.
 *   **Anti-Fingerprinting**: 
     *   **Network Jitter**: Randomized response delays (50-300ms).
-    *   **OS Profiles**: Masquerade as **Ubuntu 22.04**, **Debian 11**, or **CentOS 7** (banners, `uname`, `/proc` matching).
+    *   **OS Profiles**: Realistic masquerade as **Ubuntu**, **Debian**, or **CentOS** with data-driven `ps` lists, dynamic `/proc` files, and historical filesystem timestamps.
 
 ### 🛡️ Hybrid Detection System
 Cyanide employs a 3-layer detection engine to identify malicious intent:

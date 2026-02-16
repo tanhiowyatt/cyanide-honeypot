@@ -30,5 +30,9 @@ def setup_telemetry(service_name: str, config: dict, version: str = "1.0.0"):
         provider.add_span_processor(processor)
         print("[*] Telemetry: Console Exporter enabled")
     
-    trace.set_tracer_provider(provider)
+    # Only set global provider if not already set (prevents warnings in tests)
+    from opentelemetry.trace import ProxyTracerProvider
+    if isinstance(trace.get_tracer_provider(), ProxyTracerProvider):
+        trace.set_tracer_provider(provider)
+    
     return trace.get_tracer(service_name)

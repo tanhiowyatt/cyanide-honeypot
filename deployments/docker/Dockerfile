@@ -1,5 +1,5 @@
 # Build Stage
-FROM python:3.14-slim AS builder
+FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
@@ -15,10 +15,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install dependencies
 COPY pyproject.toml .
 COPY src/ src/
-RUN pip install --user --no-cache-dir .
+RUN pip install --user --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --user --no-cache-dir .
 
 # Runtime Stage
-FROM python:3.14-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 

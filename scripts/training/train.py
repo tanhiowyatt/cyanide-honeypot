@@ -111,7 +111,7 @@ def train_anomaly_detector(force=False):
     
     # 3. Prepare DataLoader
     dataset = CommandDataset(commands, model.tokenizer)
-    dataloader = DataLoader(dataset, batch_size=64, shuffle=True)
+    dataloader = DataLoader(dataset, batch_size=64, shuffle=True, pin_memory=True)
     
     # 4. Optimizer & Scheduler
     optimizer = optim.Adam(model.parameters(), lr=0.001)

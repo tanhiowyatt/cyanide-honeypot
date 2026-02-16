@@ -1,6 +1,9 @@
 from pathlib import PurePosixPath
 import posixpath
-from .nodes import Directory, File, Node
+import datetime
+import random
+import time
+from .nodes import Directory, File, Node, DynamicFile
 # print(f"DEBUG: Loading FakeFilesystem from {__file__}")
 
 class FakeFilesystem:
@@ -26,24 +29,110 @@ class FakeFilesystem:
         if not self.profile:
             return
 
-        # 1. /proc/version
+        # --- 1. /proc/version ---
         if "proc_version" in self.profile:
             if not self.exists("/proc/version"):
                 self.mkdir_p("/proc")
                 self.mkfile("/proc/version", content=self.profile["proc_version"])
 
-        # 2. /etc/issue
+        # --- 2. /etc/issue ---
         if "etc_issue" in self.profile:
             if not self.exists("/etc/issue"):
                 self.mkdir_p("/etc")
                 self.mkfile("/etc/issue", content=self.profile["etc_issue"])
+        elif "os_name" in self.profile and not self.exists("/etc/issue"):
+             self.mkdir_p("/etc")
+             self.mkfile("/etc/issue", content=f"{self.profile['os_name']} \\n \\l\n")
 
-        # 3. /etc/os-release (partial generation if missing)
-        if "os_name" in self.profile and not self.exists("/etc/os-release"):
+        # --- 3. /etc/os-release (enriched generation) ---
+        if "os_id" in self.profile or "os_name" in self.profile:
             self.mkdir_p("/etc")
-            os_name = self.profile["os_name"]
-            content = f'PRETTY_NAME="{os_name}"\nNAME="{os_name}"\nID={os_name.lower().split()[0]}\n'
+            lines = []
+            
+            # Use os_pretty_name or fall back to os_name
+            pretty_name = self.profile.get("os_pretty_name", self.profile.get("os_name", "Linux"))
+            lines.append(f'PRETTY_NAME="{pretty_name}"')
+            
+            # Name
+            name = self.profile.get("os_name", "Linux")
+            lines.append(f'NAME="{name}"')
+            
+            # ID
+            os_id = self.profile.get("os_id", name.lower().split()[0])
+            lines.append(f'ID={os_id}')
+            
+            # ID_LIKE
+            if "os_id_like" in self.profile:
+                lines.append(f'ID_LIKE="{self.profile["os_id_like"]}"')
+                
+            # VERSION_ID
+            if "os_version_id" in self.profile:
+                lines.append(f'VERSION_ID="{self.profile["os_version_id"]}"')
+                
+            # VERSION
+            if "os_version" in self.profile:
+                lines.append(f'VERSION="{self.profile["os_version"]}"')
+                
+            # ANSI_COLOR
+            if "os_ansi_color" in self.profile:
+                lines.append(f'ANSI_COLOR="{self.profile["os_ansi_color"]}"')
+            
+            content = "\n".join(lines) + "\n"
             self.mkfile("/etc/os-release", content=content)
+
+        # --- 4. /proc dynamic files ---
+        self._init_proc_files()
+
+        # --- 5. Set historical timestamps if install_date is present (at the end to cover dynamic files) ---
+        install_date_str = self.profile.get("install_date")
+        if install_date_str:
+            try:
+                # Support ISO format
+                base_time = datetime.datetime.fromisoformat(install_date_str.replace("Z", "+00:00"))
+                self._apply_historical_timestamps(self.root, base_time)
+            except Exception:
+                pass
+
+    def _apply_historical_timestamps(self, node: Node, base_time: datetime.datetime):
+        """Recursively apply historical timestamps to nodes."""
+        # Random offset to look realistic (e.g., +/- 30 days around install date for system files)
+        # But directories and core files should be close to base_time.
+        offset_seconds = random.randint(-86400 * 5, 86400 * 30) # Mostly after install
+        node.mtime = base_time + datetime.timedelta(seconds=offset_seconds)
+        
+        if isinstance(node, Directory):
+            for child in node.children.values():
+                self._apply_historical_timestamps(child, base_time)
+
+    def _init_proc_files(self):
+        """Initialize dynamic /proc files."""
+        self.mkdir_p("/proc")
+        
+        # /proc/uptime
+        start_time = time.time() - random.randint(3600, 86400 * 30) # Random uptime 1h to 30d
+        
+        def gen_uptime():
+            uptime_sec = time.time() - start_time
+            idle_sec = uptime_sec * 0.9 # Fake idle time
+            return f"{uptime_sec:.2f} {idle_sec:.2f}\n"
+
+        # /proc/meminfo (Simplified)
+        total_mem = random.choice([4096, 8192, 16384]) * 1024 # KB
+        
+        def gen_meminfo():
+            free_mem = int(total_mem * random.uniform(0.1, 0.6))
+            buffers = int(total_mem * 0.05)
+            cached = int(total_mem * 0.2)
+            return (
+                f"MemTotal:       {total_mem} kB\n"
+                f"MemFree:        {free_mem} kB\n"
+                f"MemAvailable:   {free_mem + cached} kB\n"
+                f"Buffers:        {buffers} kB\n"
+                f"Cached:         {cached} kB\n"
+            )
+
+        self.root.get_child("proc").add_child(DynamicFile("uptime", gen_uptime))
+        self.root.get_child("proc").add_child(DynamicFile("meminfo", gen_meminfo))
 
     def mkdir_p(self, path: str, owner="root", group="root", perm="drwxr-xr-x"):
         """Create a directory and all its parents (public)."""

@@ -1,129 +1,158 @@
-# Cyanide Custom Filesystem Configuration Example
+# Cyanide Custom Filesystem & OS Profile Guide
+# ============================================
 #
-# This file defines the structure and content of the simulated filesystem when
-# `OS_PROFILE` is set to 'custom' (or points to this file).
+# This file serves as both an example and a reference for creating custom
+# OS personalities for the Cyanide honeypot.
 #
-# Usage:
-# 1. Mount this file to `/app/configs/fs.yaml` in docker-compose.
-# 2. Set environment variable `OS_PROFILE=custom` (or path to specific yaml).
+# HOW IT WORKS:
+# Cyanide uses a Virtual Filesystem (VFS) to simulate a Linux environment.
+# At the start of a session, a profile (like this one) is loaded.
+# The metadata defines how the OS IDENTIFIES itself, and the 'root' node
+# defines the directory structure and file contents.
 #
-# Structure:
-# - metadata: System information (banners, kernel version)
-# - root: The root directory node and its children
+# -----------------------------------------------------------------------------
+# 1. METADATA SECTION
+# -----------------------------------------------------------------------------
+# These fields affect system identification commands like `uname`, `cat /etc/os-release`,
+# and network banners.
 
 metadata:
-  # OS Name displayed in some banners or system info
-  os_name: "Example OS 1.0"
+  # The display name of the OS
+  os_name: "Cyanide OS 2.1"
   
+  # Machine-readable ID (used in /etc/os-release ID field)
+  os_id: "cyanide"
+  
+  # Official name with version (used in /etc/os-release PRETTY_NAME)
+  os_pretty_name: "Cyanide GNU/Linux 2.1 (hacker-trap)"
+  
+  # Version identifier (e.g., "22.04" or "11")
+  os_version_id: "2.1"
+  
+  # Full version string
+  os_version: "2.1 (cyanide-edition)"
+  
+  # Closest related distributions (space separated)
+  os_id_like: "debian ubuntu"
+  
+  # --- HISTORICAL FIDELITY ---
+  # install_date: The "birth" of this system.
+  # Cyanide will automatically set the modification time (mtime) of all files
+  # in the VFS based on this date, adding random offsets (±30 days) to make
+  # the system look realistic and "aged".
+  install_date: "2024-05-20T10:00:00Z"
+  
+  # --- NETWORK & KERNEL ---
   # SSH Banner sent before authentication
-  ssh_banner: "SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.5"
+  ssh_banner: "SSH-2.0-OpenSSH_8.9p1 Debian-3ubuntu0.1"
   
-  # Kernel version (uname -r)
-  uname_r: "5.4.0-100-generic"
+  # Kernel release (uname -r)
+  uname_r: "5.15.0-cyanide"
   
-  # System architecture/version string (uname -a)
-  uname_a: "Linux server01 5.4.0-100-generic #1 SMP x86_64 GNU/Linux"
+  # Kernel description (uname -a)
+  uname_a: "Linux server 5.15.0-cyanide #1 SMP Mon May 20 10:00:00 UTC 2024 x86_64 GNU/Linux"
   
-  # /proc/version content
-  proc_version: "Linux version 5.4.0-100-generic (gcc version 9.3.0) #1 SMP"
+  # Raw content for /proc/version
+  proc_version: "Linux version 5.15.0-cyanide (gcc version 11.4.0) #1 SMP 2024\n"
 
-# Root Directory Definition
-# Every node has: name, type (directory/file), perm (permissions), owner, group.
+  # --- PROCESS EMULATION ---
+  # These processes will appear in the `ps` command output.
+  # This makes the environment look like a running system.
+  processes:
+    - {pid: 1, tty: "?", time: "00:00:15", cmd: "/sbin/init"}
+    - {pid: 2, tty: "?", time: "00:00:00", cmd: "[kthreadd]"}
+    - {pid: 456, tty: "?", time: "00:00:02", cmd: "/usr/sbin/cron -f"}
+    - {pid: 890, tty: "?", time: "00:00:04", cmd: "/usr/sbin/sshd -D"}
+    - {pid: 1200, tty: "?", time: "00:00:01", cmd: "/usr/bin/python3 /opt/app/server.py"}
+
+# -----------------------------------------------------------------------------
+# 2. FILESYSTEM STRUCTURE
+# -----------------------------------------------------------------------------
+# Every node must have:
+# - name: String (basename)
+# - type: 'directory' or 'file'
+# - perm: Permissions string (e.g., 'drwxr-xr-x' or '-rw-r--r--')
+# - owner: Default 'root'
+# - group: Default 'root'
+#
 # Directories have a 'children' list.
-# Files have 'content'.
+# Files have 'content' (string) or 'size' (auto-generated noise if content is missing).
+
 name: root
 type: directory
 perm: drwxr-xr-x
-owner: root
-group: root
 children:
-  # /etc directory
+  # /etc - System configuration
   - name: etc
     type: directory
-    perm: drwxr-xr-x
     children:
-      # /etc/passwd - Classic target
+      - name: hostname
+        type: file
+        content: "cyanide-prod-01\n"
+        
       - name: passwd
         type: file
         perm: "-rw-r--r--"
-        # nosemgrep: generic.secrets.security.detected-etc-shadow
-        # HONEYPOT FAKE FILE: These are decoy credentials.
+        # HONEYPOT TIP: Include decoys that lure attackers to other systems.
+        # nosemgrep: generic.secrets.security.detected-etc-shadow.detected-etc-shadow
         content: |
           root:x:0:0:root:/root:/bin/bash
-          daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
           admin:x:1000:1000:Admin User:/home/admin:/bin/bash
+          backup:x:1001:1001:Backup Manager:/home/backup:/bin/bash
           
-      # /etc/shadow - Restricted permissions
-      - name: shadow
-        type: file
-        perm: "-rw-------"
-        owner: root
-        content: |
-          root:$6$salt$hashedhash:18000:0:99999:7:::
-          admin:$6$salt$hashedhash:18000:0:99999:7:::
-
-  # /home directory
+  # /proc - Dynamic System State
+  # NOTE: Files like /proc/uptime and /proc/meminfo are GENERATED DYNAMICALLY
+  # by Cyanide's VFS provider and should NOT be defined here unless you want
+  # to override them with static content.
+  - name: proc
+    type: directory
+    perm: dr-xr-xr-x
+ 
+  # /home - User directories
   - name: home
     type: directory
-    perm: drwxr-xr-x
     children:
-      # /home/admin
       - name: admin
         type: directory
-        perm: drwxr-xr-x
         owner: admin
         group: admin
         children:
-          # Shell history (Great for leading attackers on a path)
           - name: .bash_history
             type: file
-            perm: "-rw-------"
             owner: admin
             content: |
               ls -la
-              sudo -i
-              cat /var/www/html/config.php
-              ssh staging-db
-          
-          # Decoy file with "sensitive" info
-          - name: notes.txt
+              cat /etc/shadow
+              ssh backup-server
+              cd /var/www/html/
+          - name: secret.txt
             type: file
-            perm: "-rw-r--r--"
-            content: |
-              Reminder:
-              - Backup DB every Friday
-              - Staging DB IP: 10.0.0.50
-              - API Key: sk_live_f823j9823f9823f923
-  
-  # /var directory  
+            owner: admin
+            content: "The password for the DB is: P@ssw0rd123\n"
+
+  # /var - Logs and web content
   - name: var
     type: directory
-    perm: drwxr-xr-x
     children:
+      - name: log
+        type: directory
+        children:
+          - name: auth.log
+            type: file
+            content: "May 20 10:05:01 server sshd[890]: Server listening on 0.0.0.0 port 22.\n"
       - name: www
         type: directory
-        perm: drwxr-xr-x
         children:
           - name: html
             type: directory
-            perm: drwxr-xr-x
             children:
               - name: index.html
                 type: file
-                perm: "-rw-r--r--"
-                content: "<h1>Production Server</h1>"
+                content: "<html><body>Welcome to Cyanide Prod</body></html>\n"
 
-  # /root directory (Admin home)
-  - name: root
-    type: directory
-    perm: drwx------
-    owner: root
-    children:
-      - name: .ssh
-        type: directory
-        perm: drwx------
-        children:
-          - name: authorized_keys
-            type: file
-            perm: "-rw-------"
-            content: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC... user@workstation"
+# -----------------------------------------------------------------------------
+# 3. ADVANCED FEATURES
+# -----------------------------------------------------------------------------
+# - Dynamic Files: Classes in `src/cyanide/vfs/nodes.py` can be used to create
+#   files that change on every read (like /dev/urandom).
+# - Symbolic Links: Use `type: symlink` with `target: '/path/to/target'`.

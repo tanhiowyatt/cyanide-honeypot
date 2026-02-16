@@ -12,14 +12,14 @@ class Node:
         size (int): Size in bytes.
         mtime (datetime): Modification time.
     """
-    def __init__(self, name: str, parent=None, perm: str = "drwxr-xr-x", owner: str = "root", group: str = "root", size: int = 4096):
+    def __init__(self, name: str, parent=None, perm: str = "drwxr-xr-x", owner: str = "root", group: str = "root", size: int = 4096, mtime=None):
         self.name = name
         self.parent = parent
         self.perm = perm
         self.owner = owner
         self.group = group
         self.size = size
-        self.mtime = datetime.datetime.now()
+        self.mtime = mtime if mtime is not None else datetime.datetime.now()
 
     @property
     def path(self) -> str:

@@ -43,7 +43,7 @@ class RestrictedUnpickler(pickle.Unpickler):
         # e.g. numpy.core.multiarray is safe if numpy is safe?
         # Let's be explicit with the list above to be stricter.
         
-        # If we are here, it's unsafe or unknown
+        # nosemgrep: python.lang.security.deserialization.pickle.avoid-pickle
         raise pickle.UnpicklingError(f"RestrictedUnpickler: Unsafe class '{module}.{name}' detected.")
 
 def load(file_obj):

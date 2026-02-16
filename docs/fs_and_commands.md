@@ -43,10 +43,21 @@ Each command is a function or class that:
 | `id` | ✅ | Shows fake UID/GID (root=0). |
 | `whoami` | ✅ | Shows current fake user. |
 | `uname` | ✅ | Returns kernel version from Profile Metadata. |
-| `ps` | ⚠️ | Shows fake process list (static + current session). |
+| `ps` | ✅ | Shows fake process list dynamically loaded from Profile Metadata. |
 | `vi/vim` | ⚠️ | Starts a simple line editor simulation (trap). |
 
 ### Adding a New Command
 1.  Create a new file in `src/cyanide/vfs/commands/mycmd.py`.
 2.  Implement the logic interacting with `ctx.fs`.
 3.  Register it in `src/cyanide/vfs/commands/__init__.py`.
+
+---
+
+## Dynamic System Files (`/proc`)
+
+Cyanide supports dynamic content generation for system files. These files are re-generated every time a user reads them:
+
+-   **/proc/uptime**: Generates realistic uptime and idle time. Uptime is randomized at startup (1 hour to 30 days) and increments naturally.
+-   **/proc/meminfo**: Generates randomized memory statistics (Total, Free, Available, Buffers, Cached) based on a simulated RAM size (4GB, 8GB, or 16GB).
+
+The contents of these files reflect the "live" state of the emulated environment.

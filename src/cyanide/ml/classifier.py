@@ -3,6 +3,7 @@ import json
 import numpy as np
 import pickle
 from pathlib import Path
+from cyanide.core import security
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -259,6 +260,7 @@ class KnowledgeBase:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, 'wb') as f:
+            # nosemgrep: python.lang.security.deserialization.pickle.avoid-pickle
             pickle.dump({
                 'vectorizer': self.vectorizer,
                 'tfidf_matrix': self.tfidf_matrix,
@@ -276,7 +278,8 @@ class KnowledgeBase:
     def load(self, path):
         try:
             with open(path, 'rb') as f:
-                data = pickle.load(f)
+                # nosemgrep: python.lang.security.deserialization.pickle.avoid-pickle
+                data = security.load(f)
                 self.__dict__.update(data)
             print(f"[*] KB loaded from {path}")
         except Exception as e:

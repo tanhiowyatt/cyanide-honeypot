@@ -1,9 +1,19 @@
 metadata:
   os_name: CentOS 7
+  os_id: centos
+  os_pretty_name: "CentOS Linux 7 (Core)"
+  os_version_id: "7"
+  os_version: "7 (Core)"
+  os_id_like: "rhel fedora"
+  install_date: "2024-01-25T16:17:31Z"
   ssh_banner: SSH-2.0-OpenSSH_7.4
   uname_r: 3.10.0-1160.108.1.el7.x86_64
   uname_a: Linux server 3.10.0-1160.108.1.el7.x86_64 #1 SMP Thu Jan 25 16:17:31 UTC 2024 x86_64 x86_64 x86_64 GNU/Linux
   proc_version: "Linux version 3.10.0-1160.108.1.el7.x86_64 (mockbuild@kbuilder.bsys.centos.org) (gcc version 4.8.5 20150623 (Red Hat 4.8.5-44) (GCC) ) #1 SMP Thu Jan 25 16:17:31 UTC 2024\n"
+  processes:
+    - {pid: 1, tty: "?", time: "00:00:15", cmd: "/usr/lib/systemd/systemd --switched-root --system --deserialize 22"}
+    - {pid: 2, tty: "?", time: "00:00:00", cmd: "[kthreadd]"}
+    - {pid: 890, tty: "?", time: "00:00:04", cmd: "/usr/sbin/sshd -D"}
 
 name: root
 type: directory
@@ -747,61 +757,6 @@ children:
     type: file
     perm: -rw-r--r--
     content: 'If you are reading this, you are in a honeypot!
-
-      '
-  - name: os-release
-    type: file
-    perm: -rw-r--r--
-    owner: root
-    group: root
-    content: 'NAME="CentOS Linux"
-
-      VERSION="7 (Core)"
-
-      ID="centos"
-
-      ID_LIKE="rhel fedora"
-
-      VERSION_ID="7"
-
-      PRETTY_NAME="CentOS Linux 7 (Core)"
-
-      '
-  - name: centos-release
-    type: file
-    perm: -rw-r--r--
-    owner: root
-    group: root
-    content: 'CentOS Linux release 7.9.2009 (Core)
-
-      '
-  - name: redhat-release
-    type: file
-    perm: -rw-r--r--
-    owner: root
-    group: root
-    content: 'CentOS Linux release 7.9.2009 (Core)
-
-      '
-  - name: issue
-    type: file
-    perm: -rw-r--r--
-    owner: root
-    group: root
-    content: '\S
-
-      Kernel \r on an \m
-
-
-      '
-  - name: issue.net
-    type: file
-    perm: -rw-r--r--
-    owner: root
-    group: root
-    content: '\S
-
-      Kernel \r on an \m
 
       '
 - name: home

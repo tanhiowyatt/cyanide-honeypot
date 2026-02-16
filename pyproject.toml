@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cyanide"
-version = "2.1.1"
+version = "2.1.2"
 description = "A high-interaction honeypot with ML-based anomaly detection."
 readme = "README.md"
 authors = [
@@ -50,6 +50,7 @@ dev = [
     "pytest>=7.0",
     "pytest-asyncio>=0.21.0",
     "pytest-cov>=4.1.0",
+    "pytest-mock>=3.10.0",
     "black>=23.0",
     "isort>=5.12.0",
     "mypy>=1.5.0",
@@ -73,7 +74,7 @@ include = ["cyanide*"]
 # Конфигурация Pytest
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-v --cov=src --cov-report=term-missing:skip-covered --asyncio-mode=auto --color=yes --tb=short"
+addopts = "-v --asyncio-mode=auto --color=yes --tb=short"
 testpaths = ["tests"]
 pythonpath = ["src"]
 log_cli = true

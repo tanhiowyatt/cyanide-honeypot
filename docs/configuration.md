@@ -60,8 +60,17 @@ Each `fs.*.yaml` file contains:
 ```yaml
 metadata:
   os_name: "Ubuntu 22.04 LTS"
+  os_id: "ubuntu"
+  os_pretty_name: "Ubuntu 22.04.3 LTS (Jammy Jellyfish)"
+  os_version_id: "22.04"
+  os_version: "22.04.3 LTS (Jammy Jellyfish)"
+  os_id_like: "debian"
+  install_date: "2023-06-14T14:23:44Z"
   ssh_banner: "SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.1"
   uname_r: "5.15.0-76-generic"
+  processes:
+    - {pid: 1, tty: "?", time: "00:00:15", cmd: "/sbin/init"}
+    - {pid: 890, tty: "?", time: "00:00:04", cmd: "/usr/sbin/sshd -D"}
 
 name: root
 type: directory

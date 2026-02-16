@@ -22,7 +22,6 @@ from .stats import StatsManager
 from cyanide.network.tcp_proxy import TCPProxy
 from .vm_pool import VMPool
 from prometheus_client import generate_latest
-from prometheus_client import generate_latest
 from .defaults import DEFAULT_METADATA
 from .fs_utils import resolve_fs_path, validate_fs_config
 

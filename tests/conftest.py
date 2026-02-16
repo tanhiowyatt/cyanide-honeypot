@@ -1,17 +1,11 @@
 import pytest
-import sys
-import os
 import warnings
 from unittest.mock import AsyncMock
+from cyanide.vfs.provider import FakeFilesystem
 
 # Suppress noise from asyncssh/cryptography
 warnings.filterwarnings("ignore", message=".*ARC4 has been moved.*")
 warnings.filterwarnings("ignore", message=".*TripleDES has been moved.*")
-
-# Add src to path so we can import modules if not installed as package
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
-
-from cyanide.vfs.provider import FakeFilesystem
 
 @pytest.fixture
 def mock_config():

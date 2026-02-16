@@ -1,14 +1,10 @@
 
 import sys
-import os
-import json
 import argparse
 import time
 import numpy as np
-from typing import List, Dict, Any, Tuple
 from pathlib import Path
 from datetime import datetime
-from collections import defaultdict
 
 # Add src to path
 SRC_PATH = Path(__file__).resolve().parent.parent / 'src'
@@ -45,7 +41,6 @@ class TestReport:
         report.append("Models Version: 1.0")
         report.append("")
 
-        all_passed = True
         for section in self.sections:
             report.append("-" * 60)
             report.append(f"  {section['title']}")
@@ -54,7 +49,7 @@ class TestReport:
             report.append(section['content'])
             report.append("")
             if not section['passed']:
-                all_passed = False
+                pass
 
         report.append("-" * 60)
         report.append("  SUMMARY")
@@ -89,10 +84,10 @@ class ModelValidator:
             self.report.add_section(name, result_str, passed)
             if passed:
                 self.passed_suites += 1
-                print(f"    -> PASSED")
+                print("    -> PASSED")
             else:
                 self.failed_suites += 1
-                print(f"    -> FAILED")
+                print("    -> FAILED")
         except Exception as e:
             self.failed_suites += 1
             error_msg = f"Exception during test: {e}"
@@ -129,7 +124,7 @@ class ModelValidator:
         fpr = 100 - tnr
         
         content = [
-            f"Clean Commands Detection:",
+            "Clean Commands Detection:",
             f"  Total Tested: {total}",
             f"  Correctly Identified (TN): {passed_count}",
             f"  False Positives (FP): {total - passed_count}",
@@ -204,7 +199,7 @@ class ModelValidator:
         fnr = 100 - tpr
         
         content = [
-            f"Malicious Commands Detection:",
+            "Malicious Commands Detection:",
             f"  Total Tested: {total}",
             f"  Correctly Identified (TP): {passed_count}",
             f"  False Negatives (FN): {total - passed_count}",
@@ -232,7 +227,7 @@ class ModelValidator:
         threshold = self.pipeline.anomaly_detector.threshold
         
         content = [
-            f"Threshold Validation:",
+            "Threshold Validation:",
             f"  Threshold: {threshold:.4f}",
             f"  Clean 95th %ile Score: {p95_clean:.4f}",
             f"  Malicious 5th %ile Score: {p5_malicious:.4f}"
@@ -248,7 +243,7 @@ class ModelValidator:
         # Strict user criteria: Overlap < 10% (simplified here to just separation check for now)
         success = True # Placeholder logic as we don't have full dataset here
         
-        content.append(f"  ✅ PASSED (Validation Logic Placeholder)")
+        content.append("  ✅ PASSED (Validation Logic Placeholder)")
         return "\n".join(content), success
 
 
@@ -287,7 +282,7 @@ class ModelValidator:
         accuracy = (passed_count / total_tests) * 100 if total_tests > 0 else 0
         
         content = [
-            f"Technique Recognition:",
+            "Technique Recognition:",
             f"  Total Tested: {total_tests}",
             f"  Correct Matches: {passed_count}",
             f"  Accuracy: {accuracy:.1f}%"
@@ -326,7 +321,7 @@ class ModelValidator:
         accuracy = (passed / len(test_cases)) * 100
         
         content = [
-            f"Severity Determination:",
+            "Severity Determination:",
             f"  Total Tested: {len(test_cases)}",
             f"  Correct Severity: {passed}",
             f"  Accuracy: {accuracy:.1f}%"
@@ -337,7 +332,6 @@ class ModelValidator:
         return "\n".join(content), success
 
     def test_kb_performance(self):
-        import time
         queries = ["test command random" for _ in range(100)]
         start = time.time()
         for q in queries:
@@ -346,7 +340,7 @@ class ModelValidator:
         avg = duration / 100
         
         content = [
-            f"Search Performance:",
+            "Search Performance:",
             f"  Average Query Time: {avg:.2f}ms"
         ]
         success = avg < 10.0
@@ -378,7 +372,7 @@ class ModelValidator:
         success = clean_ok
         
         content = [
-            f"End-to-End Pipeline:",
+            "End-to-End Pipeline:",
             f"  Clean Command Logic: {'OK' if clean_ok else 'FAIL'}",
             f"  Malicious Command Logic: {'OK' if mal_ok else 'FAIL (Logic Mismatch)'}"
         ]

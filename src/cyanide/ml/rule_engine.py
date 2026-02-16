@@ -1,7 +1,6 @@
 
 import re
-from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import List
 
 class SecurityRuleEngine:
     """
@@ -223,7 +222,7 @@ class SecurityRuleEngine:
         Returns result dict with highest confidence match.
         """
         matches = []
-        command_lower = command.lower()
+        pass
 
         for rule in self.compiled_rules:
             if rule['regex'].search(command):

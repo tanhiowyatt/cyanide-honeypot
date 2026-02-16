@@ -1,9 +1,8 @@
 
-import os
 import random
 import yaml
 from pathlib import Path
-from typing import Optional, List, Tuple
+from typing import Tuple
 
 # Built-in profiles that ship with the project
 BUILTIN_PROFILES = {

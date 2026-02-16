@@ -97,7 +97,7 @@ def train_anomaly_detector(force=False):
     if not model_path.is_absolute():
         model_path = Path.cwd() / model_path
         
-    print(f"\n--- Phase 1: Training Anomaly Detector (PyTorch) ---")
+    print("\n--- Phase 1: Training Anomaly Detector (PyTorch) ---")
     
     # 1. Load Data
     commands = load_hacker_commands(hacker_methods_path)

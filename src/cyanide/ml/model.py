@@ -1,8 +1,6 @@
 
 import torch
 import torch.nn as nn
-import numpy as np
-import pickle
 from pathlib import Path
 from .tokenizer import CharacterLevelTokenizer
 
@@ -96,7 +94,7 @@ class CommandAutoencoder(nn.Module):
         else:
             score = 1.0 if is_anomaly else 0.0
             
-        confidence = 1.0 # Placeholder
+        pass
         
         return is_anomaly, score, error
 

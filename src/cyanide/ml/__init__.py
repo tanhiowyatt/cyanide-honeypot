@@ -1,2 +1,2 @@
 # ai_models package
-from .pipeline import CyanideML
+from .pipeline import CyanideML as CyanideML

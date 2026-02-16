@@ -2,7 +2,6 @@ import random
 import sys
 import os
 import string
-import time
 
 # Add project root
 # Add project root/src to path
@@ -89,7 +88,7 @@ def generate_subtle_anomalies(n=100):
 def run_test():
     print("[*] Generating Advanced Test Dataset...")
     
-    train_data = generate_normal_traffic(n=3000)
+    generate_normal_traffic(n=3000)
     
     # Load Existing Model
     # Load Existing Model

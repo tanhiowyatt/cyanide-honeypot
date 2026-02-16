@@ -12,7 +12,6 @@ from pathlib import Path
 sys.path.append(os.path.abspath(os.path.join(os.getcwd(), 'src')))
 
 from cyanide.ml.pipeline import CyanideML
-from cyanide.ml.tokenizer import CharacterLevelTokenizer
 
 def debug_detection(command: str):
     """
@@ -33,12 +32,12 @@ def debug_detection(command: str):
     autoencoder = pipeline.anomaly_detector
     threshold = autoencoder.threshold
     
-    print(f"\n1. THRESHOLD")
+    print("\n1. THRESHOLD")
     print(f"   Value: {threshold}")
     
     # Preprocess
     vector = autoencoder.preprocess(command)
-    print(f"\n2. PREPROCESSING")
+    print("\n2. PREPROCESSING")
     print(f"   Tensor Shape: {vector.shape}")
     
     # Forward pass
@@ -48,7 +47,7 @@ def debug_detection(command: str):
         # Compute error (MSE)
         error = torch.mean((vector - reconstructed) ** 2, dim=1).item()
     
-    print(f"\n3. RECONSTRUCTION")
+    print("\n3. RECONSTRUCTION")
     print(f"   MSE Error: {error}")
     
     # Score computation
@@ -59,7 +58,7 @@ def debug_detection(command: str):
     score_calc = error / threshold if threshold > 0 else 0
     is_anomaly_logic = error > threshold
     
-    print(f"\n4. SCORE CALCULATION (Manual)")
+    print("\n4. SCORE CALCULATION (Manual)")
     print(f"   Error: {error}")
     print(f"   Threshold: {threshold}")
     print(f"   Ratio (Error/Threshold): {score_calc}")
@@ -68,18 +67,18 @@ def debug_detection(command: str):
     # Actual pipeline result
     result = pipeline.analyze_command(command)
     
-    print(f"\n5. ACTUAL PIPELINE RESULT")
+    print("\n5. ACTUAL PIPELINE RESULT")
     print(f"   Verdict: {'anomaly' if result['is_anomaly'] else 'clean'}")
     print(f"   Is Anomaly Flag: {result['is_anomaly']}")
     print(f"   Score: {result.get('anomaly_score', 'N/A')}")
     print(f"   Error: {result.get('reconstruction_error', 'N/A')}")
     
     # Verification
-    print(f"\n6. VERIFICATION")
+    print("\n6. VERIFICATION")
     if is_anomaly_logic != result['is_anomaly']:
-         print(f"   ❌ MISMATCH! Logic doesn't match 'Error > Threshold'")
+         print("   ❌ MISMATCH! Logic doesn't match 'Error > Threshold'")
     else:
-         print(f"   ✅ Logic matches 'Error > Threshold'")
+         print("   ✅ Logic matches 'Error > Threshold'")
          
     if is_anomaly_logic and not result['is_anomaly']:
          print("   ❌ CRITICAL: Error > Threshold but Flag is False!")

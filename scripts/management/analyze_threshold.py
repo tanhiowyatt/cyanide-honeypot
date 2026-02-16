@@ -2,8 +2,6 @@
 import sys
 import os
 import numpy as np
-import matplotlib.pyplot as plt
-from pathlib import Path
 
 # Add src to path
 sys.path.append(os.path.abspath(os.path.join(os.getcwd(), 'src')))
@@ -113,7 +111,7 @@ def analyze():
         # Threshold should be above Malicious P95 or around Clean P5?
         
         # Let's find simple midpoint between means
-        midpoint = (clean_mean + mal_mean) / 2
+        pass
         
         # Or better: Max of Malicious to capture all?
         max_mal = max(malicious_errors)

@@ -1,7 +1,6 @@
 
 import sys
 import os
-import torch
 from pathlib import Path
 
 # Add src to path
@@ -27,7 +26,7 @@ def patch_autoencoder():
         
         # Save
         model.save(model_path)
-        print(f"    [+] Autoencoder matched and saved.")
+        print("    [+] Autoencoder matched and saved.")
     except Exception as e:
         print(f"    [!] Failed to patch Autoencoder: {e}")
 
@@ -50,7 +49,7 @@ def rebuild_kb():
         
         # Save
         kb.save(kb_path)
-        print(f"    [+] Knowledge Base rebuilt and saved.")
+        print("    [+] Knowledge Base rebuilt and saved.")
         
     except Exception as e:
         print(f"    [!] Failed to rebuild KB: {e}")

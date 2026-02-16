@@ -8,7 +8,7 @@ from pathlib import Path
 sys.path.append(os.path.join(os.path.dirname(__file__), '../src'))
 
 from cyanide.fs.yaml_fs import load_fs
-from cyanide.core.filesystem_nodes import Directory, File
+from cyanide.vfs.nodes import Directory, File
 
 class TestYamlFS(unittest.TestCase):
     def setUp(self):

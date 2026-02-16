@@ -15,11 +15,11 @@ BUILTIN_PROFILES = {
 def get_fs_config_dir() -> Path:
     """Return the absolute path to the config/fs-config directory."""
     # current file is src/cyanide/core/fs_utils.py
-    # we need project_root/config/fs-config
+    # we need project_root/configs/profiles
     current_dir = Path(__file__).parent
     # Go up 3 levels: core -> cyanide -> src -> root
     root_dir = current_dir.parent.parent.parent
-    return root_dir / "config" / "fs-config"
+    return root_dir / "configs" / "profiles"
 
 def validate_fs_config(path: Path) -> Tuple[bool, str]:
     """

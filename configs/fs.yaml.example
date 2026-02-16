@@ -1,0 +1,129 @@
+# Cyanide Custom Filesystem Configuration Example
+#
+# This file defines the structure and content of the simulated filesystem when
+# `OS_PROFILE` is set to 'custom' (or points to this file).
+#
+# Usage:
+# 1. Mount this file to `/app/configs/fs.yaml` in docker-compose.
+# 2. Set environment variable `OS_PROFILE=custom` (or path to specific yaml).
+#
+# Structure:
+# - metadata: System information (banners, kernel version)
+# - root: The root directory node and its children
+
+metadata:
+  # OS Name displayed in some banners or system info
+  os_name: "Example OS 1.0"
+  
+  # SSH Banner sent before authentication
+  ssh_banner: "SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.5"
+  
+  # Kernel version (uname -r)
+  uname_r: "5.4.0-100-generic"
+  
+  # System architecture/version string (uname -a)
+  uname_a: "Linux server01 5.4.0-100-generic #1 SMP x86_64 GNU/Linux"
+  
+  # /proc/version content
+  proc_version: "Linux version 5.4.0-100-generic (gcc version 9.3.0) #1 SMP"
+
+# Root Directory Definition
+# Every node has: name, type (directory/file), perm (permissions), owner, group.
+# Directories have a 'children' list.
+# Files have 'content'.
+name: root
+type: directory
+perm: drwxr-xr-x
+owner: root
+group: root
+children:
+  # /etc directory
+  - name: etc
+    type: directory
+    perm: drwxr-xr-x
+    children:
+      # /etc/passwd - Classic target
+      - name: passwd
+        type: file
+        perm: "-rw-r--r--"
+        # nosemgrep: generic.secrets.security.detected-etc-shadow
+        # HONEYPOT FAKE FILE: These are decoy credentials.
+        content: |
+          root:x:0:0:root:/root:/bin/bash
+          daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+          admin:x:1000:1000:Admin User:/home/admin:/bin/bash
+          
+      # /etc/shadow - Restricted permissions
+      - name: shadow
+        type: file
+        perm: "-rw-------"
+        owner: root
+        content: |
+          root:$6$salt$hashedhash:18000:0:99999:7:::
+          admin:$6$salt$hashedhash:18000:0:99999:7:::
+
+  # /home directory
+  - name: home
+    type: directory
+    perm: drwxr-xr-x
+    children:
+      # /home/admin
+      - name: admin
+        type: directory
+        perm: drwxr-xr-x
+        owner: admin
+        group: admin
+        children:
+          # Shell history (Great for leading attackers on a path)
+          - name: .bash_history
+            type: file
+            perm: "-rw-------"
+            owner: admin
+            content: |
+              ls -la
+              sudo -i
+              cat /var/www/html/config.php
+              ssh staging-db
+          
+          # Decoy file with "sensitive" info
+          - name: notes.txt
+            type: file
+            perm: "-rw-r--r--"
+            content: |
+              Reminder:
+              - Backup DB every Friday
+              - Staging DB IP: 10.0.0.50
+              - API Key: sk_live_f823j9823f9823f923
+  
+  # /var directory  
+  - name: var
+    type: directory
+    perm: drwxr-xr-x
+    children:
+      - name: www
+        type: directory
+        perm: drwxr-xr-x
+        children:
+          - name: html
+            type: directory
+            perm: drwxr-xr-x
+            children:
+              - name: index.html
+                type: file
+                perm: "-rw-r--r--"
+                content: "<h1>Production Server</h1>"
+
+  # /root directory (Admin home)
+  - name: root
+    type: directory
+    perm: drwx------
+    owner: root
+    children:
+      - name: .ssh
+        type: directory
+        perm: drwx------
+        children:
+          - name: authorized_keys
+            type: file
+            perm: "-rw-------"
+            content: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC... user@workstation"

@@ -1,7 +1,7 @@
 import pytest
-from cyanide.commands.cat import CatCommand
-from cyanide.commands.text_ops import HeadCommand, TailCommand
-from cyanide.core.shell_emulator import ShellEmulator
+from cyanide.vfs.commands.cat import CatCommand
+from cyanide.vfs.commands.text_ops import HeadCommand, TailCommand
+from cyanide.core.emulator import ShellEmulator
 
 @pytest.fixture
 def shell(mock_fs):

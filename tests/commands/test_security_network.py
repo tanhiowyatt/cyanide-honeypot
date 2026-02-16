@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
-from cyanide.commands.curl import CurlCommand
-from cyanide.commands.wget import WgetCommand
+from cyanide.vfs.commands.curl import CurlCommand
+from cyanide.vfs.commands.wget import WgetCommand
 
 @pytest.fixture
 def mock_emulator(mock_fs):

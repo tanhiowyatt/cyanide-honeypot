@@ -12,24 +12,24 @@ import traceback
 from pathlib import Path
 from typing import Dict, Any
 
-from .fake_filesystem import FakeFilesystem
-from .shell_emulator import ShellEmulator
+from cyanide.vfs.provider import FakeFilesystem
+from cyanide.core.emulator import ShellEmulator
 from cyanide import CyanideLogger
 
 from .sftp import CyanideSFTPServer
 from .vt_scanner import VTScanner
 from .stats import StatsManager
-from cyanide.proxy.tcp_proxy import TCPProxy
+from cyanide.network.tcp_proxy import TCPProxy
 from .vm_pool import VMPool
 from prometheus_client import generate_latest
 from prometheus_client import generate_latest
 from .defaults import DEFAULT_METADATA
 from .fs_utils import resolve_fs_path, validate_fs_config
 
-from .services.session_manager import SessionManager
-from .services.quarantine import QuarantineService
-from .services.analytics import AnalyticsService
-from .services.telnet_handler import TelnetHandler
+from cyanide.services.session_manager import SessionManager
+from cyanide.services.quarantine import QuarantineService
+from cyanide.services.analytics import AnalyticsService
+from cyanide.services.telnet_handler import TelnetHandler
 from .async_logger import AsyncLogger
 from .telemetry import setup_telemetry
 

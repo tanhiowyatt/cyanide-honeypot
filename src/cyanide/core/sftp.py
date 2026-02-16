@@ -1,7 +1,7 @@
 import time
 import asyncssh
 from pathlib import PurePosixPath
-from cyanide.core.filesystem_nodes import Directory
+from cyanide.vfs.nodes import Directory
 
 class CyanideSFTPServer(asyncssh.SFTPServer):
     """
@@ -203,7 +203,7 @@ class CyanideSFTPServer(asyncssh.SFTPServer):
                         import datetime
                         existing.mtime = datetime.datetime.now()
                     else:
-                        from cyanide.core.filesystem_nodes import File
+                        from cyanide.vfs.nodes import File
                         new_file = File(filename, parent=parent, content=content, owner=self.username, group=self.username)
                         parent.add_child(new_file)
             

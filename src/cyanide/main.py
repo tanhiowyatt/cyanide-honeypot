@@ -18,7 +18,7 @@ def is_docker():
     """Detect if running inside a Docker container."""
     return os.path.exists('/.dockerenv') or os.environ.get('DOCKER_CONTAINER')
 
-async def main():
+async def async_main():
     """Main entry point."""
     # Silence noise ONLY if NOT in Docker
     if not is_docker():
@@ -40,11 +40,15 @@ async def main():
     print("[*] Starting Cyanide Honeypot...")
     await server.start()
 
-if __name__ == "__main__":
+def main():
+    """Synchronous entry point for console_scripts."""
     try:
-        asyncio.run(main())
+        asyncio.run(async_main())
     except (KeyboardInterrupt, SystemExit):
         print("\n[*] Honeypot stopped.")
     except Exception as e:
         print(f"[!] Unexpected error: {e}")
+
+if __name__ == "__main__":
+    main()
 

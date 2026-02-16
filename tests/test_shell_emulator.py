@@ -1,5 +1,5 @@
 import pytest
-from cyanide.core.shell_emulator import ShellEmulator
+from cyanide.core.emulator import ShellEmulator
 
 # --- Mocks ---
 
@@ -30,7 +30,7 @@ def mock_command_map(mocker):
         "test": MockCommand,
         "echo": MockCommand # Re-use for simple echo logic
     }
-    mocker.patch.dict("cyanide.commands.COMMAND_MAP", mock_map)
+    mocker.patch.dict("cyanide.vfs.commands.COMMAND_MAP", mock_map)
     return mock_map
 
 @pytest.fixture

@@ -2,8 +2,8 @@
 import yaml
 import os
 from typing import Dict, Any
-from ..core.filesystem_nodes import Directory, File
-from ..core.defaults import DEFAULT_METADATA
+from cyanide.vfs.nodes import Directory, File
+from cyanide.core.defaults import DEFAULT_METADATA
 
 def dict_to_node(data: Dict[str, Any], parent=None):
     """Reconstructs filesystem node from dictionary."""

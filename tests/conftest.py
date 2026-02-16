@@ -11,7 +11,7 @@ warnings.filterwarnings("ignore", message=".*TripleDES has been moved.*")
 # Add src to path so we can import modules if not installed as package
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
-from cyanide.core.fake_filesystem import FakeFilesystem
+from cyanide.vfs.provider import FakeFilesystem
 
 @pytest.fixture
 def mock_config():

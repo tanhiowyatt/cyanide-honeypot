@@ -1,4 +1,4 @@
-import configparser
+import yaml
 import os
 import sys
 import json
@@ -7,24 +7,37 @@ from dotenv import load_dotenv
 from .config_schema import CyanideConfig
 from pydantic import ValidationError
 
-def load_config(path: Path = Path("config/cyanide.cfg")):
-    """Load and normalized configuration from INI file and .env."""
+def load_config(path: Path = Path("configs/app.yaml")):
+    """Load and normalized configuration from YAML file and .env."""
     # Load .env file
-    env_path = Path("config/.env")
+    env_path = Path("configs/.env")
+    if not env_path.exists():
+         env_path = Path(".env") # Fallback to root .env
     load_dotenv(dotenv_path=env_path)
 
-    cfg = configparser.ConfigParser()
+    config_data = {}
     if path.exists():
-        cfg.read(path)
+        try:
+            with open(path, 'r') as f:
+                config_data = yaml.safe_load(f) or {}
+                if not isinstance(config_data, dict):
+                    print(f"[!] Config file {path} is not a valid YAML dictionary.")
+                    config_data = {}
+        except Exception as e:
+            print(f"[!] Error loading config {path}: {e}")
     else:
-        # If config file is missing, we rely solely on .env or defaults
+        # Check for example file as fallback if main doesn't exist? 
+        # Or just warn.
         print(f"[*] Config file not found at {path}, using .env and defaults.")
         
     def get_val(section, key, env_var, default, cast=str):
-        # Priority: Env > Config File > Default
+        # Priority: Env > Config File (Nested) > Default
         val = os.getenv(env_var)
-        if val is None and cfg.has_section(section):
-            val = cfg.get(section, key, fallback=None)
+        
+        # Deep lookup in config_data
+        if val is None:
+            if section in config_data and isinstance(config_data[section], dict):
+                 val = config_data[section].get(key)
         
         if val is None:
             return default
@@ -32,9 +45,14 @@ def load_config(path: Path = Path("config/cyanide.cfg")):
         if cast is bool:
             if isinstance(val, bool):
                 return val
-            return val.lower() in ('true', '1', 'yes', 'on')
+            if isinstance(val, str):
+                return val.lower() in ('true', '1', 'yes', 'on')
+            return bool(val)
         elif cast is int:
-            return int(val)
+            try:
+                return int(val)
+            except (ValueError, TypeError):
+                return default
         return val
 
     # Convert to dictionary structure expected by HoneypotServer
@@ -44,7 +62,6 @@ def load_config(path: Path = Path("config/cyanide.cfg")):
         "listen_ip": get_val("server", "host", "HOST", "0.0.0.0"),
         "quarantine_path": get_val("honeypot", "quarantine_path", "DATA_PATH", "var/lib/cyanide/quarantine"),
         "os_profile": get_val("server", "os_profile", "OS_PROFILE", "random"),
-        "dns_cache_ttl": get_val("honeypot", "dns_cache_ttl", "DNS_CACHE_TTL", 60, int),
         "max_sessions": get_val("server", "max_sessions", "MAX_SESSIONS", 100, int),
         "max_sessions_per_ip": get_val("server", "max_sessions_per_ip", "MAX_SESSIONS_PER_IP", 5, int),
         "session_timeout": get_val("server", "session_timeout", "SESSION_TIMEOUT", 300, int),
@@ -77,7 +94,7 @@ def load_config(path: Path = Path("config/cyanide.cfg")):
         "users": []
     }
     
-    # User loading - Env vars for users
+    # User loading
     users_env = os.getenv("CYANIDE_USERS")
     if users_env:
         try:
@@ -85,11 +102,14 @@ def load_config(path: Path = Path("config/cyanide.cfg")):
             if isinstance(env_users, list):
                 config["users"].extend(env_users)
         except json.JSONDecodeError:
-            print("[!] Failed to parse CYANIDE_USERS env var (expected JSON list).")
+            print("[!] Failed to parse CYANIDE_USERS env var.")
 
-    if cfg.has_section("users"):
-        for username, password in cfg.items("users"):
-            config["users"].append({"user": username, "pass": password})
+    # Load users from YAML
+    yaml_users = config_data.get("users", [])
+    if isinstance(yaml_users, list):
+        for user_obj in yaml_users:
+             if isinstance(user_obj, dict) and "user" in user_obj and "pass" in user_obj:
+                 config["users"].append(user_obj)
     
     if not config["users"]:
         config["users"] = [{"user": "root", "pass": "admin"}, {"user": "admin", "pass": "admin"}]
@@ -97,11 +117,12 @@ def load_config(path: Path = Path("config/cyanide.cfg")):
     config["ml"] = {
         "enabled": get_val("ml", "enabled", "ML_ENABLED", False, bool),
         "ml_log": get_val("ml", "ml_log", "ML_LOG", "var/log/cyanide/cyanideML-log.json"),
-        "model_path": get_val("ml", "model_path", "MODEL_PATH", "src/cyanide/ml/cyanideML/cyanideML.pkl"),
+        "model_path": get_val("ml", "model_path", "MODEL_PATH", "assets/models/cyanideML.pkl"),
         "online_learning": get_val("ml", "online_learning", "ONLINE_LEARNING", False, bool),
+        "retraining_interval_days": get_val("ml", "retraining_interval_days", "ML_RETRAINING_INTERVAL_DAYS", 7, int),
         "training_data": {
-            "hacker_methods": Path("data/ml_training/hacker_methods"),
-            "mitre_cve": Path("data/ml_training/kb_ready")
+            "hacker_methods": Path(config_data.get("ml", {}).get("training_data", {}).get("hacker_methods", "data/raw")),
+            "mitre_cve": Path(config_data.get("ml", {}).get("training_data", {}).get("mitre_cve", "data/processed/kb_ready"))
         }
     }
 
@@ -112,11 +133,8 @@ def load_config(path: Path = Path("config/cyanide.cfg")):
         "paths": get_val("cleanup", "paths", "CLEANUP_PATHS", "var/log/cyanide,var/lib/cyanide").split(",")
     }
 
-    # Load Custom Profile metadata if exists
-    config["custom_profile"] = {}
-    if cfg.has_section("custom_profile"):
-        for key in ["name", "ssh_banner", "uname_r", "uname_a", "etc_issue", "proc_version"]:
-            config["custom_profile"][key] = cfg.get("custom_profile", key, fallback="")
+    # Load Custom Profile metadata
+    config["custom_profile"] = config_data.get("custom_profile", {})
             
     # Rate Limit
     config["rate_limit"] = {

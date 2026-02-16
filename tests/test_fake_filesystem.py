@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import Mock
-from cyanide.core.fake_filesystem import FakeFilesystem
+from cyanide.vfs.provider import FakeFilesystem
 
 @pytest.fixture
 def fs():

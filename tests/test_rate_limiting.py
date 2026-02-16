@@ -1,5 +1,5 @@
 import time
-from cyanide.core.services.session_manager import SessionManager
+from cyanide.services.session_manager import SessionManager
 
 def test_rate_limiting():
     # Enforce limit of 2 connections per minute

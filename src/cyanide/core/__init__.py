@@ -5,8 +5,8 @@ Heart of the honeypot, containing the server, shell emulator, and filesystem log
 """
 
 from .server import HoneypotServer
-from .shell_emulator import ShellEmulator
-from .fake_filesystem import FakeFilesystem
+from .emulator import ShellEmulator
+from cyanide.vfs.provider import FakeFilesystem
 from .config import load_config
 
 __all__ = ["HoneypotServer", "ShellEmulator", "FakeFilesystem", "load_config"]

@@ -1,6 +1,6 @@
 import pytest
-from cyanide.commands.curl import CurlCommand
-from cyanide.core.shell_emulator import ShellEmulator
+from cyanide.vfs.commands.curl import CurlCommand
+from cyanide.core.emulator import ShellEmulator
 
 @pytest.fixture
 def shell(mock_fs):

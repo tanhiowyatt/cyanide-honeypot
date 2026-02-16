@@ -1,9 +1,9 @@
 import pytest
-from cyanide.commands.uname import UnameCommand
-from cyanide.commands.whoami import WhoamiCommand
-from cyanide.commands.id import IdCommand
-from cyanide.commands.ps import PsCommand
-from cyanide.core.shell_emulator import ShellEmulator
+from cyanide.vfs.commands.uname import UnameCommand
+from cyanide.vfs.commands.whoami import WhoamiCommand
+from cyanide.vfs.commands.id import IdCommand
+from cyanide.vfs.commands.ps import PsCommand
+from cyanide.core.emulator import ShellEmulator
 
 @pytest.fixture
 def shell(mock_fs):

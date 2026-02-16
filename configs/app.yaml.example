@@ -1,0 +1,87 @@
+honeypot:
+  # Hostname reported by the honeypot
+  hostname: server01
+  
+  # Path to store logs
+  log_path: var/log/cyanide
+  
+  # Path to store data (e.g. quarantine)
+  data_path: var/lib/cyanide
+  
+  # Quarantine max size in MB
+  quarantine_max_size_mb: 500
+
+server:
+  # IP address to bind to
+  host: 0.0.0.0
+  
+  # OS Consistency Profile
+  os_profile: random
+  
+  # Maximum total concurrent sessions
+  max_sessions: 100
+  
+  # Maximum concurrent sessions per IP
+  max_sessions_per_ip: 5
+  
+  # Session timeout in seconds
+  session_timeout: 300
+
+users:
+  - user: root
+    pass: admin
+  - user: admin
+    pass: admin
+  - user: user
+    pass: 123456
+
+metrics:
+  enabled: true
+  port: 9090
+
+ml:
+  enabled: true
+  metrics_port: 9090
+  ml_log: var/log/cyanide/cyanideML-log.json
+  model_path: assets/models/cyanideML.pkl
+  online_learning: false
+  retraining_interval_days: 7
+  training_data:
+    hacker_methods: data/raw/hacker_methods
+    mitre_cve: data/processed/kb_ready
+
+ssh:
+  enabled: true
+  listen_port: 2222
+  rsa_keying: true
+  version: "SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.5"
+  # backend_mode: emulated
+
+telnet:
+  enabled: true
+  listen_port: 2223
+  # backend_mode: emulated
+
+smtp:
+  enabled: true
+  listen_port: 2525
+  target_host: 127.0.0.1
+  target_port: 25255
+
+output:
+  json_log: true
+
+cleanup:
+  enabled: true
+  interval: 3600
+  retention_days: 7
+  paths: "var/log/cyanide,var/lib/cyanide"
+
+virustotal:
+  enabled: true
+  # api_key: 
+
+otel:
+  enabled: true
+  exporter: otlp
+  endpoint: http://localhost:4318/v1/traces

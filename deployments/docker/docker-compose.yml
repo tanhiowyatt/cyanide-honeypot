@@ -1,0 +1,120 @@
+services:
+  cyanide:
+    build:
+      context: ../../
+      dockerfile: deployments/docker/Dockerfile
+    container_name: cyanide
+    restart: unless-stopped
+
+    ports:
+      - "2222:2222" # SSH
+      - "2223:2223" # Telnet  
+      - "2525:2525" # SMTP 
+      - "9090:9090" # Metrics / API
+
+    volumes:
+      # Пути адаптированы под Enterprise структуру
+      - ../../var/log:/app/var/log
+      - ../../var/lib/cyanide:/app/var/lib/cyanide
+      - ../../configs/app.yaml:/app/configs/app.yaml
+      - ../../configs/profiles:/app/configs/profiles:ro # Профили ОС только для чтения
+      - ../../src:/app/src
+
+    # 🔒 SECURITY (Hardened Mode)
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run
+      - /app/var/run # Для PID файлов и сокетов
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE # Позволяет биндиться на порты < 1024 внутри контейнера
+    security_opt:
+      - no-new-privileges:true # Блокирует попытки повышения привилегий
+
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+
+    environment:
+      - PYTHONUNBUFFERED=1
+      - CYANIDE_CONFIG_PATH=/app/configs/app.yaml
+
+      # --- Honeypot Core ---
+      - CYANIDE_CORE__HOSTNAME=server01
+      - CYANIDE_CORE__DATA_PATH=/app/var/lib/cyanide/quarantine
+      - CYANIDE_VFS__PROFILE=ubuntu_22_04 # Соответствует configs/profiles/ubuntu_22_04.yaml
+
+      # --- Session & Resource Limits ---
+      - CYANIDE_CORE__MAX_SESSIONS=100
+      - CYANIDE_CORE__MAX_SESSIONS_PER_IP=5
+      - CYANIDE_CORE__SESSION_TIMEOUT=300
+      - CYANIDE_CORE__QUARANTINE_MAX_SIZE_MB=500
+
+      # --- Services (SSH / Telnet) ---
+      - CYANIDE_SSH__ENABLED=true
+      - CYANIDE_SSH__PORT=2222
+      - CYANIDE_TELNET__ENABLED=true
+      - CYANIDE_TELNET__PORT=2223
+
+      # --- Machine Learning (CyanideML) ---
+      - CYANIDE_ML__ENABLED=true
+      - CYANIDE_ML__LOG_PATH=/app/var/log/cyanideML-log.json
+      - CYANIDE_ML__MODEL_PATH=/app/assets/models/autoencoder.pkl
+      - CYANIDE_ML__RETRAINING_INTERVAL_DAYS=7
+
+      # --- Maintenance & Cleanup ---
+      - CYANIDE_CLEANUP__ENABLED=true
+      - CYANIDE_CLEANUP__INTERVAL_SECONDS=3600
+      - CYANIDE_CLEANUP__RETENTION_DAYS=7
+
+      # --- Observability (Tracing & Metrics) ---
+      - CYANIDE_OBSERVABILITY__TRACING_ENABLED=true
+      - CYANIDE_OBSERVABILITY__METRICS_ENABLED=true
+      - CYANIDE_OBSERVABILITY__METRICS_PORT=9090
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
+
+      # --- Integrations ---
+      - CYANIDE_VIRUSTOTAL__ENABLED=false
+      # - CYANIDE_VIRUSTOTAL__API_KEY=your_api_key_here
+
+      # --- SMTP Proxy Settings ---
+      - CYANIDE_SMTP__ENABLED=true
+      - CYANIDE_SMTP__PORT=2525
+      - CYANIDE_SMTP__TARGET_HOST=mailhog
+      - CYANIDE_SMTP__TARGET_PORT=1025
+
+      # --- Auth / Users ---
+      - 'CYANIDE_AUTH__USERS=[{"user": "root", "pass": "admin"}, {"user": "admin", "pass": "admin"}]'
+
+    healthcheck:
+      # Путь изменен на deployments/docker/healthcheck.py
+      test: [ "CMD", "python3", "/app/deployments/docker/healthcheck.py" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+  # Вспомогательные сервисы закомментированы по умолчанию (User choice)
+
+  # mailhog:
+  #   image: mailhog/mailhog
+  #   platform: linux/amd64
+  #   container_name: mailhog
+  #   ports:
+  #     - "1025:1025" # SMTP
+  #     - "8025:8025" # Web UI
+  #   restart: unless-stopped
+
+  # jaeger:
+  #   image: jaegertracing/all-in-one:latest
+  #   container_name: jaeger
+  #   ports:
+  #     - "16686:16686" # Web UI
+  #     - "4317:4317" # OTLP gRPC
+  #     - "4318:4318" # OTLP HTTP
+  #   environment:
+  #     - COLLECTOR_OTLP_ENABLED=true
+  #   restart: unless-stopped

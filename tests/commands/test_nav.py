@@ -1,8 +1,8 @@
 import pytest
-from cyanide.commands.cd import CdCommand
-from cyanide.commands.pwd import PwdCommand
-from cyanide.commands.ls import LsCommand
-from cyanide.core.shell_emulator import ShellEmulator
+from cyanide.vfs.commands.cd import CdCommand
+from cyanide.vfs.commands.pwd import PwdCommand
+from cyanide.vfs.commands.ls import LsCommand
+from cyanide.core.emulator import ShellEmulator
 
 @pytest.fixture
 def shell(mock_fs):

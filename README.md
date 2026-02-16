@@ -1,12 +1,12 @@
-# Cyanide 
+# Cyanide
 
-![alt text](data/assets/logoreedme.png)
+![alt text](assets/branding/logoreedme.png)
 
-**Cyanide** is a high-interaction SSH & Telnet honeypot designed to deceive and analyze attacker behavior. It combines realistic Linux filesystem emulation, advanced command simulation, and deep anti-detection mechanisms.
+**Cyanide** is a high-interaction SSH & Telnet honeypot designed to deceive and analyze attacker behavior. It combines realistic Linux filesystem emulation, advanced command simulation (pipes, redirections), and deep anti-detection mechanisms with a hybrid ML-based anomaly detection engine.
 
 ---
 
-### 🌐 Translations / Tłumaczenia / Переводы
+### 🌐 Translations
 *   🇷🇺 [Russian (Русский)](docs/README.RU.md)
 *   🇵🇱 [Polish (Polski)](docs/README.PL.md)
 
@@ -15,191 +15,80 @@
 ## 🌟 Key Features
 
 ### 🧠 Realistic Emulation
-*   **Multi-protocol**: Simultaneous support for SSH (via `asyncssh`) and Telnet on different ports.
-*   **Dynamic FS**: Fully functional Linux filesystem. Changes (creating files, deleting) persist throughout the session.
-*   **Advanced Shell**: Support for pipes (`|`), redirections (`>`, `>>`), and command chaining (`&&`, `||`, `;`).
+*   **Multi-protocol**: SSH (`asyncssh`) and Telnet on customizable ports (default 2222/2223).
+*   **Dynamic VFS**: Fully functional in-memory Linux filesystem loaded from YAML profiles. Changes persist per session.
+*   **Advanced Shell**: Supports pipes (`|`), redirections (`>`, `>>`), logic (`&&`, `||`), and environment variables.
 *   **Anti-Fingerprinting**: 
-    *   **Network Jitter**: Randomized response delays (50-300ms) to simulate a real network.
-    *   **OS Profiles**: Masquerade as **Ubuntu**, **Debian**, or **CentOS** (banners, `uname`, `/proc/version`).
+    *   **Network Jitter**: Randomized response delays (50-300ms).
+    *   **OS Profiles**: Masquerade as **Ubuntu 22.04**, **Debian 11**, or **CentOS 7** (banners, `uname`, `/proc` matching).
+
+### 🛡️ Hybrid Detection System
+Cyanide employs a 3-layer detection engine to identify malicious intent:
+1.  **ML Anomaly Detector**: Autoencoder neural network detects abnormal command structures (zero-day/obfuscation).
+2.  **Security Rule Engine**: Regex-based signatures for known threats (`wget`, `curl | bash`, etc.).
+3.  **Context Analyzer**: Semantic analysis of accessed files (`/etc/shadow`) and reputation checks (domains/IPs).
 
 ### 📊 Forensics & Logging
-*   **TTY Recording**: Session recording in a format compatible with `scriptreplay`.
-*   **Structured JSON**: Detailed event logs in JSON format for ELK/Splunk integration.
-*   **Keystroke Biometrics**: Analysis of typing rhythm to distinguish bots from humans.
-*   **Quarantine**: Automatic isolation of files downloaded via `wget`, `curl`, `scp`, or `sftp`.
-*   **VirusTotal**: Automatic scanning of suspicious files in quarantine.
+*   **TTY Recording**: Full session replay compatible with `scriptreplay` (timing + data).
+*   **JSON Structured Logs**: Detailed events for ELK/Splunk integration.
+*   **Keystroke Biometrics**: Typing rhythm analysis.
+*   **Quarantine**: Automatic isolation of downloaded malware (`wget`, `scp`).
+*   **VirusTotal Integration**: Automatic scanning of quarantined files.
 
 ---
 
-## 🏗️ Architecture & Structure
+## 🚀 Deployment
 
-The project is built on a modular principle using modern Python patterns:
-*   **Facade Pattern**: Core functions are available directly from package roots (e.g., `from core import HoneypotServer`).
-*   **Command Registry**: Dynamic loading of emulated commands via a central registry in `src/commands`.
+**Cyanide is designed to be run as a containerized service.**
 
-### Directory Structure
-| Path | Description |
-|------|-------------|
-| `scripts/` | Management and control tools |
-| `config/` | Filesystem configuration YAMLs (`fs-config/`) |
-| `src/cyanide/core/` | Server core, shell emulator, and FS logic |
-| `src/cyanide/commands/` | Implementations of emulated Linux commands |
-| `var/log/cyanide/` | JSON logs and TTY recordings |
-| `var/lib/cyanide/` | Data persistence and quarantine |
-| `docs/` | Comprehensive guides for **[Configuration](docs/configuration.md)** and **[Observability](docs/OBSERVABILITY.md)** |
-
----
-
-## 🚀 Deployment & Operation
-
-**Note: This project is designed to run exclusively within Docker.**
-
-### 🐳 Docker Compose (Required)
-The fastest and safest way to run.
+### 🐳 Docker Compose (Recommended)
 
 ```bash
-# Build and start in background
-docker compose -f docker/docker-compose.yml up --build -d
+# 1. Start the full stack (Honeypot + MailHog + Jaeger)
+docker-compose -f deployments/docker/docker-compose.yml up --build -d
 
-# View server logs in real-time
-docker compose -f docker/docker-compose.yml logs -f
+# 2. Monitor logs
+docker-compose -f deployments/docker/docker-compose.yml logs -f cyanide
 
-# Check status
-docker compose -f docker/docker-compose.yml ps
-
-# Stop
-docker compose -f docker/docker-compose.yml down
+# 3. Stop
+docker-compose -f deployments/docker/docker-compose.yml down
 ```
 
----
+### 🔧 Configuration
 
-## 🛠️ Tool Reference (`scripts/`)
+Configuration is managed via **YAML** files in `configs/`:
 
-| Utility | Description |
-|---------|-------------|
-| `./scripts/cyanide start` | Start the honeypot server. |
-| `./scripts/cyanide stop` | Stop the honeypot server. |
-| `./scripts/cyanide restart` | Restart the honeypot server. |
-| `./scripts/cyanide stats` | Show real-time statistics (uptime, sessions, attackers). |
-| `./scripts/cyanide clean` | Clean up old logs and quarantined files. |
-| `./scripts/cyanide replay <file>` | Convert TTY logs to asciinema format. |
+| File | Purpose |
+|------|---------|
+| `configs/app.yaml` | Main configuration (ports, timeouts, ML settings, enabling/disabling services). |
+| `configs/profiles/*.yaml` | OS Personalities. Defines the fake filesystem structure, file contents, and system metadata. |
+| `configs/fs.yaml` | (Optional) Custom filesystem template if you want to override the random profile selection. |
 
----
-
-## ⌨️ Emulated Commands
-
-Cyanide supports over 25 standard Linux commands, including:
-*   **Navigation**: `cd`, `ls`, `pwd`.
-*   **File Ops**: `cat`, `touch`, `mkdir`, `rm`, `cp`, `mv`, `id`.
-*   **Information**: `uname`, `ps`, `whoami`, `who`, `w`, `help`.
-*   **Advanced**: `sudo`, `export`, `echo`.
-*   **Network**: `curl`, `ping`, `wget` (with files saved to quarantine).
-*   **Editors**: `vi`, `vim`, `nano` (simulation).
+**Environment Variables** in `docker-compose.yml` override `app.yaml` settings.
 
 ---
 
-## 🕵️ Session Analysis (Scriptreplay)
+## 🛠️ Management & Tools
 
-All sessions are recorded in `var/log/cyanide/tty/`. Each session has its own folder with a data file (`.log`) and a timing file (`.timing`).
+Scripts located in `scripts/management/` help manage the honeypot:
 
-**How to play a session:**
-1.  Find the desired session folder in `var/log/cyanide/tty/`.
-2.  Execute the command:
-```bash
-./scripts/cyanide replay var/log/cyanide/tty/<dir>/session.log > playback.cast
-# Then view via asciinema or compatible player
-```
+| Script | Command | Description |
+|--------|---------|-------------|
+| **Stats** | `python3 scripts/management/stats.py` | View real-time uptime, session counts, and attacker IPs. |
+| **Replay** | `scriptreplay <timing> <log>` | Replay a recorded TTY session (files in `var/log/cyanide/tty/`). |
 
 ---
 
-## 💾 Filesystem Configuration (YAML)
+## 🕵️ Data & Forensics
 
-The honeypot filesystem is defined in YAML templates located in `config/fs-config/`.
-
-### 🌍 OS Profiles
-Cyanide supports multiple OS personalities out of the box. Each profile has a corresponding YAML file containing both the filesystem structure and OS metadata:
--   `fs.ubuntu_22_04.yaml`: Ubuntu 22.04 LTS
--   `fs.debian_11.yaml`: Debian 11 (Bullseye)
--   `fs.centos_7.yaml`: CentOS 7
-
-### 📝 Metadata Customization
-Each YAML file starts with a `metadata:` section where you can customize the appearance of the OS:
-```yaml
-metadata:
-  os_name: "Ubuntu 22.04 LTS"
-  ssh_banner: "SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.1"
-  uname_r: "5.15.0-76-generic"
-  uname_a: "Linux server 5.15.0-76-generic #46-Ubuntu SMP Fri Jul 10 00:24:02 UTC 2020 x86_64 x86_64 x86_64 GNU/Linux"
-```
-
-### 🎯 Manual Structuring
-See `config/fs-config/fs.yaml.example` for a complete filesystem template. Simply edit the YAML file to add honey files or modify the structure, and restart the honeypot.
-
----
-
-## 🧹 Maintenance
-
-After long operation, it is recommended to clear logs:
-```bash
-# Delete logs older than 7 days
-./scripts/cyanide clean --days 7 --force
-```
-
----
-
-## 🤖 ML Anomaly Detection
-
-Cyanide includes a built-in Machine Learning engine (`cyanideML`) to filter high-volume attacks (e.g., Mirai botnets) and identify novel threats.
-
-### Features
-*   **Algorithm**: MiniBatchKMeans Clustering (Online Learning).
-*   **Input**: 537-dimensional feature vector (Command Hashing + Stats + Dynamic Ports).
-*   **Performance**: Process >10k logs/sec with <10ms latency.
-*   **Metrics**: Exports Prometheus metrics for latency and anomaly rates.
-
-### Usage
-The ML filter is available as a Python package in `ai-models/cyanideML`.
-
-```python
-from cyanideML import HoneypotFilter
-
-# Initialize
-model = HoneypotFilter()
-
-# Analyze Log
-is_anomaly, reason, distance = model.process_log(log_entry)
-
-if is_anomaly:
-    print(f"New Threat Detected! Reason: {reason}")
-```
-
-### Integration
-The ML engine is integrated directly into the Cyanide core. If enabled, it processes every command in real-time.
-
-**Metrics**: available on the main metrics port (default `:9090/metrics`), combined with standard statistics.
-
-### Configuration
-The honeypot is configured entirely via environment variables in `docker/docker-compose.yml`. No `.cfg` files are required.
-
-### Real-time Monitoring CLI
-To watch logs and detect anomalies in real-time as they appear:
-
-```bash
-python3 tools/watch_logs.py
-```
-
----
-
-## 📈 Performance
-
-Cyanide is designed for high efficiency and can handle significant automated reconnaissance traffic:
-
-- **Concurrent Sessions:** 500+ simultaneous connections.
-- **Command Latency:** <10ms average response time.
-- **Memory Usage:** ~100MB (idle state).
-- **CPU Usage:** <5% under normal attack load.
+*   **Logs**: `var/log/cyanide/`
+    *   `cyanide-log.json`: Main event log.
+    *   `cyanideML-log.json`: ML detection details.
+    *   `tty/<session_id>/`: Session recordings.
+*   **Quarantine**: `var/lib/cyanide/quarantine/`
+    *   Downloaded malware and uploaded files.
 
 ---
 
 ## ⚠️ Disclaimer
-This software is for **educational and research purposes only**. Running a honeypot involves risks. The author is not responsible for any damage.
+This software is for **educational and research purposes only**. Running a honeypot involves significant risks. The author is not responsible for any damage or misuse.

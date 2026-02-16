@@ -54,13 +54,13 @@ ssh:
   enabled: true
   listen_port: 2222
   rsa_keying: true
-  version: "SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.5"
-  # backend_mode: emulated
+  # version: "SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.5" # Optional global override
+  backend_mode: emulated
 
 telnet:
   enabled: true
   listen_port: 2223
-  # backend_mode: emulated
+  backend_mode: emulated
 
 smtp:
   enabled: true

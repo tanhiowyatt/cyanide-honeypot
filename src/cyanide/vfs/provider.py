@@ -10,20 +10,40 @@ class FakeFilesystem:
     that mimic a realistic Linux system. Used by ShellEmulator for file operations.
     """
     
-    def __init__(self, audit_callback=None, profile=None):
+    def __init__(self, root=None, audit_callback=None, profile=None):
         """Initialize fake filesystem with realistic directory structure and files."""
-        self.root = Directory("/") 
+        self.root = root or Directory("/") 
         self.audit_callback = audit_callback
         self.profile = profile
         self._init_fs()
 
     def _init_fs(self):
-        """Populate filesystem with default structure.
+        """Populate filesystem with dynamic/metadata files.
         
-        NOTE: Filesystem is now loaded entirely from YAML configuration in config/fs-config/.
-        This method is kept empty to avoid breaking legacy logic, avoiding hardcoded paths.
+        Injects magic files like /proc/version and /etc/issue if they are defined 
+        in the profile metadata but missing from the loaded YAML structure.
         """
-        pass
+        if not self.profile:
+            return
+
+        # 1. /proc/version
+        if "proc_version" in self.profile:
+            if not self.exists("/proc/version"):
+                self.mkdir_p("/proc")
+                self.mkfile("/proc/version", content=self.profile["proc_version"])
+
+        # 2. /etc/issue
+        if "etc_issue" in self.profile:
+            if not self.exists("/etc/issue"):
+                self.mkdir_p("/etc")
+                self.mkfile("/etc/issue", content=self.profile["etc_issue"])
+
+        # 3. /etc/os-release (partial generation if missing)
+        if "os_name" in self.profile and not self.exists("/etc/os-release"):
+            self.mkdir_p("/etc")
+            os_name = self.profile["os_name"]
+            content = f'PRETTY_NAME="{os_name}"\nNAME="{os_name}"\nID={os_name.lower().split()[0]}\n'
+            self.mkfile("/etc/os-release", content=content)
 
     def mkdir_p(self, path: str, owner="root", group="root", perm="drwxr-xr-x"):
         """Create a directory and all its parents (public)."""

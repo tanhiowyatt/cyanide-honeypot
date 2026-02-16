@@ -1,41 +1,31 @@
-# Developer Documentation
+# Developer Guide
 
-This guide is intended for developers who want to contribute to the Cyanide Honeypot project, add new features, or debug code.
+This guide is intended for developers who want to contribute to the Cyanide Honeypot project.
 
-## 🛠️ Development Environment Setup
+---
 
-Since the project uses **Docker** for runtime, your development workflow will involve editing code locally and reflecting changes in the container.
+## 🛠️ Development Environment
 
-### 1. Local Python Setup (For IDE Support)
-While you run the project in Docker, you should set up a local virtual environment so your IDE (VS Code, PyCharm) can provide autocompletion and linting.
+We use **Docker** for runtime consistency, but you should set up a local Python environment for IDE support (autocompletion, linting).
 
+### 1. Local Setup
 ```bash
-# Create venv
 python3 -m venv .venv
 source .venv/bin/activate
 
-# Install dependencies (development)
-pip install -r requirements.txt
-pip install pytest pytest-asyncio
+# Install dependencies in editable mode
+pip install -e .[dev]
 ```
 
-### 2. Docker Development Workflow
-The `docker-compose.yml` mounts the source directories (`src/`, `var/`) into the container. This means **changes to python files in `src/` are reflected immediately** upon container restart (or valid hot-reload if configured).
-
-**Running in Debug Mode:**
+### 2. Docker Workflow
+The `docker-compose.yml` mounts the source code (`src/` and `configs/`) into the container, allowing hot-reloading for code changes (server restart is still required for most changes).
 
 ```bash
 # Start container
-docker compose -f docker/docker-compose.yml up --build
+docker-compose -f deployments/docker/docker-compose.yml up --build
 
-# In a new terminal, check logs
-docker compose -f docker/docker-compose.yml logs -f
-```
-
-**Rebuilding:**
-If you change `requirements.txt` or `Dockerfile`, you MUST rebuild:
-```bash
-docker compose -f docker/docker-compose.yml up --build -d
+# Run shell inside container
+docker exec -it cyanide /bin/bash
 ```
 
 ---
@@ -44,119 +34,67 @@ docker compose -f docker/docker-compose.yml up --build -d
 
 We use `pytest` for unit and integration testing.
 
-### Running Tests (Inside Docker - Recommended)
-To ensure the environment matches production:
+### Running Tests
+It is recommended to run tests inside the container to match the production environment:
 
 ```bash
-docker exec -it cyanide_honeypot pytest tests/
+docker exec -it cyanide pytest tests/
 ```
 
-### Running Tests (Locally)
-If you have all dependencies installed locally:
-
+Or locally if you have dependencies installed:
 ```bash
-export PYTHONPATH=$PYTHONPATH:$(pwd)/src
 pytest tests/
 ```
 
-### Writing New Tests
-*   **Location**: `tests/` directory.
-*   **Naming**: Files must start with `test_`.
-*   **Async**: We use `unittest.IsolatedAsyncioTestCase` for async tests.
-
-**Example:**
-```python
-import unittest
-from core.some_module import SomeClass
-
-class TestFeature(unittest.IsolatedAsyncioTestCase):
-    async def test_my_feature(self):
-        obj = SomeClass()
-        result = await obj.async_method()
-        self.assertTrue(result)
-```
+### Writing Tests
+*   **Location**: `tests/`
+*   **Async**: Use `pytest-asyncio`.
+*   **Mocks**: Heavily used for `asyncssh` and `FakeFilesystem`.
 
 ---
 
-## 🏛️ Architecture Overview
+## 🏛️ Architecture
 
-The application is an asynchronous event-driven server based on `asyncio`.
+### Key Components
 
-1.  **Entry Point**: `scripts/cyanide` -> `src/cyanide/core/server.py:HoneypotServer.start()`
-2.  **Protocol Handlers**:
-    *   `src/cyanide/core/server.py` handles Telnet.
-    *   `src/cyanide/proxy/ssh_proxy.py` handles SSH (via `asyncssh`).
-3.  **Command Execution**:
-    *   Input is passed to `src/cyanide/core/shell_emulator.py`.
-    *   Emulator parses syntax (`|`, `>`, `&&`).
-    *   Commands are delegated to classes in `src/cyanide/commands/*.py`.
-4.  **Filesystem**:
-    *   `src/cyanide/core/fake_filesystem.py`: In-memory object tree.
-    *   `config/fs-config/fs.*.yaml`: Persisted state (YAML templates).
+1.  **Entry Point**: `src/cyanide/main.py` -> `src/cyanide/core/server.py`
+2.  **VFS (`src/cyanide/vfs`)**:
+    *   `provider.py`: The `FakeFilesystem` class.
+    *   `commands/*.py`: Emulated commands (ls, cd, wget).
+3.  **ML Engine (`src/cyanide/ml`)**:
+    *   `pipeline.py`: The hybrid detection pipeline.
+    *   `autoencoder.py`: PyTorch anomaly detector.
+4.  **Network (`src/cyanide/network`)**:
+    *   `tcp_proxy.py`: Generic asyncio TCP forwarder.
 
-### Key Class Interactions
-
-```mermaid
-graph TD
-    A[HoneypotServer] --> B[ShellEmulator]
-    A --> C[SSHServer]
-    B --> D[FakeFilesystem]
-    B --> E[CommandRegistry]
-    E --> F[LsCommand]
-    E --> G[CdCommand]
-    D --> H["config/fs-config/*.yaml"]
-```
+### Directory Map
+| Path | Component |
+|------|-----------|
+| `src/cyanide/core/` | Server orchestration, config loading. |
+| `src/cyanide/vfs/` | Filesystem emulation and command logic. |
+| `src/cyanide/ml/` | Machine Learning models and analytics. |
+| `configs/profiles/` | YAML templates for OS emulation. |
+| `deployments/docker/` | Dockerfile and Compose configurations. |
 
 ---
 
-## 🧩 Extending functionality
+## 🧩 Extending Functionality
 
 ### Adding a New Command
-To add a command like `service`:
+To add a supported command (e.g., `git`):
 
-1.  **Create file**: `src/cyanide/commands/service.py`
-2.  **Implement class**:
-    ```python
-    from .base import Command
-    
-    class ServiceCommand(Command):
-        async def execute(self, args, input_data):
-            if not args:
-                 return "", "Usage: service <name> <action>\n", 1
-            if args[0] == "apache2" and args[1] == "restart":
-                 return "Restarting apache2... OK\n", "", 0
-            return "", "Service not found\n", 1
-    ```
-3.  **Register**: Add to `src/cyanide/commands/__init__.py`.
-    ```python
-    from .service import ServiceCommand
-    COMMAND_MAP = { ..., "service": ServiceCommand }
-    ```
+1.  Create `src/cyanide/vfs/commands/git.py`.
+2.  Inherit from `BaseCommand`.
+3.  Implement `execute(self, args, ctx)`.
+4.  Register it in `src/cyanide/vfs/commands/__init__.py`.
 
-### Adding a New Proxy Protocol
-1.  Use `src/cyanide/proxy/tcp_proxy.py` as a base or reference.
-2.  Implement a class inheriting from `TCPProxy` or create a standalone asyncio server.
-3.  Initialize it in `HoneypotServer.start()`.
+### Adding a New ML Feature
+1.  Modify `src/cyanide/ml/pipeline.py`.
+2.  Update the `analyze_command` method to include your new logic.
 
 ---
 
-## 🐛 Debugging
-
-### Logging
-All application logs go to stdout (Docker logs) and `var/log/cyanide/cyanide.json`.
-*   Use `logger.info()` for general events.
-*   Use `logger.debug()` for verbose developer info (requires `--debug` flag).
-
-### Common Issues
-*   **"Address already in use"**: Check if another container or system process is using port 2222/2223.
-*   **"Module not found"**: Ensure `PYTHONPATH` includes `src/cyanide/`. Docker handles this automatically.
-*   **"Permission denied" on persistence**: Check file permissions on `config/fs-config/`. The container runs as user `cyanide`.
-
-## 📦 Release Process
-
-1.  Bump version in `src/cyanide/__init__.py` and `README.md`.
+## 📦 Release
+1.  Bump version in `pyproject.toml`.
 2.  Update `CHANGELOG.md`.
-3.  Build and test Docker image:
-    ```bash
-    docker build -t cyanide:latest -f docker/Dockerfile .
-    ```
+3.  Build image: `docker build -f deployments/docker/Dockerfile .`

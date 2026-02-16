@@ -1,56 +1,52 @@
-# Filesystem and Commands Documentation
+# Filesystem (VFS) and Command Emulation
 
-## src/cyanide/fs
+## VFS Overview
 
-Utilities for managing the persistence of the Fake Filesystem.
+The core of Cyanide's interaction is its virtual filesystem. It attempts to provide a realistic Linux environment without exposing the host OS.
 
-### `yaml_fs.py`
-Methods for loading the filesystem state from YAML.
-*   `load_fs(path)`: Loads and parses the filesystem tree and OS metadata from a YAML file. Returns `(root_node, metadata_dict)`.
+### Structure
+The VFS is a tree of `Node` objects (`Directory`, `File`, `Symlink`).
+It is initialized from YAML templates (`configs/profiles/`) at the start of each session.
 
-### Filesystem Metadata
-Each YAML template in `config/fs-config/` supports a `metadata:` section at the top. This metadata is used by the `HoneypotServer` to configure session-specific attributes:
-- `os_name`: Descriptive name of the OS.
-- `ssh_banner`: Version string for the SSH listener.
-- `uname_r`: Kernel release version.
-- `uname_a`: Full uname output.
-- `proc_version`: Content for `/proc/version`.
+### Persistence
+Changes made during a session (e.g., `mkdir /tmp/test`) persist within that session's memory space.
+If a user disconnects and reconnects, they get a fresh filesystem instance (unless session persistence is enabled, which is currently experimental).
 
 ---
 
-## src/commands
+## Command Emulation (`src/cyanide/vfs/commands`)
 
-This directory contains the implementations of individual shell commands. Each file typically corresponds to one or more commands.
+Cyanide does not execute commands via `os.system` or `subprocess`. Instead, it emulates the behavior of standard coreutils within the Python environment.
 
-### `base.py`
-**Class:** `Command/Executable`
-Base class for all commands.
-*   `execute(args, input_data)`: Must be implemented by subclasses. `input_data` contains stdin (from pipes).
+### Command Structure
+Each command is a function or class that:
+1.  Receives arguments (string list).
+2.  Interacts with the `FakeFilesystem` object.
+3.  Returns stdout/stderr, exit code.
 
-### `file_ops.py`
-Handles file manipulation.
-*   **Classes:**
-    *   `TouchCommand`: Updates timestamps or creates empty files.
-    *   `MkdirCommand`: Creates directories (supports `-p`).
-    *   `RmCommand`: Removes files (supports `-rf`).
-    *   `RmdirCommand`: Removes empty directories.
-    *   `CpCommand`: Copies files.
-    *   `MvCommand`: Moves/Renames files.
+### Supported Commands
 
-### `ls.py` (`LsCommand`)
-List directory contents. Supports flags like `-l`, `-a`, `-la`. Formats output to look like real Linux `ls`.
-
-### `cd.py` (`CdCommand`)
-Changes the current working directory of the `ShellEmulator`. Handles `..`, `.`, `~`, and `-`.
-
-### `cat.py` (`CatCommand`)
-Outputs file content to stdout.
-
-### `net_ops.py` / `misc.py`
-*   `WgetCommand` / `CurlCommand`: Simulates downloading files. *Critical for malware collection.* Saves files to the filesystem and triggers quarantine.
+| Command | Status | Notes |
+|---------|--------|-------|
+| `cd` | ✅ | Navigates the VFS tree. |
+| `ls` | ✅ | Supports `-l`, `-a`, `-h`, color output. |
+| `pwd` | ✅ | Prints current VFS path. |
+| `cat` | ✅ | Reads file content from VFS. |
+| `echo` | ✅ | Basic echo with variable expansion. |
+| `mkdir` | ✅ | Creates directories (supports `-p`). |
+| `rm` | ✅ | Removes files/dirs (supports `-rf`). |
+| `cp` | ✅ | Copies files within VFS. |
+| `mv` | ✅ | Moves/Renames within VFS. |
+| `touch` | ✅ | create empty file or update timestamp. |
+| `wget` | ✅ | Downloads file to `quarantine` and saves fake file in VFS. |
+| `curl` | ✅ | Similar to wget. |
+| `id` | ✅ | Shows fake UID/GID (root=0). |
+| `whoami` | ✅ | Shows current fake user. |
+| `uname` | ✅ | Returns kernel version from Profile Metadata. |
+| `ps` | ⚠️ | Shows fake process list (static + current session). |
+| `vi/vim` | ⚠️ | Starts a simple line editor simulation (trap). |
 
 ### Adding a New Command
-1. Create a new file in `src/commands/` (e.g., `mycmd.py`).
-2. Inherit from `Command`.
-3. Implement `async def execute(self, args, input_data)`.
-4. Register the command in `src/commands/__init__.py` inside `COMMAND_MAP`.
+1.  Create a new file in `src/cyanide/vfs/commands/mycmd.py`.
+2.  Implement the logic interacting with `ctx.fs`.
+3.  Register it in `src/cyanide/vfs/commands/__init__.py`.

@@ -1,95 +1,58 @@
-# Observability Guide 📊
+# Observability Guide
 
-Cyanide Honeypot supports modern observability standards including **OpenTelemetry** for distributed tracing and **Prometheus** for metrics.
+Cyanide supports **Prometheus** for metrics and **OpenTelemetry** for distributed tracing.
 
-## 📈 Prometheus Metrics
+## 1. Metrics (Prometheus)
 
-The honeypot exposes a metrics server (default port `9090`) with the following endpoints:
+Exposed on port `9090` by default.
 
-*   `/metrics`: Standard Prometheus metrics.
-*   `/stats`: Human-readable JSON summary of honeypot activity.
-*   `/health`: System health check (JSON). Returns version, uptime, and service status.
+### Endpoints
+*   `/metrics`: Prometheus scraping endpoint.
+*   `/stats`: Human-readable JSON summary.
+*   `/health`: System health status.
 
 ### Key Metrics
-| Metric | Type | Description |
-|--------|------|-------------|
-| `cyanide_active_sessions` | Gauge | Current number of active SSH/Telnet sessions. |
-| `cyanide_total_sessions_total` | Counter | Total connections received. |
-| `cyanide_uptime_seconds` | Counter | Honeypot uptime in seconds. |
-| `cyanide_protocols_total{protocol="..."}` | Counter | Connections broken down by protocol (ssh, telnet). |
-| `cyanide_honeytoken_hits_total{path="..."}` | Counter | Hits on specific honeytoken files. |
-| `cyanide_malware_scans_total` | Counter | Total files scanned for malware. |
-| `cyanide_malicious_files_total` | Counter | Number of files flagged as malicious by VirusTotal. |
-| `cyanide_dns_cache_hits_total` | Counter | Number of successful DNS cache lookups. |
-| `cyanide_dns_cache_misses_total` | Counter | Number of DNS lookups that required resolution. |
+*   `cyanide_active_sessions`: Current connections.
+*   `cyanide_honeytoken_hits_total`: Alerts triggered.
+*   `cyanide_ml_anomalies_total`: ML detection events.
 
-### Alerts
-We provide a pre-configured Prometheus alerting rules file:
-[prometheus-alerts.yml](../data/observability/prometheus-alerts.yml)
-
-To use it, add the following to your `prometheus.yml`:
+### Configuration
+Update `configs/app.yaml`:
 ```yaml
-rule_files:
-  - "prometheus-alerts.yml"
+metrics:
+  enabled: true
+  port: 9090
 ```
 
 ---
 
-## 🕵️ OpenTelemetry Tracing
+## 2. Distributed Tracing (Jaeger)
 
-Cyanide uses OpenTelemetry to trace internal operations such as command execution, filesystem access, and network requests.
+Cyanide pushes traces via OTLP to a collector (e.g., Jaeger).
 
-### Jaeger Setup (Recommended)
-The easiest way to view traces is using **Jaeger**.
+### Setup via Docker
+The provided `docker-compose.yml` includes a reliable Jaeger setup.
 
-1.  **Run Jaeger via Docker**:
+1.  **Enable Tracing in `configs/app.yaml`**:
+    ```yaml
+    otel:
+      enabled: true
+      exporter: otlp
+      endpoint: http://jaeger:4318/v1/traces
+    ```
+
+2.  **Start Stack**:
     ```bash
-    docker run --name jaeger \
-      -e COLLECTOR_OTLP_ENABLED=true \
-      -p 16686:16686 \
-      -p 4317:4317 \
-      -p 4318:4318 \
-      jaegertracing/all-in-one:latest
+    docker-compose -f deployments/docker/docker-compose.yml up -d
     ```
 
-2.  **Enable Tracing in `cyanide.cfg`**:
-    Configure the OTLP exporter to point to your Jaeger instance:
-    ```ini
-    [otel]
-    enabled = true
-    exporter = otlp
-    endpoint = http://localhost:4318/v1/traces
-    ```
-
-3.  **Environment Variables**:
-    You can also use standard OpenTelemetry environment variables:
-    ```bash
-    export OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4318"
-    export OTEL_SERVICE_NAME="cyanide-honeypot"
-    ```
-
-### Exporting Traces
-Traces are automatically exported via OTLP over HTTP or gRPC. In a production Docker setup, ensure the `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable is set to your collector/backend address.
+3.  **View Traces**:
+    Open `http://localhost:16686` in your browser.
 
 ---
 
-## 📊 Dashboards
+## 3. Dashboards
 
-We provide a ready-to-use Grafana dashboard:
-[grafana-dashboard.json](../data/observability/grafana-dashboard.json)
-
-### Importing to Grafana:
-1.  Open Grafana and go to **Dashboards** > **Import**.
-2.  Upload the `grafana-dashboard.json` file.
-3.  Select your Prometheus data source.
-4.  Click **Import**.
-
----
-
-## 🛠️ Debugging Observability
-
-If metrics or traces are not appearing:
-1.  Check that `[metrics] enabled = true` is set in the configuration.
-2.  Verify connectivity to the Jaeger/Collector endpoint (e.g., `curl http://localhost:4318/v1/traces`).
-3.  Check the honeypot logs for `otel_error` or `metrics_error` events.
-4.  Run with `CYANIDE_DEBUG_TRACE=1` to see spans in the console.
+Pre-built dashboards are located in `deployments/monitoring/`:
+*   `grafana-dashboard.json`: Import this into Grafana to visualize `cyanide_*` metrics.
+*   `prometheus-alerts.yml`: AlertManager rules for high-priority events.

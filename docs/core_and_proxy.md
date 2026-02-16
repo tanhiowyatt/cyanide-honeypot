@@ -1,45 +1,53 @@
-# Core Engine and Network Proxy Documentation
+# Core Architecture & Network
 
-This section covers the core logic of the honeypot, located in `src/cyanide/core` and `src/cyanide/proxy`.
-
-## src/cyanide/core
-
-The `src/cyanide/core` directory contains the orchestration logic for the honeypot.
-
-### `server.py`
-**Class:** `HoneypotServer`
-The main event loop and service orchestrator.
-*   **Functions:**
-    *   `start()`: Initializes SSH, Telnet, and Metrics servers. Handles `backend_mode` selection (emulated/proxy/pool).
-    *   `handle_telnet(reader, writer)`: Handles incoming Telnet connections.
-    *   `_analyze_command(cmd, ...)`: Passes commands to the ML filter for anomaly detection.
-    *   `save_quarantine_file(...)`: Saves downloaded malware to the quarantine directory.
-
-### `fake_filesystem.py` (and `filesystem_nodes.py`)
-**Class:** `FakeFilesystem`
-Simulates a Linux filesystem structure in memory (loaded from YAML).
-*   **Functions:**
-    *   `mkfile(path, content, ...)`: Creates a fake file.
-    *   `mkdir_p(path, ...)`: Creates a fake directory recursively.
-    *   `remove(path)`: Deletes a file or directory.
-    *   `get_content(path)`: Retrieves content of a file, triggering audit callbacks.
-
-### `shell_emulator.py`
-**Class:** `ShellEmulator`
-Parses and executes command lines input by the attacker. Supports pipes (`|`), redirections (`>`, `>>`), and command chaining (`&&`, `||`, `;`).
+This section covers the internal logic of Cyanide, split between `src/cyanide/core` (Orchestration & Emulation) and `src/cyanide/network` (Traffic Handling).
 
 ---
 
-## src/cyanide/proxy
+## 1. Core Logic (`src/cyanide/core`)
 
-The `src/cyanide/proxy` directory functionality for relaying traffic to real servers or other honey-tokens.
+### `server.py`
+**Class:** `HoneypotServer`
+The central orchestrator that initializes services and manages lifecycle.
+*   **Key Responsibilities:**
+    *   Starting SSH (`asyncssh`), Telnet, and Metrics servers.
+    *   Routing traffic based on `backend_mode` (Emulated vs. Proxy).
+    *   Initialize sub-services: `SessionManager`, `QuarantineService`, `AnalyticsService`.
+    *   Dispatching commands to the ML engine for analysis.
 
-### `ssh_proxy.py`
-**Class:** `HoneypotSSHServer` (Man-in-the-Middle)
-*   Intercepts SSH connections.
-*   Logs credentials and commands.
-*   Forwards traffic to a backend server.
+### `emulator.py`
+**Class:** `ShellEmulator`
+A state machine that simulates a Bash-like shell environment.
+*   **Features:**
+    *   **Parsing:** Handles complex command chains (`&&`, `||`, `;`), pipes (`|`), and redirections (`>`, `2>`).
+    *   **Environment:** Manages variables (`export`, `$VAR`).
+    *   **User Context:** Tracks current user (`root`, `admin`), CWD, and permissions.
+
+---
+
+## 2. Virtual Filesystem (`src/cyanide/vfs`)
+
+Cyanide does not touch the host disk for emulation. It uses an in-memory VFS.
+
+### `provider.py`
+**Class:** `FakeFilesystem`
+*   Loads the initial state from YAML profiles (`configs/profiles/`).
+*   **Operations:** `mkfile`, `mkdir`, `remove`, `write`, `read`.
+*   **Persistence:** Changes (e.g., `touch newfile`) persist for the duration of the session.
+*   **Audit Hooks:** Any file read/write triggers an audit event log.
+
+---
+
+## 3. Network & Proxy (`src/cyanide/network`)
 
 ### `tcp_proxy.py`
 **Class:** `TCPProxy`
-Generic TCP forwarder (used for SMTP, Pure SSH/Telnet proxying).
+A generic asyncio-based TCP forwarder used when `backend_mode` is set to `proxy` or for the SMTP service.
+*   **Functionality:**
+    *   Accepts connection on `listen_port`.
+    *   Connects to `target_host:target_port`.
+    *   Bidirectional data streaming.
+    *   Logs traffic size and duration.
+
+### `ssh_proxy.py` (Legacy/Specialized)
+Used for advanced SSH Man-in-the-Middle scenarios where we need to decrypt traffic before forwarding to a real backend.

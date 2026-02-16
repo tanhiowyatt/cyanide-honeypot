@@ -212,8 +212,7 @@ class HoneypotServer:
                 if metadata:
                     current_profile.update(metadata)
                 
-                fs = FakeFilesystem(audit_callback=audit_hook, profile=current_profile)
-                fs.root = root # Hot-swap root
+                fs = FakeFilesystem(root=root, audit_callback=audit_hook, profile=current_profile)
                 return fs
             except Exception as e:
                 self.logger.log_event(session_id, "error", {"message": f"Error loading YAML FS: {e}"})
@@ -410,8 +409,8 @@ class HoneypotServer:
             
             if backend_mode == "emulated":
                 # Anti-Fingerprinting
-                # Use consistent banner from profile
-                chosen_version = self.profile["ssh_banner"]
+                # Use override from config if available, otherwise use banner from profile
+                chosen_version = ssh_conf.get("version") or self.profile["ssh_banner"]
                 self.logger.log_event("system", "system_status", {"message": f"SSH Banner: {chosen_version}"})
                 
                 self.ssh_server = await asyncssh.listen(

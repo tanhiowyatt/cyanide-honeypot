@@ -1,6 +1,7 @@
 import os
 import time
 from pathlib import Path
+from typing import Optional
 
 
 class CleanupManager:
@@ -24,7 +25,9 @@ class CleanupManager:
         else:
             self.target_paths = raw_paths
 
-    def cleanup_files(self, retention_days_override: int = None, dry_run: bool = False) -> dict:
+    def cleanup_files(
+        self, retention_days_override: Optional[int] = None, dry_run: bool = False
+    ) -> dict:
         """Run cleanup logic.
 
         Args:

@@ -52,7 +52,10 @@ class TelnetHandler:
         open(tty_timing, "w").close()
 
         class TTYState:
-            pass
+            tty_log_path_jsonl: Path
+            tty_log_path: Path
+            tty_timing_path: Path
+            last_log_time: float
 
         tty_state = TTYState()
         tty_state.tty_log_path_jsonl = tty_log_path

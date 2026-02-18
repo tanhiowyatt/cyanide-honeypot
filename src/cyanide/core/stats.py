@@ -12,14 +12,14 @@ class StatsManager:
         self.total_sessions = 0
 
         # Counters
-        self.ips = Counter()
-        self.usernames = Counter()
-        self.passwords = Counter()
-        self.commands = Counter()
-        self.protocols = Counter()
-        self.honeytoken_triggers = Counter()
-        self.malware_scans = Counter()
-        self.malicious_files = Counter()
+        self.ips: Counter[str] = Counter()
+        self.usernames: Counter[str] = Counter()
+        self.passwords: Counter[str] = Counter()
+        self.commands: Counter[str] = Counter()
+        self.protocols: Counter[str] = Counter()
+        self.honeytoken_triggers: Counter[str] = Counter()
+        self.malware_scans: Counter[str] = Counter()
+        self.malicious_files: Counter[str] = Counter()
         self.dns_cache_hits = 0
         self.dns_cache_misses = 0
 

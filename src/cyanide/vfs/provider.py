@@ -3,6 +3,7 @@ import posixpath
 import random
 import time
 from pathlib import PurePosixPath
+from typing import Optional
 
 from .nodes import Directory, DynamicFile, File, Node
 
@@ -134,8 +135,10 @@ class FakeFilesystem:
                 f"Cached:         {cached} kB\n"
             )
 
-        self.root.get_child("proc").add_child(DynamicFile("uptime", gen_uptime))
-        self.root.get_child("proc").add_child(DynamicFile("meminfo", gen_meminfo))
+        proc_dir = self.root.get_child("proc")
+        if isinstance(proc_dir, Directory):
+            proc_dir.add_child(DynamicFile("uptime", gen_uptime))
+            proc_dir.add_child(DynamicFile("meminfo", gen_meminfo))
 
     def mkdir_p(self, path: str, owner="root", group="root", perm="drwxr-xr-x"):
         """Create a directory and all its parents (public)."""
@@ -186,7 +189,7 @@ class FakeFilesystem:
                 return parent.remove_child(name)
         return False
 
-    def get_node(self, path: str) -> Node:
+    def get_node(self, path: str) -> Optional[Node]:
         """Retrieve a node from the filesystem tree."""
         resolved = self.resolve(path)
         if resolved == "/":

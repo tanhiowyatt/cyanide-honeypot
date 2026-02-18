@@ -44,13 +44,13 @@ class HoneypotLogger:
 
         # We don't use file handler for attacks here directly because we rotate manually by date in log_event
 
-    async def _get_geoip(self, ip: str) -> Dict[str, Any]:
+    async def _get_geoip(self, ip: str) -> dict[str, Any]:
         """Fetch GeoIP data from ipinfo.io (free tier, no token needed for basic)."""
         if ip in ("127.0.0.1", "0.0.0.0", "::1"):
             return {"country": "Local", "city": "Local", "org": "Localhost"}
 
         if ip in self.geoip_cache:
-            return self.geoip_cache[ip]
+            return dict(self.geoip_cache[ip])
 
         try:
             # Use aiohttp for async request

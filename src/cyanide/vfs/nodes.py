@@ -1,4 +1,5 @@
 import datetime
+from typing import Callable, Optional
 
 
 class Node:
@@ -113,7 +114,7 @@ class DynamicFile(File):
     def __init__(
         self,
         name: str,
-        generator,
+        generator: Callable[[], str],
         parent=None,
         perm: str = "-r--r--r--",
         owner: str = "root",
@@ -148,7 +149,7 @@ class Directory(Node):
     ):
         """Initialize a directory node."""
         super().__init__(name, parent, perm, owner, group, 4096)
-        self.children = {}
+        self.children: dict[str, Node] = {}
 
     def add_child(self, node: Node) -> Node:
         """Add a child node to this directory."""
@@ -156,7 +157,7 @@ class Directory(Node):
         self.children[node.name] = node
         return node
 
-    def get_child(self, name: str) -> Node:
+    def get_child(self, name: str) -> Optional[Node]:
         """Retrieve a direct child node by name."""
         return self.children.get(name)
 
@@ -191,6 +192,7 @@ class Directory(Node):
             d.mtime = datetime.datetime.fromtimestamp(data["mtime"])
 
         for child_data in data.get("children", []):
+            child_node: Node
             ctype = child_data.get("type")
             if ctype == "file":
                 child_node = File.from_dict(child_data)

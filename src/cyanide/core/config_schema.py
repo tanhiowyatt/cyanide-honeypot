@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class SSHConfig(BaseModel):
     enabled: bool = True
     port: int = 2222
-    backend_mode: str = Field("emulated", pattern="^(emulated|proxy|pool)$")
+    backend_mode: str = Field(default="emulated", pattern="^(emulated|proxy|pool)$")
     target_host: Optional[str] = "127.0.0.1"
     target_port: Optional[int] = 22222
 
@@ -14,7 +14,7 @@ class SSHConfig(BaseModel):
 class TelnetConfig(BaseModel):
     enabled: bool = False
     port: int = 2323
-    backend_mode: str = Field("emulated", pattern="^(emulated|proxy|pool)$")
+    backend_mode: str = Field(default="emulated", pattern="^(emulated|proxy|pool)$")
     target_host: Optional[str] = "127.0.0.1"
     target_port: Optional[int] = 23
     banner: Optional[str] = None
@@ -76,15 +76,13 @@ class CyanideConfig(BaseModel):
     session_timeout: int = 300
 
     # Services
-    ssh: SSHConfig = Field(default_factory=SSHConfig)
-    telnet: TelnetConfig = Field(default_factory=TelnetConfig)
-    metrics: MetricsConfig = Field(default_factory=MetricsConfig)
-    smtp: SMTPConfig = Field(default_factory=SMTPConfig)
-    otel: TelemetryConfig = Field(default_factory=TelemetryConfig)
-    virustotal: VirusTotalConfig = Field(default_factory=VirusTotalConfig)
-
-    # Security
-    rate_limit: RateLimitConfig = Field(default_factory=RateLimitConfig)
+    ssh: SSHConfig = Field(default_factory=lambda: SSHConfig())
+    telnet: TelnetConfig = Field(default_factory=lambda: TelnetConfig())
+    metrics: MetricsConfig = Field(default_factory=lambda: MetricsConfig())
+    smtp: SMTPConfig = Field(default_factory=lambda: SMTPConfig())
+    otel: TelemetryConfig = Field(default_factory=lambda: TelemetryConfig())
+    virustotal: VirusTotalConfig = Field(default_factory=lambda: VirusTotalConfig())
+    rate_limit: RateLimitConfig = Field(default_factory=lambda: RateLimitConfig())
     allow_local_network: bool = False
 
     # Auth

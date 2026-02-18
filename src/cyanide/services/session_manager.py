@@ -1,6 +1,6 @@
 import time
 import uuid
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 
 class SessionManager:
@@ -22,7 +22,7 @@ class SessionManager:
         self.ban_duration = config.get("rate_limit", {}).get("ban_duration", 3600)
 
         self.active_sessions = 0
-        self.sessions_per_ip = {}  # Map of IP -> count
+        self.sessions_per_ip: Dict[str, int] = {}  # Map of IP -> count
 
         self.banned_ips: Dict[str, float] = {}  # IP -> expiry_timestamp
         self.connection_history: Dict[str, List[float]] = {}  # IP -> list of timestamps
@@ -82,7 +82,7 @@ class SessionManager:
             if self.sessions_per_ip[ip] == 0:
                 del self.sessions_per_ip[ip]
 
-    def ban_ip(self, ip: str, duration: int = None):
+    def ban_ip(self, ip: str, duration: Optional[int] = None):
         """Manual ban."""
         if duration is None:
             duration = self.ban_duration

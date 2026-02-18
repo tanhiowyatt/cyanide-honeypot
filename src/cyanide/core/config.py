@@ -2,6 +2,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 import yaml
 from dotenv import load_dotenv
@@ -18,7 +19,7 @@ def load_config(path: Path = Path("configs/app.yaml")):
         env_path = Path(".env")  # Fallback to root .env
     load_dotenv(dotenv_path=env_path)
 
-    config_data = {}
+    config_data: dict[str, Any] = {}
     if path.exists():
         try:
             with open(path, "r") as f:

@@ -80,16 +80,15 @@ class Command:
                     if not valid_ip:
                         valid_ip = ip_str
 
-                # Cache the first valid IP
                 if hasattr(self.emulator, "dns_cache") and valid_ip:
                     ttl = (
                         self.emulator.config.get("dns_cache_ttl", 60)
                         if hasattr(self.emulator, "config")
                         else 60
                     )
-                    self.emulator.dns_cache[hostname] = (valid_ip, now + ttl)
+                    self.emulator.dns_cache[hostname] = (str(valid_ip), now + ttl)
 
-                return True, "", valid_ip
+                return True, "", str(valid_ip) if valid_ip else None
 
             except socket.gaierror:
                 return False, f"Could not resolve host: {hostname}", None

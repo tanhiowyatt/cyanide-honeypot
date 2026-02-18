@@ -1,7 +1,8 @@
 import shlex
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Dict, List, Optional
 
+from cyanide.vfs.commands.base import Command
 from cyanide.vfs.provider import FakeFilesystem
 
 
@@ -29,7 +30,9 @@ class ShellEmulator:
         self.config = config or {}
         # Callback(filename, content) -> void
         self.quarantine_callback = quarantine_callback
-        self.dns_cache = {}  # Cache: {hostname: (ip, expiry_timestamp)}
+        self.dns_cache: dict[str, tuple[str, float]] = (
+            {}
+        )  # Cache: {hostname: (ip, expiry_timestamp)}
         self.cwd = (
             "/home/admin"
             if username == "admin"
@@ -81,7 +84,7 @@ class ShellEmulator:
         """Register available commands using the central registry."""
         from cyanide.vfs.commands import COMMAND_MAP
 
-        self.commands = {}
+        self.commands: Dict[str, Command] = {}
         for cmd_name, cmd_class in COMMAND_MAP.items():
             self.commands[cmd_name] = cmd_class(self)
 
@@ -91,8 +94,8 @@ class ShellEmulator:
     def resolve_path(self, path: str) -> str:
         """Resolve relative or absolute path to filesystem path."""
         if path.startswith("/"):
-            return self.fs.resolve(path)
-        return self.fs.resolve(f"{self.cwd}/{path}")
+            return str(self.fs.resolve(path))
+        return str(self.fs.resolve(f"{self.cwd}/{path}"))
 
     async def execute(self, command_line: str) -> tuple[str, str, int]:
         """Execute a shell command line dealing with chains, pipes, and redirections.
@@ -160,7 +163,7 @@ class ShellEmulator:
         # Placeholder for proper tokenization.
         # We hide quoted strings first to avoid splitting inside them.
 
-        tokens = []
+        tokens: List[tuple[str, Optional[str]]] = []
         current_token = ""
         in_quote = False
         quote_char = ""
@@ -256,7 +259,10 @@ class ShellEmulator:
         if cmd_name in self.commands:
             # All commands must be async now
             try:
-                return await self.commands[cmd_name].execute(params, input_data=input_data)
+                from typing import cast
+
+                result = await self.commands[cmd_name].execute(params, input_data=input_data)
+                return cast(tuple[str, str, int], result)
             except Exception as e:
                 # Fallback or error report
                 return "", f"Command execution error: {e}\n", 1

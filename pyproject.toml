@@ -70,6 +70,8 @@ dev = [
     "isort>=5.12.0",
     "mypy>=1.5.0",
     "ruff>=0.1.0",
+    "types-aiofiles>=23.1.0",
+    "types-PyYAML>=6.0.12.12",
 ]
 
 # Точка входа для CLI (команда 'cyanide' в терминале)

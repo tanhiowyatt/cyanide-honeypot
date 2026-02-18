@@ -71,6 +71,8 @@ class QuarantineService:
 
     async def _scan_and_log(self, filename: str, content: bytes, session_id: str, src_ip: str):
         """Background task to scan file and log results."""
+        if not self.vt_scanner:
+            return
         try:
             result = await self.vt_scanner.scan(content, filename)
             if result:

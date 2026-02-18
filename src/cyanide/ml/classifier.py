@@ -149,27 +149,47 @@ class KnowledgeBase:
         
         return results
 
+    def _enrich_technique_details(self, technique_id, technique_info):
+        """Helper to build full technique context."""
+        return {
+            'technique': {
+                'id': technique_id,
+                'name': technique_info.get('name', ''),
+                'description': technique_info.get('description', ''),
+            },
+            'tactics': [{'name': t} for t in technique_info.get('tactics', [])],
+            'mitigation': technique_info.get('mitigation', ''),
+            'detection': technique_info.get('detection', ''),
+            'platforms': technique_info.get('platforms', []),
+            'permissions_required': technique_info.get('permissions_required', []),
+            'defenses_bypassed': technique_info.get('defenses_bypassed', []),
+            'related_groups': self._get_related_groups(technique_id),
+            'related_malware': self._get_related_malware(technique_id)
+        }
+
+    def enrich_technique(self, technique_id):
+        """Public method to get enriched details for a technique ID (used by pipeline)."""
+        technique_info = self.technique_db.get(technique_id)
+        if not technique_info:
+            return None
+        return self._enrich_technique_details(technique_id, technique_info)
+
     def _get_related_groups(self, technique_id):
         groups = []
         for rel in self.relationships.get('uses', []):
+            # Group USES Technique
             if rel.get('target_id') == technique_id and rel.get('source_type') == 'group':
                 group_info = self.group_db.get(rel['source_id'], {})
-                groups.append({'id': rel['source_id'], 'name': group_info.get('name', '')})
+                groups.append({'id': rel['source_id'], 'name': group_info.get('name', 'Unknown')})
         return groups[:5] # Limit
 
     def _get_related_malware(self, technique_id):
         malware = []
         for rel in self.relationships.get('uses', []):
-            if rel.get('target_id') == technique_id and rel.get('target_type') == 'malware':
-                 # Wait, usually Malware USES Technique. Source=Malware, Target=Technique.
-                 # Checking relationship format in spec:
-                 # { "source_id": "APT28", "target_id": "T1059", "source_type": "group" }
-                 pass
-            
-            # Check if source is malware
+            # Malware USES Technique
             if rel.get('target_id') == technique_id and rel.get('source_type') == 'malware':
                 mal_info = self.malware_db.get(rel['source_id'], {})
-                malware.append({'id': rel['source_id'], 'name': mal_info.get('name', '')})
+                malware.append({'id': rel['source_id'], 'name': mal_info.get('name', 'Unknown')})
         return malware[:5]
 
     def classify_command(self, command):
@@ -202,28 +222,19 @@ class KnowledgeBase:
         else:
              conf_level = 'LOW'
         
-        # Aggregate tactics
-        all_tactics = set()
-        for m in matches:
-            for t in m.get('tactics', []):
-                all_tactics.add(t)
-                
-        tactic_details = []
-        for t in all_tactics:
-            tactic_details.append({'name': t})
-
-        return {
+        # Build Classified Result
+        technique_id = best_match['technique_id']
+        technique_info = self.technique_db.get(technique_id, {})
+        
+        enriched = self._enrich_technique_details(technique_id, technique_info)
+        
+        result = {
             'classified': True,
-            'technique': {
-                'id': best_match['technique_id'],
-                'name': best_match['technique_name'],
-                'description': best_match['description']
-            },
-            'tactics': tactic_details,
             'confidence': best_match['similarity'],
             'confidence_level': conf_level,
-            'related_groups': best_match['related_groups']
+            **enriched
         }
+        return result
 
     def _fallback_classify(self, command):
         """Simple keyword matching fallback."""
@@ -245,12 +256,7 @@ class KnowledgeBase:
                     'confidence_level': 'FALLBACK',
                     'match_method': 'keyword',
                     'matched_keyword': kw,
-                    'technique': {
-                        'id': tech_id,
-                        'name': tech_info.get('name', 'Unknown'),
-                        'description': tech_info.get('description', '')
-                    },
-                    'tactics': [{'name': t} for t in tech_info.get('tactics', [])]
+                    **enriched
                 }
         return None
 

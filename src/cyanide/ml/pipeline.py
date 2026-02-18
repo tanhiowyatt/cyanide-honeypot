@@ -79,30 +79,55 @@ class CyanideML:
             
             # Use Rule/Context Classification if ML failed or Rule is better
             if rule_result['matched'] and (not classification.get('classified') or rule_result['confidence'] > classification.get('confidence', 0)):
-                classification = {
-                    'classified': True,
-                    'technique': {
-                        'id': rule_result['technique'],
-                        'name': rule_result['description'],
-                        'description': 'Identified by Security Rule Engine'
-                    },
-                    'confidence': rule_result['confidence'],
-                    'confidence_level': 'HIGH',
-                    'match_method': 'rule_based'
-                }
+                # Enrich from Rule's Technique ID
+                enriched = self.kb.enrich_technique(rule_result['technique'])
+                if enriched:
+                    classification = {
+                        'classified': True,
+                        'confidence': rule_result['confidence'],
+                        'confidence_level': 'HIGH',
+                        'match_method': 'rule_based',
+                        **enriched
+                    }
+                    # Override description if needed, or keep KB description for context
+                    # classification['technique']['description'] = 'Identified by Security Rule Engine: ' + rule_result['description']
+                else:
+                    # Fallback if technique not in KB
+                    classification = {
+                        'classified': True,
+                        'technique': {
+                            'id': rule_result['technique'],
+                            'name': rule_result['description'],
+                            'description': 'Identified by Security Rule Engine'
+                        },
+                        'confidence': rule_result['confidence'],
+                        'confidence_level': 'HIGH',
+                        'match_method': 'rule_based'
+                    }
                 
             elif context_result_path.get('matched') and not classification.get('classified'):
-                classification = {
-                    'classified': True,
-                    'technique': {
-                        'id': context_result_path['techniques'][0],
-                        'name': 'Sensitive Path Access',
-                        'description': 'Access to sensitive system file'
-                    },
-                    'confidence': 0.8,
-                    'confidence_level': 'MEDIUM',
-                    'match_method': 'context_analysis'
-                }
+                tech_id = context_result_path['techniques'][0]
+                enriched = self.kb.enrich_technique(tech_id)
+                if enriched:
+                    classification = {
+                        'classified': True,
+                        'confidence': 0.8,
+                        'confidence_level': 'MEDIUM',
+                        'match_method': 'context_analysis',
+                        **enriched
+                    }
+                else:
+                    classification = {
+                        'classified': True,
+                        'technique': {
+                            'id': tech_id,
+                            'name': 'Sensitive Path Access',
+                            'description': 'Access to sensitive system file'
+                        },
+                        'confidence': 0.8,
+                        'confidence_level': 'MEDIUM',
+                        'match_method': 'context_analysis'
+                    }
                 
             severity = self._determine_severity(classification)
             # Force severity upgrade if rule is CRITICAL/HIGH

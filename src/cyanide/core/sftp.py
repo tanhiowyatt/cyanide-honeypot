@@ -50,7 +50,7 @@ class CyanideSFTPServer(asyncssh.SFTPServer):
         attrs = asyncssh.SFTPName(
             filename=node.name,
             longname=f"-rw-r--r-- 1 root root {node.size} Jan 1 12:00 {node.name}", # Dummy longname
-            attrs=asyncssh.SFTPAttributes(
+            attrs=asyncssh.SFTPAttrs(
                 size=node.size,
                 uid=0,
                 gid=0,
@@ -92,7 +92,7 @@ class CyanideSFTPServer(asyncssh.SFTPServer):
             is_dir = isinstance(node, Directory)
             mode = 0o40755 if is_dir else 0o100644
             
-            attrs = asyncssh.SFTPAttributes(
+            attrs = asyncssh.SFTPAttrs(
                 size=node.size,
                 uid=0, 
                 gid=0,
@@ -102,7 +102,7 @@ class CyanideSFTPServer(asyncssh.SFTPServer):
             entries.append(asyncssh.SFTPName(node.name, longname=f"{node.name}", attrs=attrs))
             return entries
         except StopIteration:
-            return asyncssh.SFTP_EOF
+            return asyncssh.FX_EOF
 
     def open(self, path, pflags, attrs):
         path = self._resolve_path(path)
@@ -169,7 +169,7 @@ class CyanideSFTPServer(asyncssh.SFTPServer):
         # If overwrite middle?
         # Simplified: just append
         obj["buffer"].extend(data)
-        return asyncssh.SFTP_OK
+        return asyncssh.FX_OK
 
     def close(self, handle):
         if handle in self.open_files:

@@ -79,7 +79,7 @@ def mock_server(mock_config, mock_logger, mocker):
     # Mock external dependencies
     mocker.patch("cyanide.core.server.CyanideLogger", return_value=mock_logger)
     mocker.patch("cyanide.core.server.VTScanner")
-    mocker.patch("cyanide.core.server.GeoIP")
+    # mocker.patch("cyanide.core.server.GeoIP") # Not present in server.py
     mocker.patch("cyanide.core.server.VMPool")
     mocker.patch("cyanide.core.server.StatsManager")
     

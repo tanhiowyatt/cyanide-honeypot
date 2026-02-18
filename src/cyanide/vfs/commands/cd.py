@@ -20,4 +20,6 @@ class CdCommand(Command):
         if self.fs.is_dir(target):
             self.emulator.cwd = target
             return "", "", 0
-        return "", f"cd: {args[0]}: No such file or directory\n", 1
+        elif self.fs.exists(target):
+            return "", f"bash: cd: {args[0]}: Not a directory\n", 1
+        return "", f"bash: cd: {args[0]}: No such file or directory\n", 1

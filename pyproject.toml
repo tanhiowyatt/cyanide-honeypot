@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=78.1.1", "wheel>=0.46.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "cyanide"
-version = "2.1.2"
+version = "2.1.3"
 description = "A high-interaction honeypot with ML-based anomaly detection."
 readme = "README.md"
 authors = [
@@ -27,7 +27,7 @@ requires-python = ">=3.9"
 # Основные зависимости (Runtime)
 dependencies = [
     "asyncssh>=2.14.2,<3.0",
-    "cryptography>=41.0.0",
+    "cryptography>=46.0.0",
     "pyyaml>=6.0",
     "aiofiles>=23.0",
     "aiohttp>=3.9.0",
@@ -40,8 +40,23 @@ dependencies = [
     "opentelemetry-api>=1.20.0",
     "opentelemetry-sdk>=1.20.0",
     "opentelemetry-exporter-otlp>=1.20.0",
-    "requests>=2.31.0",
+    "requests>=2.32.4",
     "torch>=2.2.0",
+    # Security fixes for transitive dependencies
+    "jinja2>=3.1.6",
+    "urllib3>=2.6.3",
+    "certifi>=2024.7.4",
+    "idna>=3.7",
+    "configobj>=5.0.9",
+    "twisted>=24.7.0",
+    "filelock>=3.20.3",
+    "future>=0.18.3",
+    "mlx>=0.29.4",
+    "pillow>=11.0.0",
+    "pynacl>=1.6.2",
+    "python-multipart>=0.0.22",
+    "starlette>=0.47.2",
+    "streamlit>=1.37.0",
 ]
 
 # Группы зависимостей для разработки (замена requirements-dev.txt)

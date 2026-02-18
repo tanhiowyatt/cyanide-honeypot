@@ -1,16 +1,19 @@
 import aiohttp
+from typing import Any, Dict, Optional, cast
+
 
 class GeoIP:
     """
     Async GeoIP Enrichment using ip-api.com (Free, non-commercial use).
     For production, replace with local MMDB or paid API.
     """
+
     def __init__(self, cache_size=1000):
         self.base_url = "http://ip-api.com/json"
-        self.cache = {}
+        self.cache: Dict[str, Any] = {}
         self.cache_size = cache_size
-        
-    async def lookup(self, ip: str) -> dict:
+
+    async def lookup(self, ip: str) -> Optional[dict]:
         """
         Lookup IP details.
         Returns: {
@@ -22,10 +25,10 @@ class GeoIP:
         """
         if ip in ("127.0.0.1", "localhost", "::1"):
             return None
-            
+
         if ip in self.cache:
-            return self.cache[ip]
-            
+            return cast(Dict[Any, Any], self.cache[ip])
+
         try:
             async with aiohttp.ClientSession() as session:
                 url = f"{self.base_url}/{ip}"
@@ -39,7 +42,7 @@ class GeoIP:
                                 "isp": data.get("isp"),
                                 "lat": data.get("lat"),
                                 "lon": data.get("lon"),
-                                "org": data.get("org")
+                                "org": data.get("org"),
                             }
                             # Update Cache
                             if len(self.cache) < self.cache_size:
@@ -48,5 +51,5 @@ class GeoIP:
         except Exception:
             # Silently fail to avoid log spam on network issues
             pass
-            
+
         return None

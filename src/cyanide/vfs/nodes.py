@@ -1,8 +1,9 @@
 import datetime
 
+
 class Node:
     """Base class for filesystem nodes.
-    
+
     Attributes:
         name (str): Name of the node.
         parent (Node): Parent directory node.
@@ -12,7 +13,17 @@ class Node:
         size (int): Size in bytes.
         mtime (datetime): Modification time.
     """
-    def __init__(self, name: str, parent=None, perm: str = "drwxr-xr-x", owner: str = "root", group: str = "root", size: int = 4096, mtime=None):
+
+    def __init__(
+        self,
+        name: str,
+        parent=None,
+        perm: str = "drwxr-xr-x",
+        owner: str = "root",
+        group: str = "root",
+        size: int = 4096,
+        mtime=None,
+    ):
         self.name = name
         self.parent = parent
         self.perm = perm
@@ -24,7 +35,7 @@ class Node:
     @property
     def path(self) -> str:
         """Calculate the absolute path of this node.
-        
+
         Returns:
             str: Absolute path string.
         """
@@ -43,11 +54,11 @@ class Node:
             "owner": self.owner,
             "group": self.group,
             "size": self.size,
-            "mtime": self.mtime.timestamp()
+            "mtime": self.mtime.timestamp(),
         }
 
     @staticmethod
-    def from_dict(data: dict) -> 'Node':
+    def from_dict(data: dict) -> "Node":
         """Reconstruct node from dictionary."""
         # This base method is rarely used directly, seeing as we usually instantiate File or Directory
         name = data.get("name", "")
@@ -59,10 +70,20 @@ class Node:
         if "mtime" in data:
             node.mtime = datetime.datetime.fromtimestamp(data["mtime"])
         return node
-    
+
+
 class File(Node):
     """Represents a file in the filesystem."""
-    def __init__(self, name: str, parent=None, content: str = "", perm: str = "-rw-r--r--", owner: str = "root", group: str = "root"):
+
+    def __init__(
+        self,
+        name: str,
+        parent=None,
+        content: str = "",
+        perm: str = "-rw-r--r--",
+        owner: str = "root",
+        group: str = "root",
+    ):
         """Initialize a file node."""
         super().__init__(name, parent, perm, owner, group, len(content))
         self.content = content
@@ -74,7 +95,7 @@ class File(Node):
         return d
 
     @staticmethod
-    def from_dict(data: dict) -> 'File':
+    def from_dict(data: dict) -> "File":
         name = data.get("name", "unknown")
         content = data.get("content", "")
         f = File(name, content=content)
@@ -85,9 +106,19 @@ class File(Node):
             f.mtime = datetime.datetime.fromtimestamp(data["mtime"])
         return f
 
+
 class DynamicFile(File):
     """File with dynamically generated content."""
-    def __init__(self, name: str, generator, parent=None, perm: str = "-r--r--r--", owner: str = "root", group: str = "root"):
+
+    def __init__(
+        self,
+        name: str,
+        generator,
+        parent=None,
+        perm: str = "-r--r--r--",
+        owner: str = "root",
+        group: str = "root",
+    ):
         super().__init__(name, parent, "", perm, owner, group)
         self.generator = generator
 
@@ -101,11 +132,20 @@ class DynamicFile(File):
 
     @content.setter
     def content(self, value):
-        pass # Read-only generator
+        pass  # Read-only generator
+
 
 class Directory(Node):
     """Represents a directory in the filesystem."""
-    def __init__(self, name: str, parent=None, perm: str = "drwxr-xr-x", owner: str = "root", group: str = "root"):
+
+    def __init__(
+        self,
+        name: str,
+        parent=None,
+        perm: str = "drwxr-xr-x",
+        owner: str = "root",
+        group: str = "root",
+    ):
         """Initialize a directory node."""
         super().__init__(name, parent, perm, owner, group, 4096)
         self.children = {}
@@ -115,17 +155,17 @@ class Directory(Node):
         node.parent = self
         self.children[node.name] = node
         return node
-        
+
     def get_child(self, name: str) -> Node:
         """Retrieve a direct child node by name."""
         return self.children.get(name)
 
     def remove_child(self, name: str) -> bool:
         """Remove a child node by name.
-        
+
         Args:
             name: Name of the child to remove.
-            
+
         Returns:
             bool: True if removed, False if not found.
         """
@@ -141,7 +181,7 @@ class Directory(Node):
         return d
 
     @staticmethod
-    def from_dict(data: dict) -> 'Directory':
+    def from_dict(data: dict) -> "Directory":
         name = data.get("name", "unknown")
         d = Directory(name)
         d.perm = data.get("perm", "drwxr-xr-x")
@@ -149,7 +189,7 @@ class Directory(Node):
         d.group = data.get("group", "root")
         if "mtime" in data:
             d.mtime = datetime.datetime.fromtimestamp(data["mtime"])
-            
+
         for child_data in data.get("children", []):
             ctype = child_data.get("type")
             if ctype == "file":
@@ -159,5 +199,5 @@ class Directory(Node):
             else:
                 continue
             d.add_child(child_node)
-            
+
         return d

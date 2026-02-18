@@ -13,25 +13,31 @@ class CommandNode:
 
 class ShellEmulator:
     """Fake Linux shell emulator for honeypot command execution.
-    
+
     Provides realistic command execution behavior including:
     - Filesystem navigation and manipulation
     - Pipes (|)
     - Redirections (>, >>)
     - Command chaining (;, &&, ||)
     """
-    
-    def __init__(self, fs: FakeFilesystem, username: str = "root", quarantine_callback=None, config=None):
+
+    def __init__(
+        self, fs: FakeFilesystem, username: str = "root", quarantine_callback=None, config=None
+    ):
         self.fs = fs
         self.username = username
         self.config = config or {}
         # Callback(filename, content) -> void
         self.quarantine_callback = quarantine_callback
         self.dns_cache = {}  # Cache: {hostname: (ip, expiry_timestamp)}
-        self.cwd = "/home/admin" if username == "admin" else "/root" if username == "root" else f"/home/{username}"
+        self.cwd = (
+            "/home/admin"
+            if username == "admin"
+            else "/root" if username == "root" else f"/home/{username}"
+        )
         if not self.fs.exists(self.cwd):
             self.cwd = "/"
-            
+
         self._register_commands()
 
     def check_permission(self, path: str, mode: str = "r") -> bool:
@@ -39,16 +45,16 @@ class ShellEmulator:
         # Root can do anything
         if self.username == "root":
             return True
-            
+
         node = self.fs.get_node(path)
         if not node:
-            return False 
-            
+            return False
+
         perms = node.perm
         owner_perm = perms[1:4]
         group_perm = perms[4:7]
         other_perm = perms[7:10]
-        
+
         needed = ""
         if "r" in mode:
             needed += "r"
@@ -56,28 +62,29 @@ class ShellEmulator:
             needed += "w"
         if "x" in mode:
             needed += "x"
-        
+
         # Determine applicable scope
         scope_perm = other_perm
         if self.username == node.owner:
             scope_perm = owner_perm
         elif self.username == node.group:
             scope_perm = group_perm
-            
+
         # Check
         for char in needed:
             if char not in scope_perm:
                 return False
-                
+
         return True
 
     def _register_commands(self):
         """Register available commands using the central registry."""
         from cyanide.vfs.commands import COMMAND_MAP
+
         self.commands = {}
         for cmd_name, cmd_class in COMMAND_MAP.items():
             self.commands[cmd_name] = cmd_class(self)
-            
+
         # Add manual aliases
         self.commands["dir"] = self.commands.get("ls")
 
@@ -89,10 +96,10 @@ class ShellEmulator:
 
     async def execute(self, command_line: str) -> tuple[str, str, int]:
         """Execute a shell command line dealing with chains, pipes, and redirections.
-        
+
         Args:
             command_line: Complete command line string.
-            
+
         Returns:
             tuple: (stdout, stderr, return_code) - Aggregated from the executed chain.
         """
@@ -108,60 +115,60 @@ class ShellEmulator:
         full_stdout = ""
         full_stderr = ""
         last_rc = 0
-        
+
         should_execute = True
 
         for i, node in enumerate(nodes):
             if not should_execute:
                 # Still need to process operator to see if *next* one should execute logic
-                # For example A && B || C. If A fails, B skipped. Operator of B is ||. 
+                # For example A && B || C. If A fails, B skipped. Operator of B is ||.
                 # Since B skipped, we check if we should reset for C?
                 # Simplified logic:
-                if node.operator == '||' and last_rc != 0:
-                     should_execute = True
-                elif node.operator == ';' or node.operator is None:
-                     should_execute = True
-                else: 
-                     # && with last_rc != 0 -> continue skipping
-                     pass
+                if node.operator == "||" and last_rc != 0:
+                    should_execute = True
+                elif node.operator == ";" or node.operator is None:
+                    should_execute = True
+                else:
+                    # && with last_rc != 0 -> continue skipping
+                    pass
                 continue
 
             # Execute the pipeline (which might be a single command)
             stdout, stderr, rc = await self._execute_pipeline(node.cmd_line)
-            
+
             full_stdout += stdout
             full_stderr += stderr
             last_rc = rc
-            
+
             # Decide validation for next node
-            if node.operator == '&&':
-                should_execute = (rc == 0)
-            elif node.operator == '||':
-                should_execute = (rc != 0)
-            elif node.operator == ';':
+            if node.operator == "&&":
+                should_execute = rc == 0
+            elif node.operator == "||":
+                should_execute = rc != 0
+            elif node.operator == ";":
                 should_execute = True
-            
+
         return full_stdout, full_stderr, last_rc
 
     def _parse_chain(self, command_line: str) -> List[CommandNode]:
         """Split command line by operators &&, ||, ; dealing with quotes."""
         # This is a basic parser. A full lexer would be better but overkill.
         # We'll use a regex that splits but captures delimiters, then reconstruct.
-        # NOTE: This simple regex might fail inside quotes. 
+        # NOTE: This simple regex might fail inside quotes.
         # Ideally we tokenize properly. For a honeypot, a slightly smarter split is usually enough.
-        
+
         # Placeholder for proper tokenization.
         # We hide quoted strings first to avoid splitting inside them.
-        
+
         tokens = []
         current_token = ""
         in_quote = False
         quote_char = ""
-        
+
         i = 0
         while i < len(command_line):
             char = command_line[i]
-            
+
             if char in ("'", '"'):
                 if not in_quote:
                     in_quote = True
@@ -169,14 +176,14 @@ class ShellEmulator:
                 elif char == quote_char:
                     in_quote = False
                 current_token += char
-            
+
             elif not in_quote:
                 # Check for operators
-                if command_line[i:i+2] == "&&":
+                if command_line[i : i + 2] == "&&":
                     tokens.append((current_token.strip(), "&&"))
                     current_token = ""
-                    i += 1 # skip extra char
-                elif command_line[i:i+2] == "||":
+                    i += 1  # skip extra char
+                elif command_line[i : i + 2] == "||":
                     tokens.append((current_token.strip(), "||"))
                     current_token = ""
                     i += 1
@@ -187,33 +194,33 @@ class ShellEmulator:
                     current_token += char
             else:
                 current_token += char
-                
+
             i += 1
-            
+
         if current_token.strip():
             tokens.append((current_token.strip(), None))
-            
+
         return [CommandNode(cmd, op) for cmd, op in tokens if cmd]
 
     async def _execute_pipeline(self, pipeline_str: str) -> tuple[str, str, int]:
         """Execute a single pipeline (A | B | C)."""
         # Split by pipe '|' respecting quotes
         segments = self._split_ignore_quotes(pipeline_str, "|")
-        
+
         input_data = ""
         last_rc = 0
         err_out = ""
-        
+
         for i, segment in enumerate(segments):
             # Parse redirections > and >>
             cmd_str, redirect_target, append_mode = self._parse_redirections(segment)
-            
+
             stdout, stderr, rc = await self._execute_single_command(cmd_str, input_data)
-            
+
             last_rc = rc
             if stderr:
                 err_out += stderr
-            
+
             if redirect_target:
                 # Redirect output
                 # mode = 'a' if append_mode else 'w'
@@ -227,11 +234,11 @@ class ShellEmulator:
                     self._write_file(redirect_target, existing + stdout)
                 else:
                     self._write_file(redirect_target, stdout)
-                
-                input_data = "" # Consumed by file
+
+                input_data = ""  # Consumed by file
             else:
-                input_data = stdout # Pass to next pipe
-                
+                input_data = stdout  # Pass to next pipe
+
         return input_data, err_out, last_rc
 
     async def _execute_single_command(self, cmd_line: str, input_data: str) -> tuple[str, str, int]:
@@ -239,13 +246,13 @@ class ShellEmulator:
             args = shlex.split(cmd_line)
         except ValueError:
             return "", "Syntax error\n", 1
-            
+
         if not args:
             return "", "", 0
-            
+
         cmd_name = args[0]
         params = args[1:]
-        
+
         if cmd_name in self.commands:
             # All commands must be async now
             try:
@@ -262,30 +269,30 @@ class ShellEmulator:
         """
         # Very simple naive parser, assumes redirection is at the end or separated by spaces
         # TODO: Handle quotes properly
-        
+
         parts = shlex.split(cmd)
         target = None
         append = False
         clean_parts = []
-        
+
         i = 0
         while i < len(parts):
             token = parts[i]
             if token == ">>":
                 if i + 1 < len(parts):
-                    target = parts[i+1]
+                    target = parts[i + 1]
                     append = True
                     i += 2
                     continue
             elif token == ">":
                 if i + 1 < len(parts):
-                    target = parts[i+1]
+                    target = parts[i + 1]
                     i += 2
                     continue
-            
+
             clean_parts.append(token)
             i += 1
-            
+
         # Reconstruct command line for the command execution
         return shlex.join(clean_parts), target, append
 
@@ -303,7 +310,7 @@ class ShellEmulator:
                     quote_char = char
                 elif char == quote_char:
                     in_quote = False
-            
+
             if char == separator and not in_quote:
                 tokens.append(current.strip())
                 current = ""
@@ -316,4 +323,3 @@ class ShellEmulator:
         """Helper to write to fake fs."""
         abs_path = self.resolve_path(path)
         self.fs.mkfile(abs_path, content=content, owner=self.username, group=self.username)
-

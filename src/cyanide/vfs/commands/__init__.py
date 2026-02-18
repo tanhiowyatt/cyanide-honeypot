@@ -4,26 +4,32 @@ Cyanide Emulated Commands
 Registry of all available shell commands and their respective implementations.
 """
 
-from .cd import CdCommand
-from .ls import LsCommand
-from .pwd import PwdCommand
 from .cat import CatCommand
-from .whoami import WhoamiCommand
-from .id import IdCommand
-from .echo import EchoCommand
-from .uname import UnameCommand
-from .ps import PsCommand
-from .sudo import SudoCommand
-from .help import HelpCommand
-from .export import ExportCommand
-from .who import WhoCommand
-from .w import WCommand
-from .file_ops import TouchCommand, MkdirCommand, RmdirCommand, RmCommand, CpCommand, MvCommand
-from .text_ops import GrepCommand, HeadCommand, TailCommand
-from .misc import PingCommand, EditorCommand
+from .cd import CdCommand
 from .curl import CurlCommand
-
+from .echo import EchoCommand
+from .export import ExportCommand
+from .file_ops import (
+    CpCommand,
+    MkdirCommand,
+    MvCommand,
+    RmCommand,
+    RmdirCommand,
+    TouchCommand,
+)
+from .help import HelpCommand
+from .id import IdCommand
+from .ls import LsCommand
+from .misc import EditorCommand, PingCommand
+from .ps import PsCommand
+from .pwd import PwdCommand
+from .sudo import SudoCommand
+from .text_ops import GrepCommand, HeadCommand, TailCommand
+from .uname import UnameCommand
+from .w import WCommand
 from .wget import WgetCommand
+from .who import WhoCommand
+from .whoami import WhoamiCommand
 
 # Central command registry
 COMMAND_MAP = {
@@ -42,7 +48,6 @@ COMMAND_MAP = {
     "who": WhoCommand,
     "w": WCommand,
     "cat": CatCommand,
-    
     # File Operations
     "touch": TouchCommand,
     "mkdir": MkdirCommand,
@@ -50,12 +55,10 @@ COMMAND_MAP = {
     "rm": RmCommand,
     "cp": CpCommand,
     "mv": MvCommand,
-    
     # Text Processing
     "grep": GrepCommand,
     "head": HeadCommand,
     "tail": TailCommand,
-    
     # Misc/Realism
     "curl": CurlCommand,
     "wget": WgetCommand,
@@ -63,7 +66,7 @@ COMMAND_MAP = {
     "vi": EditorCommand,
     "vim": EditorCommand,
     "nano": EditorCommand,
-    "ed": EditorCommand
+    "ed": EditorCommand,
 }
 
 __all__ = ["COMMAND_MAP"] + list(COMMAND_MAP.keys())

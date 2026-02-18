@@ -1,15 +1,16 @@
 import time
 from collections import Counter
-from typing import Dict, List, Any
+from typing import Any, Dict, List
+
 
 class StatsManager:
     """Manages real-time honeypot statistics and metrics."""
-    
+
     def __init__(self):
         self.start_time = time.time()
         self.active_sessions = 0
         self.total_sessions = 0
-        
+
         # Counters
         self.ips = Counter()
         self.usernames = Counter()
@@ -21,7 +22,7 @@ class StatsManager:
         self.malicious_files = Counter()
         self.dns_cache_hits = 0
         self.dns_cache_misses = 0
-        
+
         # Recent activity (FIFO)
         self.recent_commands: List[Dict[str, Any]] = []
         self.max_recent = 50
@@ -41,15 +42,18 @@ class StatsManager:
 
     def on_command(self, protocol: str, ip: str, username: str, command: str):
         self.commands[command] += 1
-        
+
         # Add to recent
-        self.recent_commands.insert(0, {
-            "timestamp": time.time(),
-            "protocol": protocol,
-            "ip": ip,
-            "username": username,
-            "command": command
-        })
+        self.recent_commands.insert(
+            0,
+            {
+                "timestamp": time.time(),
+                "protocol": protocol,
+                "ip": ip,
+                "username": username,
+                "command": command,
+            },
+        )
         if len(self.recent_commands) > self.max_recent:
             self.recent_commands.pop()
 
@@ -74,7 +78,7 @@ class StatsManager:
             "recent_commands": self.recent_commands[:10],
             "honeytoken_hits": dict(self.honeytoken_triggers),
             "malware_scans": sum(self.malware_scans.values()),
-            "malicious_detected": sum(self.malicious_files.values())
+            "malicious_detected": sum(self.malicious_files.values()),
         }
 
     def to_prometheus(self) -> str:
@@ -83,34 +87,34 @@ class StatsManager:
         lines.append("# HELP cyanide_active_sessions Number of currently active sessions")
         lines.append("# TYPE cyanide_active_sessions gauge")
         lines.append(f"cyanide_active_sessions {self.active_sessions}")
-        
+
         lines.append("# HELP cyanide_total_sessions_total Total number of connections since start")
         lines.append("# TYPE cyanide_total_sessions_total counter")
         lines.append(f"cyanide_total_sessions_total {self.total_sessions}")
-        
+
         lines.append("# HELP cyanide_uptime_seconds Honeypot uptime in seconds")
         lines.append("# TYPE cyanide_uptime_seconds counter")
         lines.append(f"cyanide_uptime_seconds {int(time.time() - self.start_time)}")
-        
+
         # Protocols
         for proto, count in self.protocols.items():
             lines.append(f'cyanide_protocols_total{{protocol="{proto}"}} {count}')
-            
+
         # Honeytokens
         for path, count in self.honeytoken_triggers.items():
             lines.append(f'cyanide_honeytoken_hits_total{{path="{path}"}} {count}')
-            
+
         # Malware
         lines.append(f"cyanide_malware_scans_total {sum(self.malware_scans.values())}")
         lines.append(f"cyanide_malicious_files_total {sum(self.malicious_files.values())}")
-        
+
         # DNS Cache
         lines.append("# HELP cyanide_dns_cache_hits_total Total DNS cache hits")
         lines.append("# TYPE cyanide_dns_cache_hits_total counter")
         lines.append(f"cyanide_dns_cache_hits_total {self.dns_cache_hits}")
-        
+
         lines.append("# HELP cyanide_dns_cache_misses_total Total DNS cache misses")
         lines.append("# TYPE cyanide_dns_cache_misses_total counter")
         lines.append(f"cyanide_dns_cache_misses_total {self.dns_cache_misses}")
-        
+
         return "\n".join(lines) + "\n"

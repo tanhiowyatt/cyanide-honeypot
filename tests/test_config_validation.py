@@ -1,5 +1,7 @@
 import pytest
+
 from cyanide.core.config import load_config
+
 
 @pytest.fixture
 def valid_config(tmp_path):
@@ -53,6 +55,7 @@ virustotal:
     cfg_path.write_text(cfg_content)
     return cfg_path
 
+
 @pytest.fixture
 def invalid_config(tmp_path):
     # Invalid backend_mode
@@ -92,11 +95,13 @@ virustotal:
     cfg_path.write_text(cfg_content)
     return cfg_path
 
+
 def test_load_valid_config(valid_config):
     config = load_config(valid_config)
     assert config["ssh"]["port"] == 2222
     assert config["ssh"]["backend_mode"] == "emulated"
     assert config["rate_limit"]["max_connections_per_minute"] == 60
+
 
 def test_load_invalid_config(invalid_config):
     # Expect sys.exit(1)

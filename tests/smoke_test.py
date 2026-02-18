@@ -9,6 +9,18 @@ def check_port(host, port, timeout=5):
     except (socket.timeout, ConnectionRefusedError):
         return False
 
+async def check_ssh_functional(host, port):
+    """Try to login and execute a simple command."""
+    try:
+        import asyncssh
+        async with asyncssh.connect(host, port=port, username="root", password="admin", known_hosts=None) as conn:
+            result = await conn.run('whoami', check=True)
+            if 'root' in result.stdout:
+                return True, "Login and command execution OK"
+            return False, f"Unexpected output: {result.stdout}"
+    except Exception as e:
+        return False, str(e)
+
 def smoke_test():
     host = "127.0.0.1"
     ports = {
@@ -34,7 +46,21 @@ def smoke_test():
             print(f"[-] {name} (Port {port}): DOWN")
             all_passed = False
             
+    # Functional SSH Test
+    import asyncio
+    try:
+        ok, msg = asyncio.run(check_ssh_functional(host, 2222))
+        if ok:
+            print(f"[+] SSH Functional: {msg}")
+        else:
+            print(f"[-] SSH Functional FAILED: {msg}")
+            all_passed = False
+    except Exception as e:
+        print(f"[-] SSH Functional Error: {e}")
+        all_passed = False
+
     # Check /health endpoint
+
     try:
         data = None
         try:

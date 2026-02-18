@@ -43,7 +43,7 @@ jobs:
         python-version: "3.11"
 
     - name: Install dependencies
-      run: pip install requests
+      run: pip install requests asyncssh
 
     - name: Run Smoke Test
       run: python3 tests/smoke_test.py

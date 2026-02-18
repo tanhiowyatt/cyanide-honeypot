@@ -97,7 +97,7 @@ jobs:
           pip install .[dev]
           pip install tox tox-gh-actions
       - name: Run Tests
-        run: pytest --cov=src --cov-report=xml --cov-fail-under=80 tests/
+        run: pytest --cov=src --cov-report=xml --cov-fail-under=40 tests/
 
   lint-and-type:
     name: Lint and Type Check

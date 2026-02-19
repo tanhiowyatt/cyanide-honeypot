@@ -48,7 +48,7 @@ COPY . .
 COPY deployments/docker/healthcheck.py /app/docker/healthcheck.py
 
 # Create necessary directories and set ownership
-RUN mkdir -p var/log/cyanide/tty var/lib/cyanide/quarantine var/run \
+RUN mkdir -p var/log/cyanide/tty var/lib/cyanide/quarantine var/run /app/data \
     && chown -R cyanide:cyanide /app/var /app/data
 
 # Switch to non-root user

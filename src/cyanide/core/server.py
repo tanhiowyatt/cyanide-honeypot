@@ -859,6 +859,9 @@ class SSHSession(asyncssh.SSHServerSession):
     def _get_prompt(self):
         if not self.shell:
             return "$ "
+        if self.shell.pending_input_prompt:
+            return self.shell.pending_input_prompt
+
         cwd = self.shell.cwd
         if cwd.startswith(f"/home/{self.username}"):
             cwd = cwd.replace(f"/home/{self.username}", "~", 1)

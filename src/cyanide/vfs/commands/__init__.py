@@ -24,6 +24,7 @@ from .ls import LsCommand
 from .misc import EditorCommand, PingCommand
 from .ps import PsCommand
 from .pwd import PwdCommand
+from .su import SuCommand
 from .sudo import SudoCommand
 from .text_ops import GrepCommand, HeadCommand, TailCommand
 from .uname import UnameCommand
@@ -44,6 +45,7 @@ COMMAND_MAP = {
     "uname": UnameCommand,
     "ps": PsCommand,
     "sudo": SudoCommand,
+    "su": SuCommand,
     "help": HelpCommand,
     "export": ExportCommand,
     "who": WhoCommand,

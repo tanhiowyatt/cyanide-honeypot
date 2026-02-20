@@ -41,6 +41,9 @@ class ShellEmulator:
         if not self.fs.exists(self.cwd):
             self.cwd = "/"
 
+        self.pending_input_callback = None
+        self.pending_input_prompt = None
+
         self._register_commands()
 
     def check_permission(self, path: str, mode: str = "r") -> bool:
@@ -48,6 +51,13 @@ class ShellEmulator:
         # Root can do anything
         if self.username == "root":
             return True
+
+        # Special case for /root directory - even if permissions allow others (not usual),
+        # we want to trigger our custom logic if the user is not root.
+        # But if we want it to be strictly permission-based:
+        abs_path = self.resolve_path(path)
+        if abs_path == "/root" or abs_path.startswith("/root/"):
+            return False
 
         node = self.fs.get_node(path)
         if not node:
@@ -106,6 +116,13 @@ class ShellEmulator:
         Returns:
             tuple: (stdout, stderr, return_code) - Aggregated from the executed chain.
         """
+        # Handle interactive input
+        if self.pending_input_callback:
+            callback = self.pending_input_callback
+            self.pending_input_callback = None
+            self.pending_input_prompt = None
+            return await callback(command_line)
+
         if not command_line.strip():
             return "", "", 0
 
@@ -261,7 +278,8 @@ class ShellEmulator:
             try:
                 from typing import cast
 
-                result = await self.commands[cmd_name].execute(params, input_data=input_data)
+                # Use auth_and_execute instead of direct execute to handle /root protection
+                result = await self.commands[cmd_name].auth_and_execute(params, input_data=input_data)
                 return cast(tuple[str, str, int], result)
             except Exception as e:
                 # Fallback or error report

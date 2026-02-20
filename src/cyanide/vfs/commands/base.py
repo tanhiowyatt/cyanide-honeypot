@@ -13,17 +13,40 @@ class Command:
         self.fs = emulator.fs
         self.username = emulator.username
 
-    async def execute(self, args: list[str], input_data: str = "") -> tuple[str, str, int]:
-        """Execute the command asynchronously.
+    async def auth_and_execute(
+        self, args: list[str], input_data: str = "", paths_to_check: Optional[list[str]] = None
+    ) -> tuple[str, str, int]:
+        """Check for root access and prompt for password if needed, otherwise execute."""
+        if self.emulator.username == "root":
+            return await self.execute(args, input_data=input_data)
 
-        Args:
-            args: Command arguments (excluding command name).
-            input_data: Input from stdin (e.g. from pipe).
+        # Check if any path being accessed is protected
+        check_paths = paths_to_check or args
+        needs_root = False
+        for p in check_paths:
+            if not isinstance(p, str):
+                continue
+            abs_p = self.emulator.resolve_path(p)
+            if abs_p == "/root" or abs_p.startswith("/root/"):
+                needs_root = True
+                break
 
-        Returns:
-            tuple: (stdout, stderr, return_code)
-        """
-        raise NotImplementedError
+        if needs_root:
+            self.emulator.pending_input_callback = lambda pwd: self._on_password_auth(
+                pwd, args, input_data
+            )
+            self.emulator.pending_input_prompt = f"[cyanide] password for {self.emulator.username}: "
+            return f"[cyanide] password for {self.emulator.username}: ", "", 0
+
+        return await self.execute(args, input_data=input_data)
+
+    async def _on_password_auth(
+        self, password: str, args: list[str], input_data: str
+    ) -> tuple[str, str, int]:
+        # Switch to root on any password for now (honeypot logic)
+        self.emulator.username = "root"
+        # Optional: update CWD to /root if it was ~ for old user
+        return await self.execute(args, input_data=input_data)
 
     def validate_url(self, url: str) -> tuple[bool, str, Optional[str]]:
         """Validate URL to prevent SSRF and local file access.

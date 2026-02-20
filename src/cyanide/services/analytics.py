@@ -73,7 +73,15 @@ class AnalyticsService:
             self.logger.log_event("system", "error", {"message": f"Failed to init ML model: {e}"})
             self.ml_enabled = False
 
-    def analyze_command(self, cmd: str, username: str, src_ip: str, session_id: str, protocol: str):
+    def analyze_command(
+        self,
+        cmd: str,
+        username: str,
+        src_ip: str,
+        session_id: str,
+        protocol: str,
+        is_bot: bool = False,
+    ):
         """Run command through ML pipeline and alert if anomaly."""
         if not self.ml_enabled or not getattr(self, "ml_pipeline", None):
             return
@@ -83,6 +91,7 @@ class AnalyticsService:
             result = self.ml_pipeline.analyze_command(cmd)
 
             is_anomaly = result["is_anomaly"]
+            source_type = "bot" if is_bot else "human"
 
             # Log ML 'thought' via centralized logger
             self.logger.log_event(
@@ -91,6 +100,7 @@ class AnalyticsService:
                 {
                     "src_ip": src_ip,
                     "verdict": "anomaly" if is_anomaly else "clean",
+                    "source_type": source_type,
                     "score": result["anomaly_score"],
                     "error": result["reconstruction_error"],
                     "command": cmd,
@@ -106,6 +116,7 @@ class AnalyticsService:
                     {
                         "score": result["anomaly_score"],
                         "error": result["reconstruction_error"],
+                        "source_type": source_type,
                         "cmd": cmd,
                         "classification": result.get("classification"),
                         "severity": result.get("severity"),

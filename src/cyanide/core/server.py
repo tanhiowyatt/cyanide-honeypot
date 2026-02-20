@@ -137,7 +137,7 @@ class HoneypotServer:
         """Compatibility property for old code."""
         return self.services.session.active_sessions
 
-    def _analyze_command(self, cmd, username, src_ip, session_id, protocol):
+    def _analyze_command(self, cmd, username, src_ip, session_id, protocol, is_bot=False):
         """Delegated to AnalyticsService."""
         with self.tracer.start_as_current_span("analyze_command") as span:
             span.set_attribute("command.body", cmd)
@@ -145,7 +145,10 @@ class HoneypotServer:
             span.set_attribute("net.peer.ip", src_ip)
             span.set_attribute("session.id", session_id)
             span.set_attribute("net.protocol.name", protocol)
-            self.services.analytics.analyze_command(cmd, username, src_ip, session_id, protocol)
+            span.set_attribute("bot.detected", is_bot)
+            self.services.analytics.analyze_command(
+                cmd, username, src_ip, session_id, protocol, is_bot=is_bot
+            )
 
     async def log_geoip(self, session_id, ip, protocol):
         """Delegated to AnalyticsService."""
@@ -914,19 +917,20 @@ class SSHSession(asyncssh.SSHServerSession):
 
     async def _process_input(self, data):
         try:
+            # Detect paste (multiple characters in one packet including newline)
+            is_paste = len(data) > 1 and ("\n" in data or "\r" in data)
+
+            # Record Keystroke Timing
+            now = time.time()
+            self.keystrokes.append(now)
+
             # Enhanced Randomized Jitter
-            # Use a mix of stable and spikey delays to mimic human behavior or network issues
             if random.random() < 0.1:
-                # 10% chance of a "network spike"
                 delay = random.uniform(0.5, 1.5)
             else:
-                # Normal human-like typing jitter
                 delay = random.uniform(0.02, 0.15)
 
             await asyncio.sleep(delay)
-
-            # Record Keystroke Timing
-            self.keystrokes.append(time.time())
 
             # Traffic
             self.bytes_in += len(data)
@@ -935,7 +939,6 @@ class SSHSession(asyncssh.SSHServerSession):
                 data = data.decode("utf-8", errors="ignore")
 
             self._log_tty("IN", data)
-
             self.buf += data
 
             while "\n" in self.buf or "\r" in self.buf:
@@ -947,6 +950,23 @@ class SSHSession(asyncssh.SSHServerSession):
                     break
 
                 cmd = line.strip()
+
+                # Calculate inter-keystroke timing for this command
+                is_bot = is_paste
+                if not is_bot and len(self.keystrokes) > 1:
+                    delays = [
+                        self.keystrokes[i] - self.keystrokes[i - 1]
+                        for i in range(1, len(self.keystrokes))
+                    ]
+                    if delays:
+                        avg_delay = sum(delays) / len(delays)
+                        # Threshold < 10ms (0.01s)
+                        if avg_delay < 0.01:
+                            is_bot = True
+
+                # Reset keystrokes for next command
+                self.keystrokes = []
+
                 if not cmd:
                     self.channel.write("\r\n" + self._get_prompt())
                     self._log_tty("OUT", "\r\n" + self._get_prompt())
@@ -975,7 +995,7 @@ class SSHSession(asyncssh.SSHServerSession):
                                 "event": "ioc_detected",
                                 "session_id": self.session_id,
                                 "src_ip": self.src_ip,
-                                "iocs": list(set(iocs)),  # Deduplicate
+                                "iocs": list(set(iocs)),
                                 "cmd": cmd,
                             }
                         )
@@ -995,10 +1015,10 @@ class SSHSession(asyncssh.SSHServerSession):
                     )
                 )
 
-                # ML Analysis
+                # ML Analysis with bot detection
                 if self.honeypot.ml_enabled and self.honeypot.ml_filter:
                     self.honeypot._analyze_command(
-                        cmd, self.username, self.src_ip, self.session_id, "ssh"
+                        cmd, self.username, self.src_ip, self.session_id, "ssh", is_bot=is_bot
                     )
 
                 if self.shell:

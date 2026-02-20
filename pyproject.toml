@@ -104,6 +104,7 @@ filterwarnings = [
     "ignore:.*ARC4 has been moved.*",
     "ignore:.*TripleDES has been moved.*",
     "ignore::cryptography.utils.CryptographyDeprecationWarning",
+    "ignore:.*Trying to unpickle estimator.*",
 ]
 
 # Настройка стиля кода (Black)

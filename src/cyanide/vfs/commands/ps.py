@@ -30,8 +30,14 @@ class PsCommand(Command):
         processes.append({"pid": mypid, "tty": "pts/0", "time": "00:00:00", "cmd": "-bash"})
         processes.append({"pid": mypid + 1, "tty": "pts/0", "time": "00:00:00", "cmd": "ps"})
 
-        output = "    PID TTY          TIME CMD\n"
-        for p in processes:
-            output += f"{p.get('pid', 0):>7} {p.get('tty', '?'):<8} {p.get('time', '00:00:00')} {p.get('cmd', '')}\n"
+        if "aux" in args or "a" in args or "-aux" in args:
+            output = "USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND\n"
+            for p in processes:
+                user = "root" if p["pid"] < 1000 else self.username
+                output += f"{user:<10} {p.get('pid', 0):>5}  0.0  0.1  123456  1234 {p.get('tty', '?'):<8} Ss   09:00   {p.get('time', '00:00:00')} {p.get('cmd', '')}\n"
+        else:
+            output = "    PID TTY          TIME CMD\n"
+            for p in processes:
+                output += f"{p.get('pid', 0):>7} {p.get('tty', '?'):<8} {p.get('time', '00:00:00')} {p.get('cmd', '')}\n"
 
         return output, "", 0

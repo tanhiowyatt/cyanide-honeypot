@@ -1,0 +1,17 @@
+import time
+
+from .base import Command
+
+
+class JournalctlCommand(Command):
+    async def execute(self, args, input_data=""):
+        now = time.strftime("%b %d %H:%M:%S")
+        return (
+            (
+                f"{now} server sshd[890]: Server listening on 0.0.0.0 port 22.\n"
+                f"{now} server sshd[890]: Server listening on :: port 22.\n"
+                f"{now} server systemd[1]: Started OpenBSD Secure Shell server.\n"
+            ),
+            "",
+            0,
+        )

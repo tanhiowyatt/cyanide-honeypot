@@ -21,6 +21,15 @@ class SudoCommand(Command):
                     i += 2
                 else:
                     return "", "sudo: option requires an argument -- 'u'\n", 1
+            elif arg == "-l":
+                return (
+                    f"Matching Defaults entries for {self.emulator.username} on server:\n"
+                    f"    env_reset, mail_badpass, secure_path=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\n\n"
+                    f"User {self.emulator.username} may run the following commands on server:\n"
+                    f"    (ALL : ALL) ALL\n",
+                    "",
+                    0,
+                )
             elif arg == "-i" or arg == "-s":
                 interactive = True
                 i += 1

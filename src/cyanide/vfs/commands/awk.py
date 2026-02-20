@@ -1,10 +1,10 @@
 import argparse
 import re
 
-from .text_ops import TextOpCommand
+from .base import Command
 
 
-class AwkCommand(TextOpCommand):
+class AwkCommand(Command):
     """
     Basic awk emulator for honeypot command chains.
     Supports -F and simple {print $N}.

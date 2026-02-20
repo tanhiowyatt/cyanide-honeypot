@@ -43,6 +43,7 @@ class ShellEmulator:
 
         self.pending_input_callback = None
         self.pending_input_prompt = None
+        self.history: list[str] = []
 
         self._register_commands()
 
@@ -125,6 +126,9 @@ class ShellEmulator:
 
         if not command_line.strip():
             return "", "", 0
+
+        # Append to history
+        self.history.append(command_line.strip())
 
         # 1. Parse into a chain of commands separated by operators
         try:

@@ -1,4 +1,5 @@
 import ipaddress
+import random
 import socket
 import time
 from typing import Optional
@@ -12,6 +13,78 @@ class Command:
         self.emulator = emulator
         self.fs = emulator.fs
         self.username = emulator.username
+
+    def get_ip_addr(self) -> str:
+        """Get the simulated IP address of the honeypot."""
+        return str(self.emulator.config.get("ip_address", "192.168.1.15"))
+
+    def generate_mac(self) -> str:
+        """Generate a deterministic-ish MAC address for this session."""
+        # Use first 3 octets for a common vendor (e.g., VirtualBox)
+        vendor = [0x08, 0x00, 0x27]
+        # Rest is random but stable for this emulator instance
+        random.seed(self.emulator.username)
+        rest = [random.randint(0x00, 0xFF) for _ in range(3)]
+        random.seed(None)  # Reset seed
+        return ":".join(f"{x:02x}" for x in vendor + rest)
+
+    def get_random_network_stats(self) -> dict:
+        """Generate some random traffic stats."""
+        return {
+            "rx_packets": random.randint(1000, 50000),
+            "rx_bytes": random.randint(100000, 5000000),
+            "tx_packets": random.randint(1000, 50000),
+            "tx_bytes": random.randint(100000, 5000000),
+        }
+
+    def get_random_connections(self, count: int = 3) -> list[dict]:
+        """Generate some random active connections."""
+        connections = []
+        # Always include some static ones (SSH, HTTP)
+        connections.append(
+            {
+                "proto": "tcp",
+                "local": "0.0.0.0:22",
+                "remote": "0.0.0.0:*",
+                "state": "LISTEN",
+                "pid": 890,
+                "name": "sshd",
+            }
+        )
+        connections.append(
+            {
+                "proto": "tcp",
+                "local": "0.0.0.0:80",
+                "remote": "0.0.0.0:*",
+                "state": "LISTEN",
+                "pid": 1024,
+                "name": "apache2",
+            }
+        )
+
+        # Add some random established ones
+        states = ["ESTABLISHED", "TIME_WAIT", "CLOSE_WAIT"]
+        for _ in range(count):
+            remote_ip = f"{random.randint(1, 254)}.{random.randint(1, 254)}.{random.randint(1, 254)}.{random.randint(1, 254)}"
+            remote_port = random.randint(1024, 65535)
+            local_port = random.choice(
+                [22, 80] if random.random() > 0.5 else [random.randint(30000, 60000)]
+            )
+            connections.append(
+                {
+                    "proto": "tcp",
+                    "local": f"192.168.1.15:{local_port}",
+                    "remote": f"{remote_ip}:{remote_port}",
+                    "state": random.choice(states),
+                    "pid": random.randint(1000, 5000),
+                    "name": random.choice(["sshd", "apache2", "curl", "wget", "bash"]),
+                }
+            )
+        return connections
+
+    async def execute(self, args: list[str], input_data: str = "") -> tuple[str, str, int]:
+        """Execute the command logic. Must be implemented by subclasses."""
+        raise NotImplementedError
 
     async def auth_and_execute(
         self, args: list[str], input_data: str = "", paths_to_check: Optional[list[str]] = None

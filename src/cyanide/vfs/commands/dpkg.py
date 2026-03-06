@@ -1,5 +1,3 @@
-import asyncio
-
 from .base import Command
 
 
@@ -17,37 +15,51 @@ class DpkgCommand(Command):
 
         if action == "-i" or action == "--install":
             if not targets:
-                return "", "dpkg: error: --install needs at least one package archive file argument\n", 2
-            
+                return (
+                    "",
+                    "dpkg: error: --install needs at least one package archive file argument\n",
+                    2,
+                )
+
             output = ""
             for target in targets:
                 target_path = self.emulator.resolve_path(target)
                 if not self.fs.exists(target_path):
-                    return "", f"dpkg: error: cannot access archive '{target}': No such file or directory\n", 2
-                
+                    return (
+                        "",
+                        f"dpkg: error: cannot access archive '{target}': No such file or directory\n",
+                        2,
+                    )
+
                 pkg_name = target.split("/")[-1].replace(".deb", "")
-                
+
                 # Log to stats if available
                 if self.fs.stats:
                     self.fs.stats.on_file_op("download", f"dpkg://{pkg_name}")
-                
+
                 output += f"Selecting previously unselected package {pkg_name}.\n"
-                output += f"(Reading database ... 10234 files and directories currently installed.)\n"
+                output += (
+                    "(Reading database ... 10234 files and directories currently installed.)\n"
+                )
                 output += f"Preparing to unpack {target} ...\n"
                 output += f"Unpacking {pkg_name} (1.0) ...\n"
                 output += f"Setting up {pkg_name} (1.0) ...\n"
-            
+
             return output, "", 0
 
         elif action == "-l" or action == "--list":
             return (
-                "Desired=Unknown/Install/Remove/Purge/Hold\n"
-                "| Status=Not/Inst/Conf-files/Unpacked/halF-conf/Half-inst/trig-aWait/Trig-pend\n"
-                "|/ Err?=(none)/Reinst-required (Status,Err: uppercase=bad)\n"
-                "||/ Name           Version      Architecture Description\n"
-                "+++-==============-============-============-=================================\n"
-                "ii  bash           5.1-6ubuntu1 amd64        GNU Bourne Again SHell\n"
-                "ii  coreutils      8.32-4.1ubun amd64        GNU core utilities\n"
-            ), "", 0
+                (
+                    "Desired=Unknown/Install/Remove/Purge/Hold\n"
+                    "| Status=Not/Inst/Conf-files/Unpacked/halF-conf/Half-inst/trig-aWait/Trig-pend\n"
+                    "|/ Err?=(none)/Reinst-required (Status,Err: uppercase=bad)\n"
+                    "||/ Name           Version      Architecture Description\n"
+                    "+++-==============-============-============-=================================\n"
+                    "ii  bash           5.1-6ubuntu1 amd64        GNU Bourne Again SHell\n"
+                    "ii  coreutils      8.32-4.1ubun amd64        GNU core utilities\n"
+                ),
+                "",
+                0,
+            )
 
         return "", f"dpkg: error: unknown option {action}\n", 2

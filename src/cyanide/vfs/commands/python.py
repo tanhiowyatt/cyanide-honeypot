@@ -6,38 +6,46 @@ class PythonCommand(Command):
         if "-c" in args:
             # Common for reverse shells
             return "", "", 0
-            
+
         if "--version" in args or "-V" in args:
             return "Python 3.10.12\n", "", 0
-            
+
         if len(args) > 0 and not args[0].startswith("-"):
             # Running a script
             target = self.emulator.resolve_path(args[0])
             if not self.fs.exists(target):
-                return "", f"python: can't open file '{args[0]}': [Errno 2] No such file or directory\n", 2
+                return (
+                    "",
+                    f"python: can't open file '{args[0]}': [Errno 2] No such file or directory\n",
+                    2,
+                )
             return "", "", 0
 
         # Interactive mode
         self.emulator.pending_input_callback = self._on_input
         self.emulator.pending_input_prompt = ">>> "
-        
+
         return (
-            "Python 3.10.12 (main, Jun 11 2023, 05:26:28) [GCC 11.4.0] on linux\n"
-            'Type "help", "copyright", "credits" or "license" for more information.\n'
-        ), "", 0
+            (
+                "Python 3.10.12 (main, Jun 11 2023, 05:26:28) [GCC 11.4.0] on linux\n"
+                'Type "help", "copyright", "credits" or "license" for more information.\n'
+            ),
+            "",
+            0,
+        )
 
     async def _on_input(self, line: str) -> tuple[str, str, int]:
         cmd = line.strip()
         if cmd in ("quit()", "exit()", "exit", "quit"):
             return "", "", 0
-            
+
         output = ""
         if cmd == "help":
             output = "Type help() for interactive help, or help(object) for help about object.\n"
         elif cmd == "help()":
             output = "Welcome to Python 3.10's help utility!\n"
         elif cmd == "copyright":
-            output = 'Copyright (c) 2001-2023 Python Software Foundation.\nAll Rights Reserved.\n'
+            output = "Copyright (c) 2001-2023 Python Software Foundation.\nAll Rights Reserved.\n"
         elif cmd:
             # Simple fake evaluation: just complain about undefined names to seem real
             if cmd.isalpha() and cmd not in ("print", "import", "def", "class"):

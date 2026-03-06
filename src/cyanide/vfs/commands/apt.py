@@ -1,6 +1,3 @@
-import asyncio
-import random
-
 from .base import Command
 
 
@@ -13,10 +10,14 @@ class AptCommand(Command):
 
         if not args:
             return (
-                "apt 2.4.13 (amd64)\n"
-                "Usage: apt [options] command\n\n"
-                "apt is a commandline package manager.\n"
-            ), "", 0
+                (
+                    "apt 2.4.13 (amd64)\n"
+                    "Usage: apt [options] command\n\n"
+                    "apt is a commandline package manager.\n"
+                ),
+                "",
+                0,
+            )
 
         subcommand = args[0]
         packages = args[1:]
@@ -36,12 +37,16 @@ class AptCommand(Command):
 
         elif subcommand == "upgrade":
             return (
-                "Reading package lists... Done\n"
-                "Building dependency tree... Done\n"
-                "Reading state information... Done\n"
-                "Calculating upgrade... Done\n"
-                "0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.\n"
-            ), "", 0
+                (
+                    "Reading package lists... Done\n"
+                    "Building dependency tree... Done\n"
+                    "Reading state information... Done\n"
+                    "Calculating upgrade... Done\n"
+                    "0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.\n"
+                ),
+                "",
+                0,
+            )
 
         elif subcommand in ("install", "remove"):
             if not packages:
@@ -57,15 +62,14 @@ class AptCommand(Command):
                     if self.fs.stats:
                         self.fs.stats.on_file_op("download", f"apt://{pkg}")
 
-            action = "installed" if subcommand == "install" else "removed"
             verb = "Unpacking" if subcommand == "install" else "Removing"
-            
+
             output = (
                 "Reading package lists... Done\n"
                 "Building dependency tree... Done\n"
                 "Reading state information... Done\n"
             )
-            
+
             if subcommand == "install":
                 output += (
                     f"The following NEW packages will be installed:\n  {' '.join(clean_pkgs)}\n"
@@ -73,7 +77,7 @@ class AptCommand(Command):
                     "Need to get 0 B/1024 kB of archives.\n"
                     "After this operation, 3,141 kB of additional disk space will be used.\n"
                 )
-            
+
             # Simple interactive delay loop simulating installation
             for pkg in clean_pkgs:
                 output += f"Selecting previously unselected package {pkg}.\n"
@@ -86,7 +90,7 @@ class AptCommand(Command):
         elif subcommand == "search":
             if not packages:
                 return "", "E: You must give at least one search pattern\n", 100
-            
+
             return f"{packages[0]} - matching package library for {packages[0]}\n", "", 0
 
         return "", f"E: Invalid operation {subcommand}\n", 100

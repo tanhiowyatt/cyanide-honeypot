@@ -1,4 +1,0 @@
-DISTRIB_ID=Ubuntu
-DISTRIB_RELEASE={{ version_id }}
-DISTRIB_CODENAME=jammy
-DISTRIB_DESCRIPTION="Ubuntu {{ version_id }} LTS"

@@ -1,5 +1,4 @@
 import datetime
-import fnmatch
 import os
 import posixpath
 from pathlib import Path
@@ -16,7 +15,7 @@ from .nodes import Directory, File, Node
 class VirtualFile(File):
     """Proxy for a file node."""
 
-    def __init__(self, name: str, path: str, fs: "FakeFilesystem", config: Dict[str, Any] = None):
+    def __init__(self, name: str, path: str, fs: "FakeFilesystem", config: Optional[Dict[str, Any]] = None):
         super().__init__(name, **(config or {}))
         self.path = path
         self.fs = fs
@@ -29,7 +28,7 @@ class VirtualFile(File):
 class VirtualDirectory(Directory):
     """Proxy for a directory node."""
 
-    def __init__(self, name: str, path: str, fs: "FakeFilesystem", config: Dict[str, Any] = None):
+    def __init__(self, name: str, path: str, fs: "FakeFilesystem", config: Optional[Dict[str, Any]] = None):
         # Pass a lambda to nodes.Directory to lazy-load children
         super().__init__(name, children_getter=lambda: self._lazy_children(), **(config or {}))
         self.path = path
@@ -55,24 +54,23 @@ class FakeFilesystem:
 
     def __init__(
         self,
-        os_profile: str = None,
+        os_profile: Optional[str] = None,
         root_dir: str = "/app/configs/profiles",
         audit_callback=None,
         stats=None,
-        users: List[Dict[str, Any]] = None,
+        users: Optional[List[Dict[str, Any]]] = None,
     ):
         self.root_dir = Path(root_dir)
         self.audit_callback = audit_callback
         self.stats = stats
         self.users = users or []
 
-        self.os_profile = os_profile or os.getenv("OS_PROFILE", "ubuntu")
+        self.os_profile = str(os_profile or os.getenv("OS_PROFILE", "ubuntu"))
         self.profile_path = self.root_dir / self.os_profile
 
         self.context: Optional[Context] = None
         self.dynamic_files: Dict[str, Any] = {}
         self.static_manifest: Dict[str, Any] = {}
-        self.pattern_manifest: List[tuple[str, Dict[str, Any]]] = []
 
         # Memory Layer (Writes during session)
         self.memory_overlay: Dict[str, Dict[str, Any]] = {}
@@ -171,10 +169,7 @@ class FakeFilesystem:
                 static_data = yaml.safe_load(f) or {}
                 raw_static = static_data.get("static", {})
                 for path, config in raw_static.items():
-                    if "**" in path or "*" in path:
-                        self.pattern_manifest.append((path, config))
-                    else:
-                        self.static_manifest[self.resolve(path)] = config
+                    self.static_manifest[self.resolve(path)] = config
 
     def get_node(self, path: str) -> Optional[Node]:
         """Backward compatible node retrieval."""
@@ -219,25 +214,6 @@ class FakeFilesystem:
         ):
             return True
 
-        # Patterns (Globs)
-        for pattern, config in self.pattern_manifest:
-            if fnmatch.fnmatch(path, pattern):
-                source = config.get("source")
-                if source:
-                    # Support both * and ** patterns
-                    clean_pattern = pattern.replace("**", "*")
-                    base_pattern = clean_pattern.split("*")[0].rstrip("/")
-                    rel_path = path[len(base_pattern) :].lstrip("/")
-                    return (self.profile_path.parent / source / rel_path).exists()
-                return True
-
-            # Check if path is a prefix of the pattern (e.g. /bin is prefix of /bin/**)
-            base_pattern = pattern.split("*")[0].rstrip("/")
-            if base_pattern.startswith(path.rstrip("/") + "/"):
-                return True
-            if path == base_pattern:
-                return True
-
         # Parent directories of any defined file
         all_paths = (
             list(self.dynamic_files.keys())
@@ -258,23 +234,6 @@ class FakeFilesystem:
             return True
         if path in self.memory_overlay:
             return self.memory_overlay[path].get("type") == "dir"
-
-        # Check patterns for directories
-        for pattern, config in self.pattern_manifest:
-            if fnmatch.fnmatch(path, pattern):
-                source = config.get("source")
-                if source:
-                    clean_pattern = pattern.replace("**", "*")
-                    base_pattern = clean_pattern.split("*")[0].rstrip("/")
-                    rel_path = path[len(base_pattern) :].lstrip("/")
-                    full_path = self.profile_path.parent / source / rel_path
-                    return full_path.is_dir()
-                return True  # Default to True if no source but matched pattern
-
-            # Check if path is a prefix of the pattern
-            base_pattern = pattern.split("*")[0].rstrip("/")
-            if base_pattern.startswith(path.rstrip("/") + "/") or path == base_pattern:
-                return True
 
         # If it's a parent of any file, it's a dir
         all_paths = (
@@ -321,30 +280,6 @@ class FakeFilesystem:
                 rel = p[len(prefix) :].split("/")[0]
                 contents.add(rel)
 
-        # 2. Root Mappings
-        for pattern, config in self.pattern_manifest:
-            # check if path is within or prefix of pattern
-            base_pattern = pattern.split("*")[0].rstrip("/")
-
-            # Case A: We are inside the pattern (path matches pattern or is nested)
-            if fnmatch.fnmatch(path, pattern) or fnmatch.fnmatch(path + "/", pattern):
-                source = config.get("source")
-                if source:
-                    rel_pattern = pattern.split("**")[0].rstrip("/")
-                    rel_path = path[len(rel_pattern) :].lstrip("/")
-                    full_path = self.profile_path.parent / source / rel_path
-                    if full_path.is_dir():
-                        for item in full_path.iterdir():
-                            item_path = posixpath.join(path, item.name)
-                            if item_path not in self.deleted_paths:
-                                contents.add(item.name)
-
-            # Case B: path is a parent of the pattern (e.g. / listing /bin/**)
-            elif base_pattern.startswith(prefix):
-                rel = base_pattern[len(prefix) :].split("/")[0]
-                if rel:
-                    contents.add(rel)
-
         # Remove deleted items that might have been added by parent logic
         return sorted([c for c in contents if posixpath.join(path, c) not in self.deleted_paths])
 
@@ -360,7 +295,7 @@ class FakeFilesystem:
 
         # 1. Memory Overlay
         if path in self.memory_overlay:
-            return self.memory_overlay[path].get("content", "")
+            return str(self.memory_overlay[path].get("content", ""))
 
         # 2. Dynamic Files
         if path in self.dynamic_files:
@@ -374,12 +309,8 @@ class FakeFilesystem:
 
         # 3. Static Manifest
         if path in self.static_manifest:
-            return self._process_node_content(path, self.static_manifest[path])
-
-        # 4. Pattern Mapping
-        for pattern, config in self.pattern_manifest:
-            if fnmatch.fnmatch(path, pattern):
-                return self._process_node_content(path, config, pattern)
+            config = self.static_manifest[path]
+            return self._render(config.get("content", ""))
 
         return ""
 
@@ -487,29 +418,6 @@ class FakeFilesystem:
         if self.copy(src, dst, recursive=True):
             return self.remove(src)
         return False
-
-    def _process_node_content(
-        self, path: str, config: Dict[str, Any], matched_pattern: str = None
-    ) -> str:
-        if "content" in config:
-            return self._render(config["content"])
-
-        source = config.get("source")
-        if source:
-            if matched_pattern and "**" in matched_pattern:
-                base_pattern = matched_pattern.split("**")[0].rstrip("/")
-                rel_path = path[len(base_pattern) :].lstrip("/")
-                full_path = self.profile_path.parent / source / rel_path
-            else:
-                full_path = self.profile_path.parent / source
-
-            if full_path.is_file():
-                try:
-                    with open(full_path, "r", errors="replace") as f:
-                        return f.read()
-                except Exception:
-                    return ""
-        return ""
 
     def _render(self, content: str) -> str:
         if not self.context:

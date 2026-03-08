@@ -45,4 +45,4 @@ class Directory(Node):
 
     @property
     def children(self) -> Dict[str, Node]:
-        return self._children_getter()
+        return self._children_getter()  # type: ignore

@@ -12,6 +12,7 @@ def fs():
 
 @pytest.fixture
 def emulator(fs):
+    fs.mkdir_p("/home/admin", owner="admin")
     return ShellEmulator(fs, username="admin")
 
 

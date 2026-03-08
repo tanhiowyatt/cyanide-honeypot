@@ -1,9 +1,9 @@
 import random
 import time
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 
-def uptime_provider(context: Any, args: Dict[str, Any] = None) -> str:
+def uptime_provider(context: Any, args: Optional[Dict[str, Any]] = None) -> str:
     """Returns a realistic uptime string."""
     # Start time is some random point in the past
     start_time = time.time() - random.randint(3600, 86400 * 30)
@@ -12,7 +12,7 @@ def uptime_provider(context: Any, args: Dict[str, Any] = None) -> str:
     return f"{uptime_sec:.2f} {idle_sec:.2f}\n"
 
 
-def cpuinfo_provider(context: Any, args: Dict[str, Any] = None) -> str:
+def cpuinfo_provider(context: Any, args: Optional[Dict[str, Any]] = None) -> str:
     """Returns a fake cpuinfo string."""
     return """processor\t: 0
 vendor_id\t: GenuineIntel

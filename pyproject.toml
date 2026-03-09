@@ -132,7 +132,7 @@ check_untyped_defs = true
 files = "src"
 
 [[tool.mypy.overrides]]
-module = ["torch", "torch.*"]
+module = ["torch", "torch.*", "pytest", "_pytest.*"]
 follow_imports = "skip"
 ignore_errors = true
 

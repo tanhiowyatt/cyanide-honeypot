@@ -97,7 +97,7 @@ class CyanideLogger:
         self.fs_log.info(json.dumps(entry))
 
     async def log_event_async(self, data_dict):
-        """Async wrapper for log_event to match HoneypotServer expectations."""
+        """Async wrapper for log_event to match CyanideServer expectations."""
         # Make a copy to avoid mutating the original
         data = data_dict.copy()
         event_type = data.pop("event", "unknown")

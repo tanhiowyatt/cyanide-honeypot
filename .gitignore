@@ -47,3 +47,4 @@ logs/
 data/quarantine/
 test_results
 .mypy_cache
+configs/profiles/*/.compiled.msgpack

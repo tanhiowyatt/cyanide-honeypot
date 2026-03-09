@@ -22,6 +22,8 @@ graph TD
 
 ## 1. Core Orchestration (`src/cyanide/core`)
 
+Detailed technical implementation available in **[Core Orchestration Architecture](core.md)**.
+
 ### `HoneypotServer`
 The central brain of the system. It initializes all sub-services and manages the lifecycle of attacker sessions.
 - **Service Management**: Starts the SSH/Telnet handlers, Metrics server, and Logging infrastructure.
@@ -38,6 +40,8 @@ A full state-machine that simulates a Linux shell environment.
 
 ## 2. Virtual Filesystem (VFS)
 
+Detailed technical implementation available in **[VFS Architecture](vfs.md)**.
+
 The VFS is a declarative, profile-based system that mirrors a real Linux disk without touching the host's filesystem.
 
 ### "Template + Context" Model
@@ -45,6 +49,7 @@ The VFS is a declarative, profile-based system that mirrors a real Linux disk wi
 - **Templating**: Files use Jinja2 to dynamically render content based on the session's context.
 - **Laziness**: Using `VirtualNode` proxies, the filesystem only loads file contents or directory structures when they are explicitly accessed.
 - **Memory Overlay**: All changes (creating files, deleting, modifies) are stored in an in-memory overlay. The base OS profile remains immutable.
+- **Caching**: A two-tier msgpack and memory cache prevents redundant YAML parsing. Read the [Profile Caching Architecture](caching.md) for details.
 
 ### Dynamic Nodes
 Found in `/proc`, these nodes call **Providers** to generate data on the fly, such as:
@@ -54,6 +59,8 @@ Found in `/proc`, these nodes call **Providers** to generate data on the fly, su
 ---
 
 ## 3. Detection Engine (`src/cyanide/ml`)
+
+Detailed technical implementation available in **[Detection Engine Architecture](ml.md)**.
 
 Cyanide uses a **Hybrid Detection System** that combines deterministic rules with probabilistic ML models.
 
@@ -69,6 +76,8 @@ Analyzes the *targets* of commands. Accessing sensitive files like `/etc/shadow`
 ---
 
 ## 4. Network & Proxy (`src/cyanide/network`)
+
+Detailed technical implementation available in **[Network & Proxy Architecture](network.md)**.
 
 - **TCP Proxy**: Generic forwarder for non-emulated services (e.g., SMTP).
 - **SSH Proxy**: Advanced MitM module that allows decrypting and logging sessions heading to real backends.

@@ -5,7 +5,7 @@ import asyncssh
 import pytest
 import pytest_asyncio
 
-from cyanide.core.server import HoneypotServer
+from cyanide.core.server import CyanideServer
 
 
 @pytest_asyncio.fixture
@@ -21,7 +21,7 @@ async def load_test_server(tmp_path):
         "max_sessions": 100,
         "max_sessions_per_ip": 100,
     }
-    server = HoneypotServer(config)
+    server = CyanideServer(config)
     task = asyncio.create_task(server.start())
 
     # Wait for server to start

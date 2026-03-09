@@ -4,7 +4,6 @@ import posixpath
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
-import yaml
 from jinja2 import Template
 
 from .context import Context
@@ -15,7 +14,9 @@ from .nodes import Directory, File, Node
 class VirtualFile(File):
     """Proxy for a file node."""
 
-    def __init__(self, name: str, path: str, fs: "FakeFilesystem", config: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self, name: str, path: str, fs: "FakeFilesystem", config: Optional[Dict[str, Any]] = None
+    ):
         super().__init__(name, **(config or {}))
         self.path = path
         self.fs = fs
@@ -28,7 +29,9 @@ class VirtualFile(File):
 class VirtualDirectory(Directory):
     """Proxy for a directory node."""
 
-    def __init__(self, name: str, path: str, fs: "FakeFilesystem", config: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self, name: str, path: str, fs: "FakeFilesystem", config: Optional[Dict[str, Any]] = None
+    ):
         # Pass a lambda to nodes.Directory to lazy-load children
         super().__init__(name, children_getter=lambda: self._lazy_children(), **(config or {}))
         self.path = path
@@ -146,30 +149,21 @@ class FakeFilesystem:
                 self.mkdir_p(f"/home/{username}")
 
     def _load_profile(self):
-        """Load profile configuration."""
-        base_file = self.profile_path / "base.yaml"
-        if not base_file.exists():
-            # Fallback to current directory for local tests/dev
-            self.profile_path = Path("configs/profiles") / self.os_profile
-            base_file = self.profile_path / "base.yaml"
+        """Load profile configuration via two-tier cache."""
+        from .profile_loader import load as load_profile
 
-        if not base_file.exists():
+        if not (self.profile_path / "base.yaml").exists():
+            self.profile_path = Path("configs/profiles") / self.os_profile
+        if not (self.profile_path / "base.yaml").exists():
             raise FileNotFoundError(f"Base config not found for profile: {self.os_profile}")
 
-        with open(base_file, "r") as f:
-            base_data = yaml.safe_load(f)
+        data = load_profile(self.os_profile, self.profile_path.parent)
 
-        meta = base_data.get("metadata", {})
-        self.context = Context(**meta)
-        self.dynamic_files = base_data.get("dynamic_files", {})
+        self.context = Context(**data.get("metadata", {}))
+        self.dynamic_files = data.get("dynamic_files", {})
 
-        static_file = self.profile_path / "static.yaml"
-        if static_file.exists():
-            with open(static_file, "r") as f:
-                static_data = yaml.safe_load(f) or {}
-                raw_static = static_data.get("static", {})
-                for path, config in raw_static.items():
-                    self.static_manifest[self.resolve(path)] = config
+        for path, config in data.get("static", {}).items():
+            self.static_manifest[self.resolve(path)] = config
 
     def get_node(self, path: str) -> Optional[Node]:
         """Backward compatible node retrieval."""

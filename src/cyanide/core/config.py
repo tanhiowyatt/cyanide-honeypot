@@ -65,7 +65,7 @@ def load_config(path: Path = Path("configs/app.yaml")):
                 return default
         return val
 
-    # Convert to dictionary structure expected by HoneypotServer
+    # Convert to dictionary structure expected by CyanideServer
     config = {
         # Hostname priority: CYANIDE_HONEYPOT__HOSTNAME > CYANIDE_CORE__HOSTNAME
         #   > app.yaml > HOSTNAME (Docker sets this to container ID) > default

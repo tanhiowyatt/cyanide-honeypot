@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from cyanide.core.server import HoneypotServer
+from cyanide.core.server import CyanideServer
 
 
 @pytest.mark.asyncio
@@ -19,7 +19,7 @@ async def test_server_initialization(mock_config, mock_logger, mocker):
         "cyanide.services.telnet_handler.TelnetHandler"
     )  # IMPORTANT because it takes server as arg
 
-    server = HoneypotServer(mock_config)
+    server = CyanideServer(mock_config)
 
     assert server.config == mock_config
     assert server.logger == mock_logger
@@ -40,7 +40,7 @@ async def test_server_start_stop(mock_server, mocker):
     # The start method usually waits on serve_forever.
     # We should mock internal methods that block.
 
-    # If HoneypotServer.start() calls asyncssh.listen and then waits...
+    # If CyanideServer.start() calls asyncssh.listen and then waits...
     # We need to see the code. Assuming typical async server pattern.
 
     # Let's inspect start() implementation code first.

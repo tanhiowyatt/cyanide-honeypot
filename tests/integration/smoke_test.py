@@ -20,9 +20,15 @@ async def check_ssh_functional(host, port):
             host, port=port, username="root", password="admin", known_hosts=None
         ) as conn:
             result = await conn.run("whoami", check=True)
-            if "root" in result.stdout:
+            stdout = result.stdout
+            if isinstance(stdout, bytes):
+                out_str = stdout.decode("utf-8", errors="replace")
+            else:
+                out_str = str(stdout or "")
+
+            if "root" in out_str:
                 return True, "Login and command execution OK"
-            return False, f"Unexpected output: {result.stdout}"
+            return False, f"Unexpected output: {out_str}"
     except Exception as e:
         return False, str(e)
 
@@ -67,7 +73,7 @@ def smoke_test():
     try:
         data = None
         try:
-            import requests
+            import requests  # type: ignore
 
             response = requests.get(f"http://{host}:9090/health", timeout=5)
             if response.status_code == 200:

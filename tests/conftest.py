@@ -66,7 +66,7 @@ def mock_logger(mocker):
 
 @pytest.fixture
 def mock_server(mock_config, mock_logger, mocker):
-    """Return a mocked HoneypotServer instance."""
+    """Return a mocked CyanideServer instance."""
     # Mock external dependencies
     mocker.patch("cyanide.core.server.CyanideLogger", return_value=mock_logger)
     mocker.patch("cyanide.core.server.VTScanner")
@@ -78,9 +78,9 @@ def mock_server(mock_config, mock_logger, mocker):
     mocker.patch("asyncssh.listen", new_callable=AsyncMock)
     mocker.patch("asyncio.start_server", new_callable=AsyncMock)
 
-    from cyanide.core.server import HoneypotServer
+    from cyanide.core.server import CyanideServer
 
-    server = HoneypotServer(mock_config)
+    server = CyanideServer(mock_config)
     server.logger = mock_logger  # Ensure mocked logger is used
 
     # Clean up any created directories during tests

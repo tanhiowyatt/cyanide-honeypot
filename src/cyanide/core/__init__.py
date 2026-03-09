@@ -8,6 +8,6 @@ from cyanide.vfs.engine import FakeFilesystem
 
 from .config import load_config
 from .emulator import ShellEmulator
-from .server import HoneypotServer
+from .server import CyanideServer
 
-__all__ = ["HoneypotServer", "ShellEmulator", "FakeFilesystem", "load_config"]
+__all__ = ["CyanideServer", "ShellEmulator", "FakeFilesystem", "load_config"]

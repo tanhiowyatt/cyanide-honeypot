@@ -4,9 +4,9 @@ import sys
 from pathlib import Path
 
 # Add src to sys.path
-sys.path.append(str(Path(__file__).parent / "src"))
+sys.path.append(str(Path(__file__).parent.parent.parent / "src"))
 
-from cyanide.core.server import HoneypotServer
+from cyanide.core.server import CyanideServer
 
 
 async def smoke_test():
@@ -20,7 +20,7 @@ async def smoke_test():
     # Ensure log dir exists
     os.makedirs("var/log/cyanide", exist_ok=True)
 
-    server = HoneypotServer(config)
+    server = CyanideServer(config)
     fs = server.get_filesystem()
 
     from cyanide.core.emulator import ShellEmulator

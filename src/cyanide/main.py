@@ -9,7 +9,7 @@ from pathlib import Path
 # Add src to path
 sys.path.append(os.path.join(os.getcwd(), "src"))
 
-from cyanide.core import HoneypotServer, load_config
+from cyanide.core import CyanideServer, load_config
 from cyanide.core.aesthetics import print_startup_banner
 
 CONFIG_PATH = Path("configs/app.yaml")
@@ -31,7 +31,7 @@ async def async_main():
 
     config = load_config(CONFIG_PATH)
 
-    server = HoneypotServer(config)
+    server = CyanideServer(config)
     print_startup_banner(config, resolved_profile=server.resolved_profile_name)
 
     # Handle signals gracefully

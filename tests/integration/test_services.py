@@ -5,7 +5,7 @@ import pytest
 import pytest_asyncio
 import telnetlib3
 
-from cyanide.core.server import HoneypotServer
+from cyanide.core.server import CyanideServer
 
 # Mocks and fixtures would be better, but for integration we might want to spin up the server
 # However, spinning up the full server might be heavy.
@@ -27,7 +27,7 @@ def server_config(tmp_path):
 
 @pytest_asyncio.fixture
 async def honeypot_server(server_config):
-    server = HoneypotServer(server_config)
+    server = CyanideServer(server_config)
     task = asyncio.create_task(server.start())
 
     # Wait for servers to start and bind

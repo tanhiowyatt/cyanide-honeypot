@@ -46,41 +46,72 @@ class ServiceRegistry:
         self.telnet = telnet
 
 
-class HoneypotServer:
+class CyanideServer:
     """Main honeypot server orchestrating SSH, Telnet, and MySQL services."""
 
     def __init__(self, config: Dict[str, Any]):
         """Initialize honeypot server with configuration."""
         self.config = config
-        self.stats = StatsManager()
-        self.tracer = setup_telemetry("cyanide-honeypot", config.get("otel", {}), "1.0.0")
+        try:
+            self.stats = StatsManager()
+            self.tracer = setup_telemetry("cyanide-honeypot", config.get("otel", {}), "1.0.0")
+            print("[*] CyanideServer: Telemetry initialized.")
+        except Exception as e:
+            print(f"[!] CyanideServer: Failed to initialize Telemetry: {e}")
+            raise
 
         # --- Initialize Logger ---
-        log_dir = config.get("logging", {}).get("directory", "var/log/cyanide")
-        self.logger = CyanideLogger(log_dir)
+        try:
+            log_dir = config.get("logging", {}).get("directory", "var/log/cyanide")
+            self.logger = CyanideLogger(log_dir)
+            print("[*] CyanideServer: Logger initialized.")
+        except Exception as e:
+            print(f"[!] CyanideServer: Failed to initialize Logger: {e}")
+            raise
 
         # --- Initialize Services ---
         # 1. Session Manager
-        session_mgr = SessionManager(config)
+        try:
+            session_mgr = SessionManager(config)
+            print("[*] CyanideServer: SessionManager initialized.")
+        except Exception as e:
+            print(f"[!] CyanideServer: Failed to initialize SessionManager: {e}")
+            raise
 
         # 2. Quarantine Service
-        quarantine_svc = QuarantineService(config, self.logger)
-        # Pass VTScanner to QuarantineService
-        # VirusTotal
-        vt_key = config.get("virustotal", {}).get("api_key", "")
-        self.vt_scanner = VTScanner(vt_key)
-        quarantine_svc.set_scanner(self.vt_scanner)
+        try:
+            quarantine_svc = QuarantineService(config, self.logger)
+            # Pass VTScanner to QuarantineService
+            # VirusTotal
+            vt_key = config.get("virustotal", {}).get("api_key", "")
+            self.vt_scanner = VTScanner(vt_key)
+            quarantine_svc.set_scanner(self.vt_scanner)
+            print("[*] CyanideServer: QuarantineService initialized.")
+            print("[*] CyanideServer: VTScanner initialized.")
+        except Exception as e:
+            print(f"[!] CyanideServer: Failed to initialize QuarantineService or VTScanner: {e}")
+            raise
 
         # 3. Analytics Service
-        analytics_svc = AnalyticsService(config, self.logger)
+        try:
+            analytics_svc = AnalyticsService(config, self.logger)
+            print("[*] CyanideServer: AnalyticsService initialized.")
+        except Exception as e:
+            print(f"[!] CyanideServer: Failed to initialize AnalyticsService: {e}")
+            raise
 
         # Register Services (telnet=None initially due to circular dependency)
-        self.services = ServiceRegistry(
-            session=session_mgr,
-            quarantine=quarantine_svc,
-            analytics=analytics_svc,
-            telnet=None,
-        )
+        try:
+            self.services = ServiceRegistry(
+                session=session_mgr,
+                quarantine=quarantine_svc,
+                analytics=analytics_svc,
+                telnet=None,
+            )
+            print("[*] CyanideServer: Services registered.")
+        except Exception as e:
+            print(f"[!] CyanideServer: Failed to register Services: {e}")
+            raise
 
         # 4. Telnet Handler
         telnet_handler = TelnetHandler(self, config)
@@ -571,7 +602,7 @@ class HoneypotServer:
 
     async def stop(self):
         """Stop all services."""
-        self.logger.log_event("system", "system_status", {"message": "Stopping Honeypot Server..."})
+        self.logger.log_event("system", "system_status", {"message": "Stopping CyanideServer..."})
 
         # Cancel background tasks
         for task in self.background_tasks:
@@ -650,7 +681,7 @@ class HoneypotServer:
 class SSHServerFactory(asyncssh.SSHServer):
     """SSH server factory."""
 
-    def __init__(self, honeypot: HoneypotServer):
+    def __init__(self, honeypot: CyanideServer):
         self.honeypot = honeypot
         self.src_ip = "unknown"
         self.src_port = 0
@@ -723,7 +754,7 @@ class SSHServerFactory(asyncssh.SSHServer):
 class SSHSession(asyncssh.SSHServerSession):
     """SSH session handler."""
 
-    def __init__(self, honeypot: HoneypotServer, fs: FakeFilesystem, src_ip, src_port):
+    def __init__(self, honeypot: CyanideServer, fs: FakeFilesystem, src_ip, src_port):
         self.honeypot = honeypot
         self.fs = fs
         self.src_ip = src_ip

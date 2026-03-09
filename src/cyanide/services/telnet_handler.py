@@ -14,7 +14,7 @@ class TelnetHandler:
     """
 
     def __init__(self, server, config: Dict):
-        self.server = server  # Reference to HoneypotServer for shared resources if needed
+        self.server = server  # Reference to CyanideServer for shared resources if needed
         self.config = config
         self.logger = server.logger
         self.services = server.services

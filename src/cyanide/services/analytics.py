@@ -11,13 +11,21 @@ class AnalyticsService:
     def __init__(self, config: Dict, logger):
         self.config = config
         self.logger = logger
+        print("[*] AnalyticsService started.")
+        print("[*] AnalyticsService: Importing GeoIP and StatsManager...")
 
-        # Local imports to avoid circular dependencies
-        from cyanide.core.geoip import GeoIP
-        from cyanide.core.stats import StatsManager
+        try:
+            # Local imports to avoid circular dependencies
+            from cyanide.core.geoip import GeoIP
+            from cyanide.core.stats import StatsManager
 
-        self.stats = StatsManager()
-        self.geoip = GeoIP()
+            print("[*] AnalyticsService: Initializing StatsManager...")
+            self.stats = StatsManager()
+            print("[*] AnalyticsService: Initializing GeoIP...")
+            self.geoip = GeoIP()
+            print("[*] AnalyticsService completed.")
+        except Exception as e:
+            print(f"[!] AnalyticsService: Failed to initialize components: {e}")
 
         # ML Initialization
         self.ml_enabled = config.get("ml", {}).get("enabled", False)

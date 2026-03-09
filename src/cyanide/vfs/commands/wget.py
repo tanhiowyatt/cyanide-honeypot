@@ -74,11 +74,20 @@ class WgetCommand(Command):
 
             # 2. Save to Fake FS
             # We save actual content to support `cat` later
-            if self.fs.mkfile(full_path, content=content.decode("utf-8", errors="ignore"), owner=self.username, group=self.username) is None:
+            if (
+                self.fs.mkfile(
+                    full_path,
+                    content=content.decode("utf-8", errors="ignore"),
+                    owner=self.username,
+                    group=self.username,
+                )
+                is None
+            ):
                 return output_msg, f"{filename}: error creating file in VFS\n", 1
 
         except Exception as e:
             import traceback
+
             traceback.print_exc()
             return output_msg, f"wget: error: {str(e)}\n", 1
 

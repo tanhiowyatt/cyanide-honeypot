@@ -41,10 +41,12 @@ class ShellEmulator:
         )
         if not self.fs.exists(self.cwd):
             self.cwd = "/"
-        
+
         # Resource Limits
         self.max_chain_depth = self.config.get("shell", {}).get("max_chain_depth", 100)
-        self.max_output_size = self.config.get("shell", {}).get("max_output_size", 1024 * 1024) # 1MB
+        self.max_output_size = self.config.get("shell", {}).get(
+            "max_output_size", 1024 * 1024
+        )  # 1MB
 
         self.pending_input_callback = None
         self.pending_input_prompt = None
@@ -193,7 +195,7 @@ class ShellEmulator:
             last_rc = rc
 
             if len(full_stdout) > self.max_output_size:
-                full_stdout = full_stdout[:self.max_output_size] + "\n[output truncated]\n"
+                full_stdout = full_stdout[: self.max_output_size] + "\n[output truncated]\n"
                 full_stderr += "shell: maximum output size exceeded\n"
                 last_rc = 1
                 break

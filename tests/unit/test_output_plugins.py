@@ -1,10 +1,7 @@
 import json
 import sqlite3
 import time
-from pathlib import Path
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from cyanide.logger import CyanideLogger
 from cyanide.output.base import OutputPlugin
@@ -144,11 +141,10 @@ def test_plugin_resiliency_on_failure(tmp_path):
 def test_individual_plugin_instantiation_safety():
     """
     Verify that individual plugins can be instantiated even if dependencies are missing,
-    as long as they are not used, OR ensure they fail with a standard logging error
-    instead of crashing the logger boot.
+    as long as they are mocked correctly for the test environment.
     """
     # Test that MySQL plugin can be instantiated if we fake mysql-connector
-    with patch.dict("sys.modules", {"mysql.connector": MagicMock()}):
+    with patch.dict("sys.modules", {"mysql": MagicMock(), "mysql.connector": MagicMock()}):
         from cyanide.output.mysql import Plugin as MySQLPlugin
 
         config = {"enabled": True, "host": "127.0.0.1"}

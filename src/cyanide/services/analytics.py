@@ -102,7 +102,6 @@ class AnalyticsService:
         if not self.ml_enabled or self.ml_pipeline is None:
             return
 
-
         try:
             # Analyze command
             result = self.ml_pipeline.analyze_command(cmd)
@@ -148,7 +147,6 @@ class AnalyticsService:
         """Analyze uploaded file content and filename via ML."""
         if not self.ml_enabled or self.ml_pipeline is None:
             return
-
 
         try:
             # Combine filename and snippet of content for analysis

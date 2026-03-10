@@ -45,6 +45,8 @@ def test_all_output_plugins_instantiation():
                     "enabled": True,
                     "host": "127.0.0.1",
                     "port": 1234,
+                    "ident": "test_id",
+                    "secret": "test_secret",
                     "url": "http://test",
                     "token": "test",
                     "path": "/tmp/test.sqlite",
@@ -53,6 +55,18 @@ def test_all_output_plugins_instantiation():
                     "target_host": "127.0.0.1",
                     "target_port": 2525,
                 }
+
+                # Setup specific mocks for behavior checks
+                if (
+                    plugin_name == "splunk_hec"
+                    or plugin_name == "slack"
+                    or plugin_name == "dshield"
+                ):
+                    mock_requests = modules_to_mock["requests"]
+                    mock_response = MagicMock()
+                    mock_response.status_code = 200
+                    mock_requests.post.return_value = mock_response
+
                 plugin = PluginClass(config)
                 assert isinstance(plugin, OutputPlugin)
 

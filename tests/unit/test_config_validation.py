@@ -1,4 +1,5 @@
 import pytest
+from pydantic import ValidationError
 
 from cyanide.core.config import load_config
 
@@ -108,7 +109,6 @@ def test_load_valid_config(valid_config):
 
 # Function 431: Runs unit tests for the load_invalid_config functionality.
 def test_load_invalid_config(invalid_config):
-    # Expect sys.exit(1)
-    with pytest.raises(SystemExit) as e:
+    # Expect ValidationError
+    with pytest.raises(ValidationError):
         load_config(invalid_config)
-    assert e.value.code == 1

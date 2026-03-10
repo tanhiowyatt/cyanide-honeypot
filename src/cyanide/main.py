@@ -11,6 +11,8 @@ parent_dir = str(Path(__file__).resolve().parent.parent)
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
+from pydantic import ValidationError
+
 from cyanide.core import CyanideServer, load_config  # noqa: E402
 from cyanide.core.aesthetics import print_startup_banner  # noqa: E402
 
@@ -33,7 +35,11 @@ async def async_main():
         # We don't silence everything here to allow debugging if needed,
         # but we hide the known noisy ones.
 
-    config = load_config(CONFIG_PATH)
+    try:
+        config = load_config(CONFIG_PATH)
+    except ValidationError as e:
+        logging.error(f"Configuration Error:\n{e}")
+        sys.exit(1)
 
     server = CyanideServer(config)
     print_startup_banner(config, resolved_profile=server.resolved_profile_name)

@@ -37,8 +37,8 @@ def test_ssh_forwarding_rejection():
 
     # -L: (dest_host, dest_port, src_host, src_port)
     assert factory.direct_tcpip_requested("host", 80, "src", 123) is False
-    # -R: (dest_host, dest_port)
-    assert factory.connection_requested("host", 80) is False
+    # -R: (dest_host, dest_port, orig_host, orig_port)
+    assert factory.connection_requested("host", 80, "orig", 443) is False
 
 
 @pytest.mark.asyncio

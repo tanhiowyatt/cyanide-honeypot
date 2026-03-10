@@ -313,6 +313,6 @@ def load_config(path: Path = Path("configs/app.yaml")):
     try:
         model = CyanideConfig(**config)
         return model.model_dump()
-    except ValidationError as e:
-        logger.error(f"Configuration Error:\n{e}")
-        sys.exit(1)
+    except ValidationError:
+        # Re-raise to let the caller handle it (e.g., main.py or tests)
+        raise

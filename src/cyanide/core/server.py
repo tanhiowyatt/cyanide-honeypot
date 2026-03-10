@@ -616,7 +616,7 @@ class CyanideServer:
                     "server_factory": lambda: SSHServerFactory(self),
                     "reuse_address": True,
                     "server_version": chosen_version,
-                    # Cowrie-grade security limits
+                    # Cyanide-grade security limits
                     "login_timeout": ssh_conf.get("login_timeout", 60),
                     "rekey_bytes": parse_rekey(ssh_conf.get("rekey_limit", "1G")),
                 }
@@ -813,7 +813,7 @@ class SSHServerFactory(asyncssh.SSHServer):
         self.src_port = 0
         self.fs = None
         self.conn_id = str(uuid.uuid4())[:8]
-        # Set max auth tries (Cowrie style)
+        # Set max auth tries (Cyanide style)
         ssh_conf = self.honeypot.config.get("ssh", {})
         self._max_auth_tries = ssh_conf.get("auth_tries", 3)
 
@@ -822,7 +822,7 @@ class SSHServerFactory(asyncssh.SSHServer):
         self.src_ip = conn.get_extra_info("peername")[0]
         self.src_port = conn.get_extra_info("peername")[1]
 
-        # Log connection details (Cowrie-style KEXINIT analysis)
+        # Log connection details (Cyanide-style KEXINIT analysis)
         client_version = conn.get_extra_info("client_version", "unknown")
 
         # Negotiated algorithms are available after handshake,
@@ -890,7 +890,7 @@ class SSHServerFactory(asyncssh.SSHServer):
 
     # Function 60.2: Validates publickey and logs it.
     def validate_publickey(self, username, key):
-        """Log public key attempt and always fail to force password auth (Cowrie behavior)."""
+        """Log public key attempt and always fail to force password auth (Cyanide behavior)."""
         fingerprint = key.get_fingerprint()
         raw_key = key.export_public_key().decode()
 

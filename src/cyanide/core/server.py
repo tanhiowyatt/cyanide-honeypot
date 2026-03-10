@@ -59,7 +59,7 @@ class CyanideServer:
         # --- 1. Initialize Logger First ---
         try:
             log_dir = config.get("logging", {}).get("directory", "var/log/cyanide")
-            self.logger = CyanideLogger(log_dir)
+            self.logger = CyanideLogger(log_dir, config.get("output", {}))
             self.logger.log_event(
                 "system", "service_init_status", {"message": "Logger initialized"}
             )

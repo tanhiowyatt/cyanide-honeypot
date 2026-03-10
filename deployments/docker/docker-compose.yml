@@ -43,48 +43,56 @@ services:
       - PYTHONUNBUFFERED=1
 
       # --- Honeypot Core ---
-      - CYANIDE_CORE__HOSTNAME=server01
-      - CYANIDE_VFS__PROFILE=ubuntu # Соответствует configs/profiles/ubuntu
+      - CYANIDE_HONEYPOT_HOSTNAME=server01
+      - CYANIDE_SERVER_OS_PROFILE=ubuntu # Matches configs/profiles/ubuntu
 
       # --- Session & Resource Limits ---
-      - CYANIDE_CORE__MAX_SESSIONS=100
-      - CYANIDE_CORE__MAX_SESSIONS_PER_IP=5
-      - CYANIDE_CORE__SESSION_TIMEOUT=300
-      - CYANIDE_CORE__QUARANTINE_MAX_SIZE_MB=500
+      - CYANIDE_SERVER_MAX_SESSIONS=100
+      - CYANIDE_SERVER_MAX_SESSIONS_PER_IP=5
+      - CYANIDE_SERVER_SESSION_TIMEOUT=300
+      - CYANIDE_HONEYPOT_QUARANTINE_MAX_SIZE_MB=500
 
       # --- Services (SSH / Telnet) ---
-      - CYANIDE_SSH__ENABLED=true
-      - CYANIDE_SSH__PORT=2222
-      - CYANIDE_TELNET__ENABLED=true
-      - CYANIDE_TELNET__PORT=2223
+      - CYANIDE_SSH_ENABLED=true
+      - CYANIDE_SSH_LISTEN_PORT=2222
+      - CYANIDE_TELNET_ENABLED=true
+      - CYANIDE_TELNET_LISTEN_PORT=2223
 
       # --- Machine Learning (CyanideML) ---
-      - CYANIDE_ML__ENABLED=true
-      - CYANIDE_ML__RETRAINING_INTERVAL_DAYS=7
+      - CYANIDE_ML_ENABLED=true
+      - CYANIDE_ML_RETRAINING_INTERVAL_DAYS=7
 
       # --- Maintenance & Cleanup ---
-      - CYANIDE_CLEANUP__ENABLED=true
-      - CYANIDE_CLEANUP__INTERVAL_SECONDS=3600
-      - CYANIDE_CLEANUP__RETENTION_DAYS=7
+      - CYANIDE_CLEANUP_ENABLED=true
+      - CYANIDE_CLEANUP_INTERVAL=3600
+      - CYANIDE_CLEANUP_RETENTION_DAYS=7
 
       # --- Observability (Tracing & Metrics) ---
-      - CYANIDE_OBSERVABILITY__TRACING_ENABLED=true
-      - CYANIDE_OBSERVABILITY__METRICS_ENABLED=true
-      - CYANIDE_OBSERVABILITY__METRICS_PORT=9090
+      - CYANIDE_OTEL_ENABLED=true
+      - CYANIDE_METRICS_ENABLED=true
+      - CYANIDE_METRICS_PORT=9090
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
 
       # --- Integrations ---
-      - CYANIDE_VIRUSTOTAL__ENABLED=false
-      # - CYANIDE_VIRUSTOTAL__API_KEY=your_api_key_here
+      - CYANIDE_VIRUSTOTAL_ENABLED=false
+      # - CYANIDE_VIRUSTOTAL_API_KEY=your_api_key_here
+
+      # --- Output Plugins  ---
+      # Examples on how to enable and configure outputs dynamically:
+      # - CYANIDE_OUTPUT_POSTGRESQL_ENABLED=true
+      # - CYANIDE_OUTPUT_POSTGRESQL_HOST=db-host
+      # - CYANIDE_OUTPUT_POSTGRESQL_PASSWORD=supersecret
+      # - CYANIDE_OUTPUT_SLACK_ENABLED=true
+      # - CYANIDE_OUTPUT_SLACK_WEBHOOK_URL=https://hooks.slack.com/...
 
       # --- SMTP Proxy Settings ---
-      - CYANIDE_SMTP__ENABLED=true
-      - CYANIDE_SMTP__PORT=2525
-      - CYANIDE_SMTP__TARGET_HOST=mailhog
-      - CYANIDE_SMTP__TARGET_PORT=1025
+      - CYANIDE_SMTP_ENABLED=true
+      - CYANIDE_SMTP_LISTEN_PORT=2525
+      - CYANIDE_SMTP_TARGET_HOST=mailhog
+      - CYANIDE_SMTP_TARGET_PORT=1025
 
       # --- Auth / Users ---
-      - 'CYANIDE_AUTH__USERS=[{"user": "root", "pass": "admin"}, {"user": "admin", "pass": "admin"}]'
+      - 'CYANIDE_USERS=[{"user": "root", "pass": "admin"}, {"user": "admin", "pass": "admin"}]'
 
     healthcheck:
       # Путь изменен на deployments/docker/healthcheck.py

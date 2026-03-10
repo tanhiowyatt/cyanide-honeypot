@@ -57,17 +57,97 @@ smtp:
   target_port: 25255
 
 output:
-  json_log: true
+  # Output Plugins 
+  # Note: `pip install .[outputs]` is required if running directly outside of Docker.
+  
+  sqlite:
+    enabled: true
+    path: var/log/cyanide/events.sqlite
+    table: events
+  
+  postgresql:
+    enabled: false
+    host: 127.0.0.1
+    port: 5432
+    user: cyanide
+    password: password
+    database: cyanide
+    table: events
+
+  elasticsearch:
+    enabled: false
+    hosts: 
+      - http://127.0.0.1:9200
+    index: cyanide-events
+
+  splunk_hec:
+    enabled: false
+    url: https://127.0.0.1:8088/services/collector/event
+    token: "YOUR_TOKEN_HERE"
+    source: cyanide
+    sourcetype: _json
+    verify_ssl: false
+
+  graylog:
+    enabled: false
+    host: 127.0.0.1
+    port: 12201
+
+  syslog:
+    enabled: false
+    address: /dev/log
+    facility: user
+  
+  slack:
+    enabled: false
+    webhook_url: ""
+    username: "Cyanide Honeypot"
+
+  hpfeeds:
+    enabled: false
+    host: hpfeeds.honeycloud.net
+    port: 10000
+    ident: ""
+    secret: ""
+    channel: cyanide.events
+
+  dshield:
+    enabled: false
+    userid: ""
+    authkey: ""
+    batch_size: 50
+    url: "https://isc.sans.edu/api/submit/file"
+
+  mysql:
+    enabled: false
+    host: 127.0.0.1
+    port: 3306
+    user: cyanide
+    password: password
+    database: cyanide
+    table: events
+
+  mongodb:
+    enabled: false
+    uri: "mongodb://127.0.0.1:27017/"
+    database: cyanide
+    collection: events
+
+  rethinkdb:
+    enabled: false
+    host: 127.0.0.1
+    port: 28015
+    database: cyanide
+    table: events
 
 cleanup:
   enabled: true
   interval: 3600
   retention_days: 7
-  retention_days: 7
 
 virustotal:
-  enabled: true
-  # api_key: 
+  enabled: false
+  api_key: ""  
 
 otel:
   enabled: true

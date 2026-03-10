@@ -60,6 +60,9 @@ class CyanideConfig(BaseModel):
     # Cleanup
     cleanup: Dict[str, Any] = Field(default_factory=dict)
 
+    # Output Plugins
+    output: Dict[str, Any] = Field(default_factory=dict)
+
     # Paths & Core
     hostname: str = "server01"
     log_path: str = "var/log/cyanide"

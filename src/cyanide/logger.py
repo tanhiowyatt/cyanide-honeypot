@@ -8,10 +8,13 @@ from pathlib import Path
 
 class CyanideLogger:
     # Function 100: Initializes the class instance and its attributes.
-    def __init__(self, log_dir):
+    def __init__(self, log_dir, output_config=None):
         self.log_dir = Path(log_dir)
         if not self.log_dir.exists():
             self.log_dir.mkdir(parents=True, exist_ok=True)
+
+        self.output_config = output_config or {}
+        self.plugins = self._load_plugins()
 
         # 1. Server Log - System events, errors, lifecycle
         self.server_log = self._setup_logger("cyanide_server", self.log_dir / "cyanide-server.json")
@@ -24,6 +27,28 @@ class CyanideLogger:
 
         # 4. Stats Log - Periodic snapshots
         self.stats_log = self._setup_logger("cyanide_stats", self.log_dir / "cyanide-stats.json")
+
+    def _load_plugins(self):
+        plugins = []
+        import importlib
+
+        for plugin_name, plugin_cfg in self.output_config.items():
+            if not isinstance(plugin_cfg, dict) or not plugin_cfg.get("enabled", False):
+                continue
+                
+            try:
+                module = importlib.import_module(f"cyanide.output.{plugin_name}")
+                plugin_class = getattr(module, "Plugin")
+                plugin_instance = plugin_class(plugin_cfg)
+                plugin_instance.start()
+                plugins.append(plugin_instance)
+                logging.info(f"Loaded output plugin: {plugin_name}")
+            except ImportError as e:
+                logging.error(f"Failed to load output plugin {plugin_name}: {e}. Try installing extras with pip install .[outputs]")
+            except Exception as e:
+                logging.error(f"Failed to load output plugin {plugin_name}: {e}")
+                
+        return plugins
 
     # Function 101: Sets up initial configuration and state.
     def _setup_logger(self, name, path):
@@ -80,3 +105,7 @@ class CyanideLogger:
 
         logger = self._get_target_logger(event_type)
         logger.info(json.dumps(entry))
+        
+        for plugin in self.plugins:
+            # We copy the entry to prevent one plugin from accidentally mutating it
+            plugin.emit(entry.copy())

@@ -35,8 +35,63 @@ def load_config(path: Path = Path("configs/app.yaml")):
             logger.error(f"Error loading config {path}: {e}")
     else:
         # Check for example file as fallback if main doesn't exist?
-        # Or just warn.
         logger.warning(f"Config file not found at {path}, using .env and defaults.")
+
+    def apply_env_overrides(data: dict, prefix: str = "CYANIDE_") -> dict:
+        """Deeply override configuration dictionary using single-underscore environment variables."""
+        import json
+        
+        def parse_val(v):
+            vl = str(v).lower()
+            if vl in ("true", "1", "yes", "on"): return True
+            if vl in ("false", "0", "no", "off"): return False
+            if str(v).isdigit(): return int(v)
+            if str(v).startswith("[") or str(v).startswith("{"):
+                try:
+                    return json.loads(v)
+                except:
+                    pass
+            return v
+
+        for env_key, env_val in os.environ.items():
+            if not env_key.startswith(prefix):
+                continue
+            
+            remainder = env_key[len(prefix):].lower()
+            
+            # 1. Exact top-level match (e.g., CYANIDE_USERS)
+            if remainder in data:
+                data[remainder] = parse_val(env_val)
+                continue
+                
+            # 2. Schema-guided nested match
+            mapped = False
+            for top_key, top_val in data.items():
+                if remainder.startswith(top_key + "_"):
+                    if not isinstance(top_val, dict):
+                        continue
+                        
+                    sub_remainder = remainder[len(top_key)+1:]
+                    
+                    # 2a. Exact match on second level (e.g. CYANIDE_SERVER_MAX_SESSIONS)
+                    if sub_remainder in top_val:
+                        top_val[sub_remainder] = parse_val(env_val)
+                        mapped = True
+                        break
+                        
+                    # 2b. Third level match (e.g., CYANIDE_OUTPUT_SLACK_ENABLED)
+                    for sub_key, sub_val in top_val.items():
+                        if sub_remainder.startswith(sub_key + "_"):
+                            if isinstance(sub_val, dict):
+                                final_key = sub_remainder[len(sub_key)+1:]
+                                sub_val[final_key] = parse_val(env_val)
+                                mapped = True
+                                break
+                    if mapped:
+                        break
+        return data
+
+    config_data = apply_env_overrides(config_data)
 
     # Function 17: Retrieves val data.
     def get_val(section, key, env_var, default, cast=str):
@@ -191,6 +246,9 @@ def load_config(path: Path = Path("configs/app.yaml")):
         "enabled": get_val("virustotal", "enabled", "VIRUSTOTAL_ENABLED", False, bool),
         "api_key": get_val("virustotal", "api_key", "VIRUSTOTAL_API_KEY", None),
     }
+
+    # Output Plugins
+    config["output"] = config_data.get("output", {})
 
     try:
         model = CyanideConfig(**config)

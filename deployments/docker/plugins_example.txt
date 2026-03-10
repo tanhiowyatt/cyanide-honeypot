@@ -1,0 +1,167 @@
+# =============================================================================
+# CYANIDE HONEYPOT - COMPLETE ENVIRONMENT VARIABLES OVERRIDE REFERENCE
+# =============================================================================
+# This file demonstrates how to override EVERY configuration setting natively 
+# defined in configs/app.yaml using the 'CYANIDE_' prefix via docker-compose.
+# Uncomment and paste any of these variables into the `environment:` section
+# of your docker-compose.yml to override the default configuration.
+
+    environment:
+      # --- Python System ---
+      - PYTHONUNBUFFERED=1
+
+      # -----------------------------------------------------------------------
+      # A. CORE & SESSION LIMITS
+      # -----------------------------------------------------------------------
+      - CYANIDE_HONEYPOT_HOSTNAME=server01
+      - CYANIDE_SERVER_OS_PROFILE=ubuntu
+      - CYANIDE_SERVER_MAX_SESSIONS=100
+      - CYANIDE_SERVER_MAX_SESSIONS_PER_IP=5
+      - CYANIDE_SERVER_SESSION_TIMEOUT=300
+      - CYANIDE_HONEYPOT_QUARANTINE_MAX_SIZE_MB=500
+      - CYANIDE_SERVER_HOST=0.0.0.0
+
+      # -----------------------------------------------------------------------
+      # B. SERVICES (SSH & TELNET)
+      # -----------------------------------------------------------------------
+      - CYANIDE_SSH_ENABLED=true
+      - CYANIDE_SSH_LISTEN_PORT=2222
+      - CYANIDE_SSH_BACKEND_MODE=emulated
+      
+      - CYANIDE_TELNET_ENABLED=true
+      - CYANIDE_TELNET_LISTEN_PORT=2223
+      - CYANIDE_TELNET_BACKEND_MODE=emulated
+
+      # -----------------------------------------------------------------------
+      # C. MACHINE LEARNING (CyanideML)
+      # -----------------------------------------------------------------------
+      - CYANIDE_ML_ENABLED=true
+      - CYANIDE_ML_ONLINE_LEARNING=false
+      - CYANIDE_ML_RETRAINING_INTERVAL_DAYS=7
+
+      # -----------------------------------------------------------------------
+      # D. MAINTENANCE & CLEANUP
+      # -----------------------------------------------------------------------
+      - CYANIDE_CLEANUP_ENABLED=true
+      - CYANIDE_CLEANUP_INTERVAL=3600
+      - CYANIDE_CLEANUP_RETENTION_DAYS=7
+
+      # -----------------------------------------------------------------------
+      # E. OBSERVABILITY (Metrics & Tracing)
+      # -----------------------------------------------------------------------
+      - CYANIDE_METRICS_ENABLED=true
+      - CYANIDE_METRICS_PORT=9090
+      
+      - CYANIDE_OTEL_ENABLED=true
+      - CYANIDE_OTEL_EXPORTER=otlp
+      - CYANIDE_OTEL_ENDPOINT=http://jaeger:4318/v1/traces
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
+
+      # -----------------------------------------------------------------------
+      # F. THIRD-PARTY INTEGRATIONS
+      # -----------------------------------------------------------------------
+      - CYANIDE_VIRUSTOTAL_ENABLED=false
+      - CYANIDE_VIRUSTOTAL_API_KEY=your_api_key_here
+
+      # -----------------------------------------------------------------------
+      # G. SMTP PROXY
+      # -----------------------------------------------------------------------
+      - CYANIDE_SMTP_ENABLED=true
+      - CYANIDE_SMTP_LISTEN_PORT=2525
+      - CYANIDE_SMTP_TARGET_HOST=mailhog
+      - CYANIDE_SMTP_TARGET_PORT=1025
+
+      # -----------------------------------------------------------------------
+      # H. LOCAL AUTHENTICATION (USERS)
+      # -----------------------------------------------------------------------
+      # Note: Passed as a JSON string
+      - 'CYANIDE_USERS=[{"user": "root", "pass": "admin"}, {"user": "admin", "pass": "admin"}]'
+
+
+      # =======================================================================
+      # I. OUTPUT PLUGINS (COWRIE-STYLE EVENT ROUTING)
+      # =======================================================================
+      
+      # [1] SQL Databases
+      # -----------------
+      # SQLite
+      - CYANIDE_OUTPUT_SQLITE_ENABLED=true
+      - CYANIDE_OUTPUT_SQLITE_PATH=var/log/cyanide/events.sqlite
+      
+      # PostgreSQL
+      - CYANIDE_OUTPUT_POSTGRESQL_ENABLED=true
+      - CYANIDE_OUTPUT_POSTGRESQL_HOST=postgres-db
+      - CYANIDE_OUTPUT_POSTGRESQL_PORT=5432
+      - CYANIDE_OUTPUT_POSTGRESQL_USER=cyanide
+      - CYANIDE_OUTPUT_POSTGRESQL_PASSWORD=supersecret
+      - CYANIDE_OUTPUT_POSTGRESQL_DATABASE=cyanide_events
+
+      # MySQL / MariaDB
+      - CYANIDE_OUTPUT_MYSQL_ENABLED=true
+      - CYANIDE_OUTPUT_MYSQL_HOST=mysql-db
+      - CYANIDE_OUTPUT_MYSQL_PORT=3306
+      - CYANIDE_OUTPUT_MYSQL_USER=cyanide
+      - CYANIDE_OUTPUT_MYSQL_PASSWORD=supersecret
+      - CYANIDE_OUTPUT_MYSQL_DATABASE=cyanide_events
+
+      # [2] NoSQL & Document Stores
+      # ---------------------------
+      # MongoDB
+      - CYANIDE_OUTPUT_MONGODB_ENABLED=true
+      - CYANIDE_OUTPUT_MONGODB_URI=mongodb://root:password@mongo-db:27017/
+      - CYANIDE_OUTPUT_MONGODB_DATABASE=cyanide
+      - CYANIDE_OUTPUT_MONGODB_COLLECTION=events
+
+      # RethinkDB
+      - CYANIDE_OUTPUT_RETHINKDB_ENABLED=true
+      - CYANIDE_OUTPUT_RETHINKDB_HOST=rethink-db
+      - CYANIDE_OUTPUT_RETHINKDB_PORT=28015
+      - CYANIDE_OUTPUT_RETHINKDB_DATABASE=cyanide
+      
+      # Elasticsearch
+      - CYANIDE_OUTPUT_ELASTICSEARCH_ENABLED=true
+      - CYANIDE_OUTPUT_ELASTICSEARCH_HOSTS=["http://es-node01:9200", "http://es-node02:9200"]
+      - CYANIDE_OUTPUT_ELASTICSEARCH_INDEX=cyanide-events
+      - CYANIDE_OUTPUT_ELASTICSEARCH_USER=elastic
+      - CYANIDE_OUTPUT_ELASTICSEARCH_PASSWORD=changeme
+
+      # [3] SIEM & Log Forwarders
+      # -------------------------
+      # Splunk HEC (HTTP Event Collector)
+      - CYANIDE_OUTPUT_SPLUNK_HEC_ENABLED=true
+      - CYANIDE_OUTPUT_SPLUNK_HEC_URL=https://splunk-indexer:8088/services/collector/event
+      - CYANIDE_OUTPUT_SPLUNK_HEC_TOKEN=00000000-0000-0000-0000-000000000000
+      - CYANIDE_OUTPUT_SPLUNK_HEC_SOURCE=cyanide-honeypot
+      - CYANIDE_OUTPUT_SPLUNK_HEC_SOURCETYPE=_json
+      - CYANIDE_OUTPUT_SPLUNK_HEC_VERIFY_SSL=false
+
+      # Graylog / GELF
+      - CYANIDE_OUTPUT_GRAYLOG_ENABLED=true
+      - CYANIDE_OUTPUT_GRAYLOG_HOST=graylog-server
+      - CYANIDE_OUTPUT_GRAYLOG_PORT=12201
+
+      # Syslog (RFC 3164/5424)
+      - CYANIDE_OUTPUT_SYSLOG_ENABLED=true
+      - CYANIDE_OUTPUT_SYSLOG_ADDRESS=["syslog-server", "514"]
+      - CYANIDE_OUTPUT_SYSLOG_FACILITY=local0
+
+      # [4] Threat Intel Feeds & Notifications
+      # --------------------------------------
+      # SANS ISC DShield
+      - CYANIDE_OUTPUT_DSHIELD_ENABLED=true
+      - CYANIDE_OUTPUT_DSHIELD_USERID=12345678
+      - CYANIDE_OUTPUT_DSHIELD_AUTHKEY=YOUR_DSHIELD_KEY
+      - CYANIDE_OUTPUT_DSHIELD_BATCH_SIZE=50
+
+      # HPFeeds
+      - CYANIDE_OUTPUT_HPFEEDS_ENABLED=true
+      - CYANIDE_OUTPUT_HPFEEDS_HOST=hpfeeds.honeycloud.net
+      - CYANIDE_OUTPUT_HPFEEDS_PORT=10000
+      - CYANIDE_OUTPUT_HPFEEDS_IDENT=my_sensor_id
+      - CYANIDE_OUTPUT_HPFEEDS_SECRET=my_sensor_secret
+      - CYANIDE_OUTPUT_HPFEEDS_CHANNEL=cyanide.events
+
+      # Slack Webhook Alerts
+      - CYANIDE_OUTPUT_SLACK_ENABLED=true
+      - CYANIDE_OUTPUT_SLACK_WEBHOOK_URL=https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX
+      - CYANIDE_OUTPUT_SLACK_USERNAME=Cyanide Alerts

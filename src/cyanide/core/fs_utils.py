@@ -5,10 +5,19 @@ from typing import List
 
 # Function 29: Retrieves fs config dir data.
 def get_fs_config_dir() -> Path:
-    """Return the absolute path to the config/profiles directory."""
-    current_dir = Path(__file__).parent
-    # Go up 3 levels: core -> cyanide -> src -> root
-    root_dir = current_dir.parent.parent.parent
+    """Return the absolute path to the configs/profiles directory."""
+    # Find project root by looking for a marker file or climbing up from src
+    # This assumes the script is in src/cyanide/core/
+    current_file = Path(__file__).resolve()
+    # cyanide -> core -> src -> root
+    root_dir = current_file.parents[3]
+
+    # Check if configs exists at this root, otherwise fallback to CWD
+    candidates = [root_dir / "configs", Path.cwd() / "configs", Path("/app/configs")]
+    for cand in candidates:
+        if cand.exists():
+            return cand / "profiles"
+
     return root_dir / "configs" / "profiles"
 
 

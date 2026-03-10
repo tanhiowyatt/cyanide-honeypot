@@ -35,8 +35,8 @@ class TCPProxy:
         self.server = await asyncio.start_server(
             self.handle_client, self.listen_host, self.listen_port
         )
-        print(
-            f"[*] {self.protocol_name.upper()} Proxy listening on {self.listen_host}:{self.listen_port} -> {self.target_host}:{self.target_port}"
+        logger.info(
+            f"{self.protocol_name.upper()} Proxy listening on {self.listen_host}:{self.listen_port} -> {self.target_host}:{self.target_port}"
         )
         return self.server
 
@@ -65,17 +65,16 @@ class TCPProxy:
                 if res:
                     tgt_host, tgt_port = res
                 else:
-                    print(f"[!] {self.protocol_name.upper()} Proxy: No target available from pool.")
+                    logger.error(
+                        f"{self.protocol_name.upper()} Proxy: No target available from pool."
+                    )
                     client_writer.close()
                     return
-            else:
-                tgt_host, tgt_port = self.target_host, self.target_port
-
-            # Connect to target
-            print(f"[*] Proxying {src_ip} -> {tgt_host}:{tgt_port}")
+            # Determine target
+            logger.debug(f"Proxying {src_ip} -> {tgt_host}:{tgt_port}")
             target_reader, target_writer = await asyncio.open_connection(tgt_host, tgt_port)
         except Exception as e:
-            print(f"[!] {self.protocol_name.upper()} Proxy: Failed to connect to target: {e}")
+            logger.error(f"{self.protocol_name.upper()} Proxy: Failed to connect to target: {e}")
             client_writer.close()
             return
 

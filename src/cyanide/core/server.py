@@ -77,7 +77,9 @@ class CyanideServer:
             session_mgr = SessionManager(config)
             print("[*] CyanideServer: SessionManager initialized.")
         except Exception as e:
-            print(f"[!] CyanideServer: Failed to initialize SessionManager: {e}")
+            self.logger.log_event(
+                "system", "service_init_error", {"service": "SessionManager", "error": str(e)}
+            )
             raise
 
         # 2. Quarantine Service
@@ -88,18 +90,28 @@ class CyanideServer:
             vt_key = config.get("virustotal", {}).get("api_key", "")
             self.vt_scanner = VTScanner(vt_key)
             quarantine_svc.set_scanner(self.vt_scanner)
-            print("[*] CyanideServer: QuarantineService initialized.")
-            print("[*] CyanideServer: VTScanner initialized.")
+            self.logger.log_event(
+                "system", "service_init_status", {"message": "QuarantineService initialized"}
+            )
+            self.logger.log_event(
+                "system", "service_init_status", {"message": "VTScanner initialized"}
+            )
         except Exception as e:
-            print(f"[!] CyanideServer: Failed to initialize QuarantineService or VTScanner: {e}")
+            self.logger.log_event(
+                "system", "service_init_error", {"service": "QuarantineService", "error": str(e)}
+            )
             raise
 
         # 3. Analytics Service
         try:
             analytics_svc = AnalyticsService(config, self.logger)
-            print("[*] CyanideServer: AnalyticsService initialized.")
+            self.logger.log_event(
+                "system", "service_init_status", {"message": "AnalyticsService initialized"}
+            )
         except Exception as e:
-            print(f"[!] CyanideServer: Failed to initialize AnalyticsService: {e}")
+            self.logger.log_event(
+                "system", "service_init_error", {"service": "AnalyticsService", "error": str(e)}
+            )
             raise
 
         # Register Services (telnet=None initially due to circular dependency)
@@ -111,9 +123,13 @@ class CyanideServer:
                 telnet=None,
             )
             self.logger.services = self.services
-            print("[*] CyanideServer: Services registered.")
+            self.logger.log_event(
+                "system", "service_init_status", {"message": "Services registered"}
+            )
         except Exception as e:
-            print(f"[!] CyanideServer: Failed to register Services: {e}")
+            self.logger.log_event(
+                "system", "service_init_error", {"service": "ServiceRegistry", "error": str(e)}
+            )
             raise
 
         # 4. Telnet Handler
@@ -121,7 +137,6 @@ class CyanideServer:
 
         # Update declared telnet service
         self.services.telnet = telnet_handler
-
 
         self.ssh_server: Any = None
         self.telnet_server: Any = None
@@ -146,9 +161,17 @@ class CyanideServer:
             )
             self.profile = temp_fs.context.to_dict()
             self.resolved_profile_name = self.os_profile
-            print(f"[*] Initialized VFS profile: {self.os_profile}")
+            self.logger.log_event(
+                "system",
+                "vfs_init_status",
+                {"message": f"Initialized VFS profile: {self.os_profile}"},
+            )
         except Exception as e:
-            print(f"[!] Error initializing VFS profile {self.os_profile}: {e}")
+            self.logger.log_event(
+                "system",
+                "vfs_init_error",
+                {"profile": self.os_profile, "error": str(e)},
+            )
             self.profile = DEFAULT_METADATA.copy()
             self.resolved_profile_name = "ubuntu"
 
@@ -655,7 +678,7 @@ class CyanideServer:
 
         from .cleanup import CleanupManager
 
-        manager = CleanupManager(self.config)
+        manager = CleanupManager(self.config, logger=self.logger)
 
         if not manager.enabled:
             self.logger.log_event("system", "cleanup_status", {"message": "Cleanup: Disabled"})
@@ -1086,7 +1109,10 @@ class SSHSession(asyncssh.SSHServerSession):
                 )
 
                 # ML Analysis with bot detection
-                if self.honeypot.services.analytics.ml_enabled and self.honeypot.services.analytics.ml_pipeline:
+                if (
+                    self.honeypot.services.analytics.ml_enabled
+                    and self.honeypot.services.analytics.ml_pipeline
+                ):
                     self.honeypot._analyze_command(
                         cmd, self.username, self.src_ip, self.session_id, "ssh", is_bot=is_bot
                     )
@@ -1172,7 +1198,10 @@ class SSHSession(asyncssh.SSHServerSession):
         )
 
         # ML Analysis
-        if self.honeypot.services.analytics.ml_enabled and self.honeypot.services.analytics.ml_pipeline:
+        if (
+            self.honeypot.services.analytics.ml_enabled
+            and self.honeypot.services.analytics.ml_pipeline
+        ):
             self.honeypot._analyze_command(
                 command, self.username, self.src_ip, self.session_id, "ssh"
             )

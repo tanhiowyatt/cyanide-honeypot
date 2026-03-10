@@ -5,10 +5,13 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+import logging
 from dotenv import load_dotenv
 from pydantic import ValidationError
 
 from .config_schema import CyanideConfig
+
+logger = logging.getLogger("cyanide.config")
 
 
 # Function 16: Loads config from storage or configuration.
@@ -26,14 +29,14 @@ def load_config(path: Path = Path("configs/app.yaml")):
             with open(path, "r") as f:
                 config_data = yaml.safe_load(f) or {}
                 if not isinstance(config_data, dict):
-                    print(f"[!] Config file {path} is not a valid YAML dictionary.")
+                    logger.error(f"Config file {path} is not a valid YAML dictionary.")
                     config_data = {}
         except Exception as e:
-            print(f"[!] Error loading config {path}: {e}")
+            logger.error(f"Error loading config {path}: {e}")
     else:
         # Check for example file as fallback if main doesn't exist?
         # Or just warn.
-        print(f"[*] Config file not found at {path}, using .env and defaults.")
+        logger.warning(f"Config file not found at {path}, using .env and defaults.")
 
     # Function 17: Retrieves val data.
     def get_val(section, key, env_var, default, cast=str):
@@ -130,7 +133,7 @@ def load_config(path: Path = Path("configs/app.yaml")):
                 config["users"].extend(env_users)
                 env_users_loaded = True
         except json.JSONDecodeError:
-            print(f"[!] Failed to parse users env var: {users_env}")
+            logger.error(f"Failed to parse users env var: {users_env}")
 
     # Load users from YAML only if ENV didn't provide them
     if not env_users_loaded:
@@ -193,5 +196,5 @@ def load_config(path: Path = Path("configs/app.yaml")):
         model = CyanideConfig(**config)
         return model.model_dump()
     except ValidationError as e:
-        print(f"[!] Configuration Error:\n{e}")
+        logger.error(f"Configuration Error:\n{e}")
         sys.exit(1)

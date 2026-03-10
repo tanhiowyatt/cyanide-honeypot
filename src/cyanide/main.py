@@ -6,11 +6,13 @@ import sys
 import warnings
 from pathlib import Path
 
-# Add src to path
-sys.path.append(os.path.join(os.getcwd(), "src"))
+# Add src to path if not already there
+parent_dir = str(Path(__file__).resolve().parent.parent)
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
 
-from cyanide.core import CyanideServer, load_config
-from cyanide.core.aesthetics import print_startup_banner
+from cyanide.core import CyanideServer, load_config  # noqa: E402
+from cyanide.core.aesthetics import print_startup_banner  # noqa: E402
 
 CONFIG_PATH = Path("configs/app.yaml")
 

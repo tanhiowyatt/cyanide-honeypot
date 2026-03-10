@@ -213,12 +213,7 @@ class ShellEmulator:
     # Function 23: Performs operations related to parse chain.
     def _parse_chain(self, command_line: str) -> List[CommandNode]:
         """Split command line by operators &&, ||, ; dealing with quotes."""
-        # This is a basic parser. A full lexer would be better but overkill.
-        # We'll use a regex that splits but captures delimiters, then reconstruct.
-        # NOTE: This simple regex might fail inside quotes.
-        # Ideally we tokenize properly. For a honeypot, a slightly smarter split is usually enough.
-
-        # Placeholder for proper tokenization.
+        # We first split into chunks based on shell operators while respecting quotes.
         # We hide quoted strings first to avoid splitting inside them.
 
         tokens: List[tuple[str, Optional[str]]] = []

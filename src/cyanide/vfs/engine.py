@@ -176,7 +176,7 @@ class FakeFilesystem:
 
     # Function 292: Retrieves node data.
     def get_node(self, path: str) -> Optional[Node]:
-        """Backward compatible node retrieval."""
+        """Resolve a path to a VirtualFile or VirtualDirectory node."""
         path = self.resolve(path)
         if path in self.deleted_paths:
             return None

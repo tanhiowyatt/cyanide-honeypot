@@ -82,4 +82,3 @@ class CyanideLogger:
 
         logger = self._get_target_logger(event_type)
         logger.info(json.dumps(entry))
-

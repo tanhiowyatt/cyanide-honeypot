@@ -8,13 +8,15 @@ class CleanupManager:
     """Manages automatic cleanup of old logs and data."""
 
     # Function 14: Initializes the class instance and its attributes.
-    def __init__(self, config):
+    def __init__(self, config, logger=None):
         """Initialize with configuration dict.
 
         Args:
             config: Full config dict, expects 'cleanup' key.
+            logger: Optional CyanideLogger instance.
         """
         self.config = config.get("cleanup", {})
+        self.logger = logger
         self.enabled = str(self.config.get("enabled", "true")).lower() == "true"
         self.interval = int(self.config.get("interval", 3600))
         self.retention_days = int(self.config.get("retention_days", 7))
@@ -66,8 +68,13 @@ class CleanupManager:
                                 file_path.unlink()
                             stats["deleted"] += 1
                             stats["bytes_freed"] += size
-                    except Exception:
-                        # TODO: Log error to a proper service
+                    except Exception as e:
+                        if self.logger:
+                            self.logger.log_event(
+                                "system",
+                                "cleanup_error",
+                                {"path": str(file_path), "message": str(e)},
+                            )
                         stats["errors"] += 1
 
         return stats

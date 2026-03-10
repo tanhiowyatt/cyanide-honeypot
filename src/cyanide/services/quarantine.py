@@ -83,24 +83,24 @@ class QuarantineService:
         try:
             result = await self.vt_scanner.scan(content, filename)
             if result:
-                await self.logger.log_event_async(
+                self.logger.log_event(
+                    session_id,
+                    "malware_scan",
                     {
-                        "event": "malware_scan",
-                        "session_id": session_id,
                         "src_ip": src_ip,
                         "filename": filename,
                         "sha256": result.get("sha256"),
                         "malicious": result.get("malicious"),
                         "label": result.get("label"),
                         "vt_link": result.get("link"),
-                    }
+                    },
                 )
         except Exception as e:
-            await self.logger.log_event_async(
+            self.logger.log_event(
+                session_id,
+                "scan_error",
                 {
-                    "event": "scan_error",
-                    "session_id": session_id,
                     "src_ip": src_ip,
                     "message": f"Scan Error: {e}",
-                }
+                },
             )

@@ -1,5 +1,5 @@
 import time
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -14,8 +14,7 @@ def mock_honeypot():
     hp.ml_enabled = True
     hp.ml_filter = True
     hp.logger = MagicMock()
-    hp.logger.log_event_async = AsyncMock()
-    hp.logger.log_command = AsyncMock()
+    hp.logger.log_event = MagicMock()
     hp.stats = MagicMock()
     hp._analyze_command = MagicMock()
     return hp

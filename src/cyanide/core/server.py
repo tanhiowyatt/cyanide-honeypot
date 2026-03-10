@@ -122,9 +122,6 @@ class CyanideServer:
         # Update declared telnet service
         self.services.telnet = telnet_handler
 
-        # Backward compatibility / Shortcuts for internal use if needed
-        self.ml_enabled = analytics_svc.ml_enabled
-        self.ml_filter = analytics_svc.ml_filter
 
         self.ssh_server: Any = None
         self.telnet_server: Any = None
@@ -186,8 +183,6 @@ class CyanideServer:
     def _fs_audit_hook(self, action, path, session_id="unknown", src_ip="unknown"):
         """Callback for filesystem auditing."""
         try:
-            loop = asyncio.get_running_loop()
-
             # Honeytoken Tripwires
             HONEYTOKENS = [
                 "/home/admin/secret.conf",
@@ -204,18 +199,19 @@ class CyanideServer:
                 event_type = "CRITICAL_ALERT"
                 self.stats.on_honeytoken(str(path), src_ip)
 
-            loop.create_task(
-                self.logger.log_event_async(
+            try:
+                self.logger.log_event(
+                    session_id,
+                    event_type,
                     {
-                        "event": event_type,
                         "action": action,
                         "path": str(path),
-                        "session_id": session_id,
                         "src_ip": src_ip,
-                    }
+                    },
                 )
-            )
-        except RuntimeError:
+            except Exception:
+                pass
+        except Exception:
             pass
 
     # Function 45: Retrieves filesystem data.
@@ -251,27 +247,27 @@ class CyanideServer:
         try:
             result = await self.vt_scanner.scan(content, filename)
             if result:
-                await self.logger.log_event_async(
+                self.logger.log_event(
+                    session_id,
+                    "malware_scan",
                     {
-                        "event": "malware_scan",
-                        "session_id": session_id,
                         "src_ip": src_ip,
                         "filename": filename,
                         "sha256": result.get("sha256"),
                         "malicious": result.get("malicious"),
                         "label": result.get("label"),
                         "vt_link": result.get("link"),
-                    }
+                    },
                 )
                 self.stats.on_malware(filename, result.get("malicious", False))
         except Exception as e:
-            await self.logger.log_event_async(
+            self.logger.log_event(
+                session_id,
+                "scan_error",
                 {
-                    "event": "scan_error",
-                    "session_id": session_id,
                     "src_ip": src_ip,
                     "message": f"Scan Error: {e}",
-                }
+                },
             )
 
     # Function 48: Performs operations related to save quarantine file.
@@ -370,7 +366,7 @@ class CyanideServer:
                     content = self.stats.to_prometheus()
 
                     # Append ML metrics if available
-                    if self.ml_enabled and self.ml_filter:
+                    if self.services.analytics.ml_enabled and self.services.analytics.ml_pipeline:
                         try:
                             ml_metrics = generate_latest().decode()
                             content += "\n" + ml_metrics
@@ -677,12 +673,13 @@ class CyanideServer:
             try:
                 stats = manager.cleanup_files()
                 if stats["deleted"] > 0:
-                    await self.logger.log_event_async(
+                    self.logger.log_event(
+                        "system",
+                        "system_cleanup",
                         {
-                            "event": "system_cleanup",
                             "deleted": stats["deleted"],
                             "bytes_freed": stats["bytes_freed"],
-                        }
+                        },
                     )
             except Exception as e:
                 self.logger.log_event("system", "cleanup_error", {"message": f"Cleanup Error: {e}"})
@@ -749,18 +746,16 @@ class SSHServerFactory(asyncssh.SSHServer):
     def validate_password(self, username, password):
         success = self.honeypot.is_valid_user(username, password)
         self.honeypot.stats.on_auth("ssh", self.src_ip, username, password, success)
-        asyncio.create_task(
-            self.honeypot.logger.log_event_async(
-                {
-                    "event": "auth",
-                    "protocol": "ssh",
-                    "session_id": "conn_" + self.conn_id,
-                    "src_ip": self.src_ip,
-                    "username": username,
-                    "password": password,
-                    "success": success,
-                }
-            )
+        self.honeypot.logger.log_event(
+            "conn_" + self.conn_id,
+            "auth",
+            {
+                "protocol": "ssh",
+                "src_ip": self.src_ip,
+                "username": username,
+                "password": password,
+                "success": success,
+            },
         )
         return success
 
@@ -866,17 +861,15 @@ class SSHSession(asyncssh.SSHServerSession):
                 "compression": compression,
             }
 
-            asyncio.create_task(
-                self.honeypot.logger.log_event_async(
-                    {
-                        "event": "client_fingerprint",
-                        "session_id": self.session_id,
-                        "src_ip": self.src_ip,
-                        "protocol": "ssh",
-                        "fingerprint": fingerprint,
-                        "client_version": self.client_version,
-                    }
-                )
+            self.honeypot.logger.log_event(
+                self.session_id,
+                "client_fingerprint",
+                {
+                    "src_ip": self.src_ip,
+                    "protocol": "ssh",
+                    "fingerprint": fingerprint,
+                    "client_version": self.client_version,
+                },
             )
         except Exception:
             pass
@@ -890,30 +883,26 @@ class SSHSession(asyncssh.SSHServerSession):
 
         self.honeypot.stats.on_disconnect("ssh", self.src_ip)
 
-        asyncio.create_task(
-            self.honeypot.logger.log_event_async(
-                {
-                    "event": "session_disconnect",
-                    "session_id": self.session_id,
-                    "src_ip": self.src_ip,
-                    "reason": reason,
-                }
-            )
+        self.honeypot.logger.log_event(
+            self.session_id,
+            "session_disconnect",
+            {
+                "src_ip": self.src_ip,
+                "reason": reason,
+            },
         )
 
     # Function 68: Performs operations related to terminal size changed.
     def terminal_size_changed(self, width, height, pixwidth, pixheight):
         """Log terminal resize events (SIGWINCH)."""
-        asyncio.create_task(
-            self.honeypot.logger.log_event_async(
-                {
-                    "event": "window_resize",
-                    "session_id": self.session_id,
-                    "src_ip": self.src_ip,
-                    "width": width,
-                    "height": height,
-                }
-            )
+        self.honeypot.logger.log_event(
+            self.session_id,
+            "window_resize",
+            {
+                "src_ip": self.src_ip,
+                "width": width,
+                "height": height,
+            },
         )
         if self.shell:
             # Propagate
@@ -981,16 +970,14 @@ class SSHSession(asyncssh.SSHServerSession):
         if isinstance(value, bytes):
             value = value.decode("utf-8", "ignore")
 
-        asyncio.create_task(
-            self.honeypot.logger.log_event_async(
-                {
-                    "event": "client_env",
-                    "session_id": self.session_id,
-                    "src_ip": self.src_ip,
-                    "name": name,
-                    "value": value,
-                }
-            )
+        self.honeypot.logger.log_event(
+            self.session_id,
+            "client_env",
+            {
+                "src_ip": self.src_ip,
+                "name": name,
+                "value": value,
+            },
         )
         return True
 
@@ -1074,34 +1061,32 @@ class SSHSession(asyncssh.SSHServerSession):
                 iocs.extend(re.findall(urls_regex, cmd))
 
                 if iocs:
-                    asyncio.create_task(
-                        self.honeypot.logger.log_event_async(
-                            {
-                                "event": "ioc_detected",
-                                "session_id": self.session_id,
-                                "src_ip": self.src_ip,
-                                "iocs": list(set(iocs)),
-                                "cmd": cmd,
-                            }
-                        )
+                    self.honeypot.logger.log_event(
+                        self.session_id,
+                        "ioc_detected",
+                        {
+                            "src_ip": self.src_ip,
+                            "iocs": list(set(iocs)),
+                            "cmd": cmd,
+                        },
                     )
 
-                # Log command immediately
                 self.honeypot.stats.on_command("ssh", self.src_ip, self.username, cmd)
 
-                asyncio.create_task(
-                    self.honeypot.logger.log_command(
-                        self.session_id,
-                        "ssh",
-                        self.src_ip,
-                        self.username,
-                        cmd,
-                        client_version=self.client_version,
-                    )
+                self.honeypot.logger.log_event(
+                    self.session_id,
+                    "command.input",
+                    {
+                        "protocol": "ssh",
+                        "src_ip": self.src_ip,
+                        "username": self.username,
+                        "input": cmd,
+                        "client_version": self.client_version,
+                    },
                 )
 
                 # ML Analysis with bot detection
-                if self.honeypot.ml_enabled and self.honeypot.ml_filter:
+                if self.honeypot.services.analytics.ml_enabled and self.honeypot.services.analytics.ml_pipeline:
                     self.honeypot._analyze_command(
                         cmd, self.username, self.src_ip, self.session_id, "ssh", is_bot=is_bot
                     )
@@ -1114,15 +1099,13 @@ class SSHSession(asyncssh.SSHServerSession):
                 # Confusion Metric
                 if rc == 127:  # Command not found
                     self.honeypot.stats.on_command_not_found(cmd)
-                    asyncio.create_task(
-                        self.honeypot.logger.log_event_async(
-                            {
-                                "event": "command_not_found",
-                                "session_id": self.session_id,
-                                "src_ip": self.src_ip,
-                                "cmd": cmd,
-                            }
-                        )
+                    self.honeypot.logger.log_event(
+                        self.session_id,
+                        "command_not_found",
+                        {
+                            "src_ip": self.src_ip,
+                            "cmd": cmd,
+                        },
                     )
 
                 response = stdout + stderr
@@ -1157,15 +1140,16 @@ class SSHSession(asyncssh.SSHServerSession):
             self.session_id, "debug", {"message": f"exec_requested: {command}"}
         )
         self.commands.append(command)
-        asyncio.create_task(
-            self.honeypot.logger.log_command(
-                self.session_id,
-                "ssh",
-                self.src_ip,
-                self.username,
-                command,
-                client_version=self.client_version,
-            )
+        self.honeypot.logger.log_event(
+            self.session_id,
+            "command.input",
+            {
+                "protocol": "ssh",
+                "src_ip": self.src_ip,
+                "username": self.username,
+                "input": command,
+                "client_version": self.client_version,
+            },
         )
 
         asyncio.create_task(self._async_exec(command))
@@ -1188,7 +1172,7 @@ class SSHSession(asyncssh.SSHServerSession):
         )
 
         # ML Analysis
-        if self.honeypot.ml_enabled and self.honeypot.ml_filter:
+        if self.honeypot.services.analytics.ml_enabled and self.honeypot.services.analytics.ml_pipeline:
             self.honeypot._analyze_command(
                 command, self.username, self.src_ip, self.session_id, "ssh"
             )
@@ -1232,19 +1216,17 @@ class SSHSession(asyncssh.SSHServerSession):
                 "std_dev": round(std_dev, 4),
             }
 
-        asyncio.create_task(
-            self.honeypot.logger.log_event_async(
-                {
-                    "event": "session_end",
-                    "protocol": "ssh",
-                    "session_id": self.session_id,
-                    "src_ip": self.src_ip,
-                    "username": self.username,
-                    "commands": self.commands,
-                    "duration": duration,
-                    "client_version": self.client_version,
-                    "keystroke_metrics": keystroke_stats,
-                    "traffic": {"bytes_in": self.bytes_in, "bytes_out": self.bytes_out},
-                }
-            )
+        self.honeypot.logger.log_event(
+            self.session_id,
+            "session_end",
+            {
+                "protocol": "ssh",
+                "src_ip": self.src_ip,
+                "username": self.username,
+                "commands": self.commands,
+                "duration": duration,
+                "client_version": self.client_version,
+                "keystroke_metrics": keystroke_stats,
+                "traffic": {"bytes_in": self.bytes_in, "bytes_out": self.bytes_out},
+            },
         )

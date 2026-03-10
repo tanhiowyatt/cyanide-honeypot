@@ -57,10 +57,13 @@ def test_event_routing(temp_log_dir):
 
 
 # Function 444: Runs unit tests for the log_command_routing functionality.
-@pytest.mark.asyncio
-async def test_log_command_routing(temp_log_dir):
+def test_log_command_routing(temp_log_dir):
     logger = CyanideLogger(str(temp_log_dir))
-    await logger.log_command("sess1", "ssh", "1.2.3.4", "root", "uptime")
+    logger.log_event(
+        "sess1",
+        "command.input",
+        {"protocol": "ssh", "src_ip": "1.2.3.4", "username": "root", "input": "uptime"},
+    )
 
     with open(temp_log_dir / "cyanide-fs.json", "r") as f:
         data = json.loads(f.read())
@@ -69,12 +72,9 @@ async def test_log_command_routing(temp_log_dir):
 
 
 # Function 445: Runs unit tests for the log_event_async_routing functionality.
-@pytest.mark.asyncio
-async def test_log_event_async_routing(temp_log_dir):
+def test_log_event_async_routing(temp_log_dir):
     logger = CyanideLogger(str(temp_log_dir))
-    await logger.log_event_async(
-        {"event": "ml_anomaly", "session_id": "sess3", "src_ip": "5.5.5.5", "score": 0.9}
-    )
+    logger.log_event("sess3", "ml_anomaly", {"score": 0.9})
 
     with open(temp_log_dir / "cyanide-ml.json", "r") as f:
         data = json.loads(f.read())

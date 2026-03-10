@@ -39,7 +39,11 @@ async def test_cyanide_logger_structure(log_dir):
     logger.log_event(session_id, "test_event", {"foo": "bar"})
 
     # Test command logging (should go to FS log)
-    await logger.log_command(session_id, "ssh", "1.2.3.4", "root", "whoami")
+    logger.log_event(
+        session_id,
+        "command.input",
+        {"protocol": "ssh", "src_ip": "1.2.3.4", "username": "root", "input": "whoami"},
+    )
 
     # Verify Server Log
     server_log = os.path.join(log_dir, "cyanide-server.json")

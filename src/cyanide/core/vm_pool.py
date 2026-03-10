@@ -43,5 +43,4 @@ class VMPool:
         """
         Report a failed backend. Could disable it temporarily.
         """
-        # Placeholder for health checking logic
-        print(f"[!] VM Pool: Backend {host}:{port} reported failure.")
+        pass

@@ -69,14 +69,14 @@ class TelnetHandler:
         username = ""
 
         try:
-            await self.logger.log_event_async(
+            self.logger.log_event(
+                session_id,
+                "connect",
                 {
-                    "event": "connect",
                     "protocol": "telnet",
                     "src_ip": src_ip,
                     "src_port": src_port,
-                    "session_id": session_id,
-                }
+                },
             )
 
             # Analytics: GeoIP
@@ -128,16 +128,16 @@ class TelnetHandler:
             # Auth Check
             success = self.server.is_valid_user(username, password)
             self.stats.on_auth("telnet", src_ip, username, password, success)
-            await self.logger.log_event_async(
+            self.logger.log_event(
+                session_id,
+                "auth",
                 {
-                    "event": "auth",
                     "protocol": "telnet",
-                    "session_id": session_id,
                     "src_ip": src_ip,
                     "username": username,
                     "password": password,
                     "success": success,
-                }
+                },
             )
 
             if not success:
@@ -186,8 +186,16 @@ class TelnetHandler:
 
                     # Log & Analytics
                     self.stats.on_command("telnet", src_ip, username, cmd)
-                    await self.logger.log_command(
-                        session_id, "telnet", src_ip, username, cmd, client_version="Telnet"
+                    self.logger.log_event(
+                        session_id,
+                        "command.input",
+                        {
+                            "protocol": "telnet",
+                            "src_ip": src_ip,
+                            "username": username,
+                            "input": cmd,
+                            "client_version": "Telnet",
+                        },
                     )
 
                     # ML
@@ -202,9 +210,7 @@ class TelnetHandler:
 
                     if rc == 127:
                         self.stats.on_command_not_found(cmd)
-                        await self.logger.log_event_async(
-                            {"event": "command_not_found", "session_id": session_id, "cmd": cmd}
-                        )
+                        self.logger.log_event(session_id, "command_not_found", {"cmd": cmd})
 
                     output = stdout + stderr
                     resp = output.replace("\n", "\r\n").encode()
@@ -238,16 +244,16 @@ class TelnetHandler:
             )
         finally:
             duration = time.time() - start_time
-            await self.logger.log_event_async(
+            self.logger.log_event(
+                session_id,
+                "session_end",
                 {
-                    "event": "session_end",
                     "protocol": "telnet",
-                    "session_id": session_id,
                     "src_ip": src_ip,
                     "username": username,
                     "commands": commands,
                     "duration": duration,
-                }
+                },
             )
 
             self.services.session.unregister_session(src_ip)

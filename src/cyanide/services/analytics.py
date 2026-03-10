@@ -31,7 +31,7 @@ class AnalyticsService:
         # ML Initialization
         self.ml_enabled = config.get("ml", {}).get("enabled", False)
         self.ml_online_learning = config.get("ml", {}).get("online_learning", False)
-        self.ml_filter = None
+        self.ml_pipeline = None
         self.kb = None
 
         if self.ml_enabled:
@@ -56,8 +56,6 @@ class AnalyticsService:
                     {"message": f"Loading CyanideML pipeline from {model_path}..."},
                 )
                 self.ml_pipeline = CyanideML(str(model_path))
-                # Backward compatibility for server.py checks
-                self.ml_filter = self.ml_pipeline
             else:
                 self.logger.log_event(
                     "system",
@@ -189,12 +187,12 @@ class AnalyticsService:
         """Async GeoIP enrichment logging."""
         geo_data = await self.geoip.lookup(ip)
         if geo_data:
-            await self.logger.log_event_async(
+            self.logger.log_event(
+                session_id,
+                "client_geo",
                 {
-                    "event": "client_geo",
-                    "session_id": session_id,
                     "protocol": protocol,
                     "src_ip": ip,
                     "geo": geo_data,
-                }
+                },
             )

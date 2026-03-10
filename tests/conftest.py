@@ -62,8 +62,6 @@ def mock_logger(mocker):
     """Return a mocked CyanideLogger."""
     logger = mocker.MagicMock()
     logger.log_event = mocker.MagicMock()
-    logger.log_event_async = mocker.AsyncMock()
-    logger.log_command = mocker.AsyncMock()
     return logger
 
 

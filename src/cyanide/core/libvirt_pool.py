@@ -8,9 +8,10 @@ logger = logging.getLogger("cyanide.libvirt_pool")
 
 try:
     import libvirt
+
     LIBVIRT_AVAILABLE = True
 except ImportError:
-    libvirt = None # type: ignore
+    libvirt = None  # type: ignore
     LIBVIRT_AVAILABLE = False
 
 
@@ -45,16 +46,18 @@ class LibvirtPool:
         self.use_nat = self.config.get("use_nat", True)
         self.nat_public_ip = self.config.get("nat_public_ip", "192.168.1.40")
         self.save_snapshots = self.config.get("save_snapshots", False)
-        
+
         self.conn = None
         self._connect()
 
         # State tracking
-        self.vms: Dict[str, dict] = {}  # vm_id -> {"state": "ready|leased|rebuilding", "ip": ..., "last_used": ...}
+        self.vms: Dict[str, dict] = (
+            {}
+        )  # vm_id -> {"state": "ready|leased|rebuilding", "ip": ..., "last_used": ...}
         self.leases: Dict[str, Lease] = {}  # session_id -> Lease
-        
+
         self.lock = asyncio.Lock()
-        
+
         # Start background tasks
         self._bg_tasks: List[asyncio.Task] = []
 
@@ -84,7 +87,7 @@ class LibvirtPool:
         """Discover existing VMs with the tag and populate self.vms"""
         if not self.conn:
             return
-        
+
         try:
             domain_ids = self.conn.listDomainsID()
             for dom_id in domain_ids:
@@ -92,7 +95,11 @@ class LibvirtPool:
                 name = dom.name()
                 if self.guest_tag in name:
                     if name not in self.vms:
-                        self.vms[name] = {"state": "ready", "ip": self._get_domain_ip(dom), "last_used": time.time()}
+                        self.vms[name] = {
+                            "state": "ready",
+                            "ip": self._get_domain_ip(dom),
+                            "last_used": time.time(),
+                        }
                         logger.info(f"Found existing VM in pool: {name}")
         except Exception as e:
             logger.error(f"Error syncing VMs: {e}")
@@ -109,7 +116,7 @@ class LibvirtPool:
         async with self.lock:
             # Find a ready VM
             ready_vms = [vid for vid, v in self.vms.items() if v["state"] == "ready"]
-            
+
             if not ready_vms:
                 # Need to provision a new one if below max_vms
                 if len(self.vms) < self.max_vms:
@@ -123,17 +130,17 @@ class LibvirtPool:
             selected_vm = ready_vms[0]
             self.vms[selected_vm]["state"] = "leased"
             self.vms[selected_vm]["last_used"] = time.time()
-            
+
             ip = self.vms[selected_vm]["ip"]
             port = self.guest_ssh_port if protocol == "ssh" else self.guest_telnet_port
-            
+
             lease = Lease(
                 host=ip,
                 port=port,
                 vm_id=selected_vm,
                 protocol=protocol,
                 session_id=session_id,
-                timestamp=time.time()
+                timestamp=time.time(),
             )
             self.leases[session_id] = lease
             logger.info(f"Reserved VM {selected_vm} for session {session_id}")
@@ -144,7 +151,7 @@ class LibvirtPool:
         async with self.lock:
             if lease.session_id in self.leases:
                 del self.leases[lease.session_id]
-            
+
             if lease.vm_id in self.vms:
                 logger.info(f"Releasing VM {lease.vm_id} from session {lease.session_id}")
                 self.vms[lease.vm_id]["state"] = "rebuilding"
@@ -154,8 +161,12 @@ class LibvirtPool:
     async def _provision_vm(self, vm_id: str):
         """Provision a new VM from config."""
         logger.info(f"Provisioning new VM: {vm_id}")
-        self.vms[vm_id] = {"state": "rebuilding", "ip": self.nat_public_ip if self.use_nat else "127.0.0.1", "last_used": time.time()}
-        
+        self.vms[vm_id] = {
+            "state": "rebuilding",
+            "ip": self.nat_public_ip if self.use_nat else "127.0.0.1",
+            "last_used": time.time(),
+        }
+
         # Simulate libvirt provisioning
         if self.conn:
             try:
@@ -163,7 +174,7 @@ class LibvirtPool:
                 pass
             except Exception as e:
                 logger.error(f"Failed to provision {vm_id}: {e}")
-                
+
         self.vms[vm_id]["state"] = "ready"
         logger.info(f"VM {vm_id} provisioned and ready.")
 
@@ -182,7 +193,7 @@ class LibvirtPool:
                 dom.create()
             except Exception as e:
                 logger.error(f"Failed to rebuild {vm_id}: {e}")
-                
+
         async with self.lock:
             if vm_id in self.vms:
                 self.vms[vm_id]["state"] = "ready"
@@ -194,7 +205,9 @@ class LibvirtPool:
         while True:
             await asyncio.sleep(60)
             async with self.lock:
-                for vm_id, v in list(self.vms.items()): # wrap in list to allow mutation if evicting
+                for vm_id, v in list(
+                    self.vms.items()
+                ):  # wrap in list to allow mutation if evicting
                     if v["state"] == "ready":
                         # Check if it actually responds on SSH/Telnet ports
                         # Evict or restart if dead
@@ -211,4 +224,3 @@ class LibvirtPool:
                         logger.info(f"Recycling unused VM {vm_id}")
                         self.vms[vm_id]["state"] = "rebuilding"
                         asyncio.create_task(self._rebuild_vm(vm_id))
-

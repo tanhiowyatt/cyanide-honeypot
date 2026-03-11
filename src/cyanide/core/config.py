@@ -135,7 +135,9 @@ def load_config(path: Path = Path("configs/app.yaml")):
             or (config_data.get("honeypot") or {}).get("hostname")
             or os.getenv("HOSTNAME", "server01")
         ),
-        "log_path": get_val("logging", "directory", "LOG_PATH", "var/log/cyanide"), # Backwards compatibility logic
+        "log_path": get_val(
+            "logging", "directory", "LOG_PATH", "var/log/cyanide"
+        ),  # Backwards compatibility logic
         "logging": {
             "directory": get_val("logging", "directory", "LOGGING_DIRECTORY", "var/log/cyanide"),
             "logtype": get_val("logging", "logtype", "LOGGING_LOGTYPE", "plain"),
@@ -145,63 +147,79 @@ def load_config(path: Path = Path("configs/app.yaml")):
                     "rotation_strategy",
                     "LOGGING_ROTATION_STRATEGY",
                     get_val(
-                        "rotation", 
-                        "strategy", 
-                        "LOGGING_ROTATION_STRATEGY", 
-                        (config_data.get("logging", {}).get("rotation", {}).get("strategy", "time"))
-                    )
+                        "rotation",
+                        "strategy",
+                        "LOGGING_ROTATION_STRATEGY",
+                        (
+                            config_data.get("logging", {})
+                            .get("rotation", {})
+                            .get("strategy", "time")
+                        ),
+                    ),
                 ),
                 "when": get_val(
                     "logging",
                     "rotation_when",
                     "LOGGING_ROTATION_WHEN",
                     get_val(
-                        "rotation", 
-                        "when", 
-                        "LOGGING_ROTATION_WHEN", 
-                        (config_data.get("logging", {}).get("rotation", {}).get("when", "midnight"))
-                    )
+                        "rotation",
+                        "when",
+                        "LOGGING_ROTATION_WHEN",
+                        (
+                            config_data.get("logging", {})
+                            .get("rotation", {})
+                            .get("when", "midnight")
+                        ),
+                    ),
                 ),
                 "interval": get_val(
                     "logging",
                     "rotation_interval",
                     "LOGGING_ROTATION_INTERVAL",
                     get_val(
-                        "rotation", 
-                        "interval", 
-                        "LOGGING_ROTATION_INTERVAL", 
+                        "rotation",
+                        "interval",
+                        "LOGGING_ROTATION_INTERVAL",
                         (config_data.get("logging", {}).get("rotation", {}).get("interval", 1)),
-                        int
+                        int,
                     ),
-                    int
+                    int,
                 ),
                 "backup_count": get_val(
                     "logging",
                     "rotation_backup_count",
                     "LOGGING_ROTATION_BACKUP_COUNT",
                     get_val(
-                        "rotation", 
-                        "backup_count", 
-                        "LOGGING_ROTATION_BACKUP_COUNT", 
-                        (config_data.get("logging", {}).get("rotation", {}).get("backup_count", 14)),
-                        int
+                        "rotation",
+                        "backup_count",
+                        "LOGGING_ROTATION_BACKUP_COUNT",
+                        (
+                            config_data.get("logging", {})
+                            .get("rotation", {})
+                            .get("backup_count", 14)
+                        ),
+                        int,
                     ),
-                    int
+                    int,
                 ),
                 "max_bytes": get_val(
                     "logging",
                     "rotation_max_bytes",
                     "LOGGING_ROTATION_MAX_BYTES",
                     get_val(
-                        "rotation", 
-                        "max_bytes", 
-                        "LOGGING_ROTATION_MAX_BYTES", 
-                        (config_data.get("logging", {}).get("rotation", {}).get("max_bytes", 10485760)),
-                        int
+                        "rotation",
+                        "max_bytes",
+                        "LOGGING_ROTATION_MAX_BYTES",
+                        (
+                            config_data.get("logging", {})
+                            .get("rotation", {})
+                            .get("max_bytes", 10485760)
+                        ),
+                        int,
                     ),
-                    int
+                    int,
                 ),
-            }
+            },
         },
         "listen_ip": get_val("server", "host", "HOST", "0.0.0.0"),
         "quarantine_path": "var/quarantine",
@@ -306,17 +324,25 @@ def load_config(path: Path = Path("configs/app.yaml")):
             "mode": get_val("pool", "mode", "POOL_MODE", "libvirt"),
             "max_vms": get_val("pool", "max_vms", "POOL_MAX_VMS", 5, int),
             "recycle_period": get_val("pool", "recycle_period", "POOL_RECYCLE_PERIOD", 1500, int),
-            "vm_unused_timeout": get_val("pool", "vm_unused_timeout", "POOL_VM_UNUSED_TIMEOUT", 600, int),
+            "vm_unused_timeout": get_val(
+                "pool", "vm_unused_timeout", "POOL_VM_UNUSED_TIMEOUT", 600, int
+            ),
             "share_guests": get_val("pool", "share_guests", "POOL_SHARE_GUESTS", True, bool),
             "libvirt_uri": get_val("pool", "libvirt_uri", "POOL_LIBVIRT_URI", "qemu:///system"),
-            "guest_config": get_val("pool", "guest_config", "POOL_GUEST_CONFIG", "configs/pool/default_guest.xml"),
+            "guest_config": get_val(
+                "pool", "guest_config", "POOL_GUEST_CONFIG", "configs/pool/default_guest.xml"
+            ),
             "guest_tag": get_val("pool", "guest_tag", "POOL_GUEST_TAG", "ubuntu18.04"),
             "guest_ssh_port": get_val("pool", "guest_ssh_port", "POOL_GUEST_SSH_PORT", 22, int),
-            "guest_telnet_port": get_val("pool", "guest_telnet_port", "POOL_GUEST_TELNET_PORT", 23, int),
+            "guest_telnet_port": get_val(
+                "pool", "guest_telnet_port", "POOL_GUEST_TELNET_PORT", 23, int
+            ),
             "use_nat": get_val("pool", "use_nat", "POOL_USE_NAT", True, bool),
             "nat_public_ip": get_val("pool", "nat_public_ip", "POOL_NAT_PUBLIC_IP", "192.168.1.40"),
             "save_snapshots": get_val("pool", "save_snapshots", "POOL_SAVE_SNAPSHOTS", False, bool),
-            "snapshot_path": get_val("pool", "snapshot_path", "POOL_SNAPSHOT_PATH", "var/lib/cyanide/snapshots"),
+            "snapshot_path": get_val(
+                "pool", "snapshot_path", "POOL_SNAPSHOT_PATH", "var/lib/cyanide/snapshots"
+            ),
             "targets": get_val("pool", "targets", "POOL_TARGETS", ""),
         },
         "users": [],

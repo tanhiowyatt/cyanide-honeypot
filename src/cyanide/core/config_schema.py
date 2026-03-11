@@ -141,6 +141,7 @@ class PoolConfig(BaseModel):
     snapshot_path: str = "var/lib/cyanide/snapshots"
     targets: str = ""
 
+
 class LoggingRotationConfig(BaseModel):
     strategy: str = Field(default="time", pattern="^(time|size)$")
     when: str = "midnight"

@@ -35,7 +35,14 @@ class SimplePool:
             return None
         target = random.choice(self.targets)
         if Lease is not None:
-            return Lease(host=target[0], port=target[1], vm_id="simple", protocol=protocol, session_id=session_id, timestamp=0.0)
+            return Lease(
+                host=target[0],
+                port=target[1],
+                vm_id="simple",
+                protocol=protocol,
+                session_id=session_id,
+                timestamp=0.0,
+            )
         else:
             return target
 
@@ -64,7 +71,9 @@ class VMPool:
                     logger.error(f"Failed to load LibvirtPool: {e}. Falling back to SimplePool.")
                     self.backend = SimplePool(config)
             else:
-                logger.error("Failed to load LibvirtPool: libvirt-python is required for libvirt pool mode. Falling back to SimplePool.")
+                logger.error(
+                    "Failed to load LibvirtPool: libvirt-python is required for libvirt pool mode. Falling back to SimplePool."
+                )
                 self.backend = SimplePool(config)
         else:
             self.backend = SimplePool(config)

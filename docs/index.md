@@ -19,7 +19,7 @@ This documentation suite provides detailed insights into the system's architectu
 | 🌐 **[Networking](networking/index.md)** | Man-in-the-Middle proxying, traffic interception, and protocol handling. |
 | 🧠 **[ML & Analytics](ml-analytics/index.md)** | Anomaly detection, security rule engine, and log analysis. |
 | 🔧 **[Tooling](tooling/index.md)** | Operational scripts, management CLI, and deployment guides. |
-| 🧪 **[Tests](tests/index.md)** | Test suite structure, integration testing, and coverage reports. |
+| 🧪 **[Testing](tests/index.md)** | **Full Guide:** Automated suites, integration tests, and [Manual "Gauntlet"](tests/manual.md). |
 | 🆘 **[Troubleshooting](core/troubleshooting.md)** | **New:** Solutions for common errors (Libvirt, ML, Logging). |
 
 ## 🌍 Translations

@@ -59,6 +59,7 @@ class TCPProxy:
         )
 
         import uuid
+
         session_id = str(uuid.uuid4())
         lease = None
 
@@ -79,7 +80,7 @@ class TCPProxy:
                     return
             else:
                 tgt_host, tgt_port = self.target_host, self.target_port
-                
+
             logger.debug(f"Proxying {src_ip} -> {tgt_host}:{tgt_port}")
             target_reader, target_writer = await asyncio.open_connection(tgt_host, tgt_port)
         except Exception as e:
@@ -110,7 +111,7 @@ class TCPProxy:
             client_writer.close()
             await target_writer.wait_closed()
             await client_writer.wait_closed()
-            
+
             if self.pool and lease:
                 await self.pool.release_target(lease)
 

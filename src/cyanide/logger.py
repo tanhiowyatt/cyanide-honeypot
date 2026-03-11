@@ -19,8 +19,8 @@ class CyanideLogger:
                 "when": "midnight",
                 "interval": 1,
                 "backup_count": 14,
-                "max_bytes": 10485760
-            }
+                "max_bytes": 10485760,
+            },
         }
         self.plugins = self._load_plugins()
 
@@ -79,31 +79,26 @@ class CyanideLogger:
         if logtype == "rotating":
             strategy = rotation.get("strategy", "time")
             backup_count = rotation.get("backup_count", 14)
-            
+
             if strategy == "time":
                 from logging.handlers import TimedRotatingFileHandler
+
                 when = rotation.get("when", "midnight")
                 interval = rotation.get("interval", 1)
                 handler = TimedRotatingFileHandler(
-                    path, 
-                    when=when, 
-                    interval=interval, 
-                    backupCount=backup_count
+                    path, when=when, interval=interval, backupCount=backup_count
                 )
             elif strategy == "size":
                 from logging.handlers import RotatingFileHandler
+
                 max_bytes = rotation.get("max_bytes", 10485760)
-                handler = RotatingFileHandler(
-                    path, 
-                    maxBytes=max_bytes, 
-                    backupCount=backup_count
-                )
+                handler = RotatingFileHandler(path, maxBytes=max_bytes, backupCount=backup_count)
             else:
                 # Fallback
                 handler = logging.FileHandler(path)
         else:
             handler = logging.FileHandler(path)
-            
+
         formatter = logging.Formatter("%(message)s")
         handler.setFormatter(formatter)
         logger.addHandler(handler)

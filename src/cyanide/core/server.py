@@ -60,7 +60,9 @@ class CyanideServer:
         try:
             log_dir = config.get("logging", {}).get("directory", "var/log/cyanide")
             logging_config = config.get("logging", {})
-            self.logger = CyanideLogger(log_dir, config.get("output", {}), logging_config=logging_config)
+            self.logger = CyanideLogger(
+                log_dir, config.get("output", {}), logging_config=logging_config
+            )
             self.logger.log_event(
                 "system", "service_init_status", {"message": "Logger initialized"}
             )
@@ -443,7 +445,9 @@ class CyanideServer:
                     content = json.dumps(status_data)
                     content_type = "application/json"
                 elif path.startswith("/logs"):
-                    log_dir = self.config.get("logging", {}).get("directory", self.config.get("log_path", "var/log/cyanide"))
+                    log_dir = self.config.get("logging", {}).get(
+                        "directory", self.config.get("log_path", "var/log/cyanide")
+                    )
                     log_base = Path(log_dir).resolve()
                     requested_subpath = path.replace("/logs", "", 1).lstrip("/")
                     target_path = (log_base / requested_subpath).resolve()

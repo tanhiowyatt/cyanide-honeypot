@@ -1,28 +1,63 @@
-# 🧪 Testing and Quality Assurance
+# 🧪 Comprehensive Testing Guide
 
-The Cyanide project maintains a comprehensive, multi-layer verification suite. We strive for a minimum of **70% unit test coverage** and full end-to-end integration coverage for our core emulation engines.
-
-## 📄 Overview
-We treat security as a first-class citizen, and our test suite ensures that no logic changes break existing emulated commands or detection signatures. The suite includes low-level unit tests, cross-protocol integration tests, and performance load tests.
-
-## 🛠️ How it Works
-1.  **Unit Tests**: Focused on individual components (`pytest tests/unit/`).
-2.  **Integration Tests**: Multi-component flows, like the **Malware Flow** (`test_malware_flow.py`).
-3.  **CI Pipeline**: Every pull request must pass `black`, `isort`, `ruff`, and reach the coverage target.
-
-## ⚙️ Configuration
-Test configurations are typically handled via `pytest` fixtures in `tests/conftest.py`. You can also configure coverage reports and async settings via `pyproject.toml`.
-
-## 📑 Detailed Documents
-
-*   **[Core Unit Tests](../../tests/unit/)**: Structural verification of the VFS, detection engine, and configuration parser.
-*   **[Integration Logic](../../tests/integration/)**: Multi-service tests that simulate attacker sessions across SSH and Telnet including MiTM scenarios.
-*   **[Smoke Tests](../../tests/integration/smoke_test.py)**: Quick-start verification to ensure the Docker stack is healthy post-deployment.
-*   **[Coverage Reports](index.md#coverage-metrics)**: Tracking the project's health via `pytest-cov`.
-
-## 🔗 See Also
-*   🏗️ **[Core Engine Architecture](../core/architecture.md)**: Design principles that inform the testing strategy.
-*   🔧 **[Operational Testing](../tooling/index.md)**: Using real-world data to drift-test the ML engine.
+Cyanide uses a multi-layered approach to ensure reliability, security mimicry, and performance. This guide covers everything from basic unit tests to advanced red-teaming scenarios.
 
 ---
-*Last updated: 2026-03-10*
+
+## 🔝 Testing Hierarchy (Easiest to Hardest)
+
+### 🟢 Level 1: Static Analysis & Linting
+Fastest checks to ensure code quality and formatting.
+- **Tools**: `ruff`, `black`, `mypy`.
+- **Command**: `black --check src/ && ruff check src/ && mypy src/`
+
+### 🟡 Level 2: Component Unit Tests
+Verifies individual modules (VFS, Config, Utils) in isolation.
+- **Location**: `tests/unit/`
+- **Command**: `pytest tests/unit/`
+
+### 🟠 Level 3: Integration & Protocol Tests
+Verifies SSH/Telnet sessions, MiTM proxying, and Malware quarantine flows.
+- **Location**: `tests/integration/`
+- **Command**: `pytest tests/integration/`
+- **Requirement**: May require `libvirt` if testing VM Pool modes.
+
+### 🔴 Level 4: Manual "Gauntlet" Testing
+Step-by-step verification of the end-user experience and mimicry.
+- **Guide**: **[Manual Testing Checklist](manual.md)**
+- **Focus**: UI/UX, shell realism, and "feel" of the honeypot.
+
+### 🟣 Level 5: Red Teaming & Adversarial Ops
+Attacking the honeypot with real toolkits (Metasploit, Nmap, custom botnets).
+- **Focus**: Detection bypass, breakout attempts, and anti-fingerprinting effectiveness.
+
+---
+
+## 🛠️ Automated Testing Details
+
+### Environment Setup
+1. Use a virtual environment: `source .venv/bin/activate`
+2. Install dev dependencies: `pip install -e ".[dev]"`
+3. (Optional) Start `libvirtd` for VM Pool testing.
+
+### Running Specific Tests
+- **By Marker**: `pytest -m "not slow"`
+- **With Coverage**: `pytest --cov=cyanide tests/`
+- **Fail Fast**: `pytest -x`
+
+---
+
+## 🔬 Specialized Testing
+
+### Load & Performance
+Located in `tests/load/`. Used to verify how many concurrent sessions Cyanide can handle before the shell emulator or proxy layer degrades.
+
+### ML Drift Testing
+Verifies that the ML Anomaly Detection engine correctly flags new types of obfuscated commands.
+
+---
+
+## 🔗 Related Resources
+* 🎭 **[OS Profiles Guide](../vfs/profiles_guide.md)**: How to test custom victim personas.
+* 🔌 **[Plugins Architecture](../tooling/plugins.md)**: Testing output data integrity.
+* 🆘 **[Troubleshooting](../core/troubleshooting.md)**: Common test failure causes (Libvirt/Auth).

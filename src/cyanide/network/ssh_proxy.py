@@ -287,7 +287,7 @@ class ProxyServerSession(asyncssh.SSHServerSession):
             self.send_task.cancel()
         if self.backend_conn:
             self.backend_conn.close()
-            
+
         if self.pool and self.lease:
             asyncio.create_task(self.pool.release_target(self.lease))
 

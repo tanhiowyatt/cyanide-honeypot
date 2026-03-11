@@ -1,10 +1,10 @@
-import random
 import logging
+import random
 
 logger = logging.getLogger("cyanide.vm_pool")
 
 try:
-    from cyanide.core.libvirt_pool import LibvirtPool, Lease
+    from cyanide.core.libvirt_pool import Lease, LibvirtPool
 except ImportError:
     LibvirtPool = None
     Lease = None

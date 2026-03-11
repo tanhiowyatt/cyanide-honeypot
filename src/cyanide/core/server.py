@@ -59,7 +59,8 @@ class CyanideServer:
         # --- 1. Initialize Logger First ---
         try:
             log_dir = config.get("logging", {}).get("directory", "var/log/cyanide")
-            self.logger = CyanideLogger(log_dir, config.get("output", {}))
+            logging_config = config.get("logging", {})
+            self.logger = CyanideLogger(log_dir, config.get("output", {}), logging_config=logging_config)
             self.logger.log_event(
                 "system", "service_init_status", {"message": "Logger initialized"}
             )
@@ -646,6 +647,8 @@ class CyanideServer:
                 # The user asked for "pure telnet and ssh proxy with monitoring"
                 # Our TCPProxy monitors data.
                 # If pool, use selector.
+                t_host = ssh_conf.get("target_host", "127.0.0.1")
+                t_port = ssh_conf.get("target_port", 22)
                 ssh_proxy = TCPProxy(
                     "0.0.0.0",
                     ssh_port,

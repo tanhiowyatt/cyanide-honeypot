@@ -10,7 +10,13 @@ Cyanide generates high-fidelity JSON logs in `var/log/cyanide/`.
 - **`cyanide-server.json`**: System-level logs (startup, service status, errors).
 - **`cyanide-fs.json`**: Filesystem audit logs (all file reads, writes, and deletions).
 - **`cyanide-ml.json`**: Detection engine output (command anomaly scores and classifier results).
+- **`cyanide-stats.json`**: Periodic metric aggregates.
 - **`tty/`**: Session recordings compatible with `scriptreplay`.
+
+### Log Rotation Policy (logtype)
+Cyanide supports built-in rotation logic controlled by `app.yaml` (`logging.logtype`).
+1. **`plain` (Default)**: Cyanide logs exclusively into persistent JSON files without rotating them. Recommended when you deploy standard infrastructure utilities such as `logrotate` via cron jobs to gzip your outputs.
+2. **`rotating`**: Built-in Python logging mechanisms automatically trigger archival behavior avoiding external dependencies. Use variables like `logging.rotation.strategy` to configure split boundaries (`time` for midnight boundaries or `size` for maxBytes limitations).
 
 ---
 

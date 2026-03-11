@@ -6,12 +6,22 @@ from pathlib import Path
 
 class CyanideLogger:
     # Function 100: Initializes the class instance and its attributes.
-    def __init__(self, log_dir, output_config=None):
+    def __init__(self, log_dir, output_config=None, logging_config=None):
         self.log_dir = Path(log_dir)
         if not self.log_dir.exists():
             self.log_dir.mkdir(parents=True, exist_ok=True)
 
         self.output_config = output_config or {}
+        self.logging_config = logging_config or {
+            "logtype": "plain",
+            "rotation": {
+                "strategy": "time",
+                "when": "midnight",
+                "interval": 1,
+                "backup_count": 14,
+                "max_bytes": 10485760
+            }
+        }
         self.plugins = self._load_plugins()
 
         # 1. Server Log - System events, errors, lifecycle
@@ -59,10 +69,41 @@ class CyanideLogger:
         # we check if they point to the same file. To keep it simple and robust,
         # we'll just clear existing handlers and add the new one.
         if logger.handlers:
-            for handler in logger.handlers[:]:
-                logger.removeHandler(handler)
+            for existing_handler in logger.handlers[:]:
+                logger.removeHandler(existing_handler)
 
-        handler = logging.FileHandler(path)
+        logtype = self.logging_config.get("logtype", "plain")
+        rotation = self.logging_config.get("rotation", {})
+
+        handler: logging.Handler
+        if logtype == "rotating":
+            strategy = rotation.get("strategy", "time")
+            backup_count = rotation.get("backup_count", 14)
+            
+            if strategy == "time":
+                from logging.handlers import TimedRotatingFileHandler
+                when = rotation.get("when", "midnight")
+                interval = rotation.get("interval", 1)
+                handler = TimedRotatingFileHandler(
+                    path, 
+                    when=when, 
+                    interval=interval, 
+                    backupCount=backup_count
+                )
+            elif strategy == "size":
+                from logging.handlers import RotatingFileHandler
+                max_bytes = rotation.get("max_bytes", 10485760)
+                handler = RotatingFileHandler(
+                    path, 
+                    maxBytes=max_bytes, 
+                    backupCount=backup_count
+                )
+            else:
+                # Fallback
+                handler = logging.FileHandler(path)
+        else:
+            handler = logging.FileHandler(path)
+            
         formatter = logging.Formatter("%(message)s")
         handler.setFormatter(formatter)
         logger.addHandler(handler)

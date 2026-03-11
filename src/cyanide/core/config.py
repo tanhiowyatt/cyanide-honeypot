@@ -135,7 +135,74 @@ def load_config(path: Path = Path("configs/app.yaml")):
             or (config_data.get("honeypot") or {}).get("hostname")
             or os.getenv("HOSTNAME", "server01")
         ),
-        "log_path": "var/log/cyanide",
+        "log_path": get_val("logging", "directory", "LOG_PATH", "var/log/cyanide"), # Backwards compatibility logic
+        "logging": {
+            "directory": get_val("logging", "directory", "LOGGING_DIRECTORY", "var/log/cyanide"),
+            "logtype": get_val("logging", "logtype", "LOGGING_LOGTYPE", "plain"),
+            "rotation": {
+                "strategy": get_val(
+                    "logging",
+                    "rotation_strategy",
+                    "LOGGING_ROTATION_STRATEGY",
+                    get_val(
+                        "rotation", 
+                        "strategy", 
+                        "LOGGING_ROTATION_STRATEGY", 
+                        (config_data.get("logging", {}).get("rotation", {}).get("strategy", "time"))
+                    )
+                ),
+                "when": get_val(
+                    "logging",
+                    "rotation_when",
+                    "LOGGING_ROTATION_WHEN",
+                    get_val(
+                        "rotation", 
+                        "when", 
+                        "LOGGING_ROTATION_WHEN", 
+                        (config_data.get("logging", {}).get("rotation", {}).get("when", "midnight"))
+                    )
+                ),
+                "interval": get_val(
+                    "logging",
+                    "rotation_interval",
+                    "LOGGING_ROTATION_INTERVAL",
+                    get_val(
+                        "rotation", 
+                        "interval", 
+                        "LOGGING_ROTATION_INTERVAL", 
+                        (config_data.get("logging", {}).get("rotation", {}).get("interval", 1)),
+                        int
+                    ),
+                    int
+                ),
+                "backup_count": get_val(
+                    "logging",
+                    "rotation_backup_count",
+                    "LOGGING_ROTATION_BACKUP_COUNT",
+                    get_val(
+                        "rotation", 
+                        "backup_count", 
+                        "LOGGING_ROTATION_BACKUP_COUNT", 
+                        (config_data.get("logging", {}).get("rotation", {}).get("backup_count", 14)),
+                        int
+                    ),
+                    int
+                ),
+                "max_bytes": get_val(
+                    "logging",
+                    "rotation_max_bytes",
+                    "LOGGING_ROTATION_MAX_BYTES",
+                    get_val(
+                        "rotation", 
+                        "max_bytes", 
+                        "LOGGING_ROTATION_MAX_BYTES", 
+                        (config_data.get("logging", {}).get("rotation", {}).get("max_bytes", 10485760)),
+                        int
+                    ),
+                    int
+                ),
+            }
+        },
         "listen_ip": get_val("server", "host", "HOST", "0.0.0.0"),
         "quarantine_path": "var/quarantine",
         "os_profile": get_val("server", "os_profile", "OS_PROFILE", None)

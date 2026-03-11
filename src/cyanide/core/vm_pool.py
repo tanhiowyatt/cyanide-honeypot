@@ -51,10 +51,12 @@ class VMPool:
 
     def __init__(self, config):
         self.config = config
-        pool_mode = config.get("pool", {}).get("mode", "libvirt")
+        pool_conf = config.get("pool", {})
+        pool_enabled = pool_conf.get("enabled", False)
+        pool_mode = pool_conf.get("mode", "libvirt")
         self.backend = None
 
-        if pool_mode == "libvirt":
+        if pool_enabled and pool_mode == "libvirt":
             if LibvirtPool is not None:
                 try:
                     self.backend = LibvirtPool(config)
@@ -62,27 +64,31 @@ class VMPool:
                     logger.error(f"Failed to load LibvirtPool: {e}. Falling back to SimplePool.")
                     self.backend = SimplePool(config)
             else:
-                logger.warning("libvirt_pool module not loaded. Falling back to SimplePool.")
+                logger.error("Failed to load LibvirtPool: libvirt-python is required for libvirt pool mode. Falling back to SimplePool.")
                 self.backend = SimplePool(config)
         else:
             self.backend = SimplePool(config)
 
     async def start(self):
+        assert self.backend is not None
         await self.backend.start()
 
     async def stop(self):
+        assert self.backend is not None
         await self.backend.stop()
 
     async def reserve_target(self, session_id: str, protocol: str):
         """
         Reserve a VM target. Returns a Lease object (or tuple for SimplePool if imported without dataclass).
         """
+        assert self.backend is not None
         return await self.backend.reserve_target(session_id, protocol)
 
     async def release_target(self, lease):
         """
         Release a leased VM target.
         """
+        assert self.backend is not None
         await self.backend.release_target(lease)
 
     def get_target(self):

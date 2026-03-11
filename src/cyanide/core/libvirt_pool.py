@@ -10,6 +10,7 @@ try:
     import libvirt
     LIBVIRT_AVAILABLE = True
 except ImportError:
+    libvirt = None # type: ignore
     LIBVIRT_AVAILABLE = False
 
 
@@ -55,7 +56,7 @@ class LibvirtPool:
         self.lock = asyncio.Lock()
         
         # Start background tasks
-        self._bg_tasks = []
+        self._bg_tasks: List[asyncio.Task] = []
 
     def _connect(self):
         try:
@@ -98,7 +99,7 @@ class LibvirtPool:
 
     def _get_domain_ip(self, dom) -> Optional[str]:
         if self.use_nat:
-            return self.nat_public_ip
+            return str(self.nat_public_ip)
         # In a real implementation this would query the guest agent or lease file
         # For simplicity we might assume a static mapping or query it
         return "127.0.0.1"

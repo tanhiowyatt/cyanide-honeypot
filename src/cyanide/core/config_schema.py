@@ -141,6 +141,19 @@ class PoolConfig(BaseModel):
     snapshot_path: str = "var/lib/cyanide/snapshots"
     targets: str = ""
 
+class LoggingRotationConfig(BaseModel):
+    strategy: str = Field(default="time", pattern="^(time|size)$")
+    when: str = "midnight"
+    interval: int = 1
+    backup_count: int = 14
+    max_bytes: int = 10485760
+
+
+class LoggingConfig(BaseModel):
+    directory: str = "var/log/cyanide"
+    logtype: str = Field(default="plain", pattern="^(plain|rotating)$")
+    rotation: LoggingRotationConfig = Field(default_factory=LoggingRotationConfig)
+
 
 class CyanideConfig(BaseModel):
     # ML
@@ -154,13 +167,14 @@ class CyanideConfig(BaseModel):
 
     # Paths & Core
     hostname: str = "server01"
-    log_path: str = "var/log/cyanide"
+    log_path: str = "var/log/cyanide"  # Deprecated in favor of logging.directory
     fs_yaml: Optional[str] = None
     quarantine_path: str = "var/quarantine"
     quarantine_max_size_mb: int = 500
     os_profile: str = "random"
     dns_cache_ttl: int = 60
     custom_profile: Dict[str, str] = Field(default_factory=dict)
+    logging: LoggingConfig = Field(default_factory=LoggingConfig)
 
     # Core (Session Manager)
     listen_ip: str = "0.0.0.0"

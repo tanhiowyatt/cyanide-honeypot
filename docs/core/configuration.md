@@ -11,6 +11,16 @@ The `app.yaml` file controls the core behavior of the honeypot.
 - **`telnet.port`**: Port to listen for Telnet (default: 2223).
 - **`backend_mode`**: Either `emulator` (simulated shell), `proxy` (forwarding to a real server), or `pool` (Libvirt VM orchestration).
 
+### Logging & Rotation
+Unified rotation policy for `cyanide-server.json`, `cyanide-fs.json`, `cyanide-ml.json` and `cyanide-stats.json`.
+- **`logging.directory`**: Master log path (default: `var/log/cyanide`).
+- **`logging.logtype`**: Mode to write (`plain` or `rotating`).
+- **`logging.rotation.strategy`**: Method for triggering rotation (`time` or `size`).
+- **`logging.rotation.when`**: Interval point for timing rotations (e.g `midnight`).
+- **`logging.rotation.interval`**: Unit frequency before rotation if strategy=time (default: 1).
+- **`logging.rotation.backup_count`**: Historical handlers retention (default: 14).
+- **`logging.rotation.max_bytes`**: Maximum single-file scale before rotation if strategy=size (default: 10485760).
+
 ### VM Pool Orchestration (Libvirt)
 When `backend_mode` is set to `pool`, Cyanide can automatically manage backend VMs.
 - **`pool.enabled`**: Enable the orchestration pool (default: false).

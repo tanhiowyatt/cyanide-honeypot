@@ -18,6 +18,7 @@ def patch_libvirt_available():
     """Ensure VMPool and LibvirtPool think libvirt is available for tests."""
     with (
         patch("cyanide.core.libvirt_pool.LIBVIRT_AVAILABLE", True),
+        patch("cyanide.core.libvirt_pool.libvirt", mock_libvirt),
         patch("cyanide.core.vm_pool.LibvirtPool", LibvirtPool),
         patch("cyanide.core.vm_pool.Lease", Lease),
     ):

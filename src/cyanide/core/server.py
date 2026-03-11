@@ -429,16 +429,19 @@ class CyanideServer:
                 elif path == "/health":
                     ssh_up = self.ssh_server is not None
                     telnet_up = self.telnet_server is not None
+                    smtp_up = self.smtp_server is not None or getattr(self, "smtp_proxy", None) is not None
                     is_healthy = True
                     if self.config.get("ssh", {}).get("enabled", True) and not ssh_up:
                         is_healthy = False
                     if self.config.get("telnet", {}).get("enabled", False) and not telnet_up:
                         is_healthy = False
+                    if self.config.get("smtp", {}).get("enabled", False) and not smtp_up:
+                        is_healthy = False
 
                     status_data = {
                         "status": "healthy" if is_healthy else "unhealthy",
                         "uptime": int(time.time() - self.stats.start_time),
-                        "services": {"ssh": ssh_up, "telnet": telnet_up},
+                        "services": {"ssh": ssh_up, "telnet": telnet_up, "smtp": smtp_up},
                     }
                     content = json.dumps(status_data)
                     content_type = "application/json"
@@ -836,14 +839,14 @@ class CyanideServer:
                         {"service": "smtp_emulated", "port": smtp_port},
                     )
                 else:
-                    smtp_proxy = TCPProxy(
+                    self.smtp_server = TCPProxy(
                         "0.0.0.0",
                         smtp_port,
                         smtp_conf.get("target_host", "127.0.0.1"),
                         int(smtp_conf.get("target_port", 25255)),
                         protocol_name="smtp",
                     )
-                    await smtp_proxy.start()
+                    await self.smtp_server.start()
                     self.logger.log_event(
                         "system",
                         "service_started",

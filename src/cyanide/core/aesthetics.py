@@ -46,7 +46,7 @@ def print_startup_banner(config, resolved_profile: str = ""):
         f"{fmt_key('Listen IP:')} {config.get('listen_ip', '0.0.0.0')}",
         f"{fmt_key('SSH:')} {config.get('ssh', {}).get('port', 2222)}",
         f"{fmt_key('Telnet:')} {config.get('telnet', {}).get('port', 2323)} ({'enabled' if config.get('telnet', {}).get('enabled') else 'disabled'})",
-        f"{fmt_key('SMTP:')} {config.get('smtp', {}).get('listen_port', 25)} ({'enabled' if config.get('smtp', {}).get('enabled') else 'disabled'})",
+        f"{fmt_key('SMTP:')} {config.get('smtp', {}).get('port', 2525)} ({'enabled' if config.get('smtp', {}).get('enabled') else 'disabled'})",
         f"{fmt_key('Metrics:')} {config.get('metrics', {}).get('port', 9090)} ({'enabled' if config.get('metrics', {}).get('enabled') else 'disabled'})",
         f"{fmt_key('ML Filter:')} {'Enabled' if config.get('ml', {}).get('enabled') else 'Disabled'}",
         f"{fmt_key('Sessions:')} {config.get('max_sessions', 100)} max ({config.get('max_sessions_per_ip', 5)} per IP)",

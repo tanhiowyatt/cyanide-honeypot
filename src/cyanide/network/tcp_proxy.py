@@ -40,6 +40,16 @@ class TCPProxy:
         )
         return self.server
 
+    def close(self):
+        """Stop the TCP Proxy server."""
+        if self.server:
+            self.server.close()
+
+    async def wait_closed(self):
+        """Wait for the TCP Proxy server to stop."""
+        if self.server:
+            await self.server.wait_closed()
+
     # Function 179: Handles incoming client events.
     async def handle_client(self, client_reader, client_writer):
         """Handle incoming client connection."""

@@ -9,7 +9,7 @@ class SessionManager:
     """
 
     # Function 190: Initializes the class instance and its attributes.
-    def __init__(self, config: Dict):
+    def __init__(self, config: Dict, logger):
         self.max_sessions = config.get("max_sessions", 100)
         self.max_sessions_per_ip = config.get("max_sessions_per_ip", 5)
         self.session_timeout = config.get("session_timeout", 300)
@@ -25,6 +25,7 @@ class SessionManager:
 
         self.banned_ips: Dict[str, float] = {}  # IP -> expiry_timestamp
         self.connection_history: Dict[str, List[float]] = {}  # IP -> list of timestamps
+        self.logger = logger
 
     # Function 191: Performs operations related to can accept.
     def can_accept(self, ip: str) -> tuple[bool, str]:
@@ -48,6 +49,7 @@ class SessionManager:
 
         if len(history) >= self.max_connections_per_minute:
             self.banned_ips[ip] = now + self.ban_duration
+            self.logger.log_event("system", "ip_banned", {"src_ip": ip, "ban_duration": self.ban_duration, "reason": "rate_limit_exceeded"})
             return False, "rate_limit_exceeded (banned)"
 
         # Record attempt (optimistic)

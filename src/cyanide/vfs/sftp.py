@@ -1,13 +1,8 @@
-import asyncio
 import os
-import time
-import logging
-import traceback
-from typing import Any, Dict, List, Optional, Tuple, Union, AsyncIterator
+from typing import Any, Dict, Optional, Union, AsyncIterator
 
 import asyncssh
 
-from cyanide.vfs.engine import FakeFilesystem
 
 class CyanideSFTPFile:
     """

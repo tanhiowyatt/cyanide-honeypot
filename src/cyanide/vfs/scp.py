@@ -1,9 +1,8 @@
 import asyncio
 import re
 import os
-import logging
 import traceback
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional
 
 import asyncssh
 

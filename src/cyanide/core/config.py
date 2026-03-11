@@ -13,13 +13,26 @@ from .config_schema import CyanideConfig
 logger = logging.getLogger("cyanide.config")
 
 
+_CONFIG_EVENTS = []
+
 # Function 16: Loads config from storage or configuration.
 def load_config(path: Path = Path("configs/app.yaml")):
     """Load and normalized configuration from YAML file and .env."""
+    _CONFIG_EVENTS.clear()
+    
     # Load .env file
     env_path = Path("configs/.env")
     if not env_path.exists():
         env_path = Path(".env")  # Fallback to root .env
+    
+    _CONFIG_EVENTS.append({
+        "action": "config_load_start",
+        "data": {
+            "path": str(path),
+            "env_file_used": str(env_path) if env_path.exists() else None
+        }
+    })
+    
     load_dotenv(dotenv_path=env_path)
 
     config_data: dict[str, Any] = {}
@@ -39,6 +52,9 @@ def load_config(path: Path = Path("configs/app.yaml")):
     def apply_env_overrides(data: dict, prefix: str = "CYANIDE_") -> dict:
         """Deeply override configuration dictionary using single-underscore environment variables."""
         import json
+        
+        override_count = 0
+        override_keys = []
 
         def parse_val(v):
             vl = str(v).lower()
@@ -64,6 +80,8 @@ def load_config(path: Path = Path("configs/app.yaml")):
             # 1. Exact top-level match (e.g., CYANIDE_USERS)
             if remainder in data:
                 data[remainder] = parse_val(env_val)
+                override_count += 1
+                override_keys.append(remainder)
                 continue
 
             # 2. Schema-guided nested match
@@ -79,6 +97,8 @@ def load_config(path: Path = Path("configs/app.yaml")):
                     # OR match with sub_key (e.g. CYANIDE_OUTPUT_SQLITE_ENABLED)
                     if sub_remainder in top_val:
                         top_val[sub_remainder] = parse_val(env_val)
+                        override_count += 1
+                        override_keys.append(f"{top_key}.{sub_remainder}")
                         mapped = True
                         break
 
@@ -88,10 +108,22 @@ def load_config(path: Path = Path("configs/app.yaml")):
                             if isinstance(sub_val, dict):
                                 final_key = sub_remainder[len(sub_key) + 1 :]
                                 sub_val[final_key] = parse_val(env_val)
+                                override_count += 1
+                                override_keys.append(f"{top_key}.{sub_key}.{final_key}")
                                 mapped = True
                                 break
                     if mapped:
                         break
+                        
+        if override_count > 0:
+            _CONFIG_EVENTS.append({
+                "action": "config_env_override_applied",
+                "data": {
+                    "count": override_count,
+                    "keys": override_keys
+                }
+            })
+                        
         return data
 
     config_data = apply_env_overrides(config_data)
@@ -422,7 +454,21 @@ def load_config(path: Path = Path("configs/app.yaml")):
 
     try:
         model = CyanideConfig(**config)
+        
+        _CONFIG_EVENTS.append({
+            "action": "config_schema_validated",
+            "data": {
+                "ok": True
+            }
+        })
+        
         return model.model_dump()
-    except ValidationError:
+    except ValidationError as e:
+        _CONFIG_EVENTS.append({
+            "action": "config_schema_error",
+            "data": {
+                "error": str(e)
+            }
+        })
         # Re-raise to let the caller handle it (e.g., main.py or tests)
         raise

@@ -11,7 +11,9 @@ def test_rate_limiting():
         "max_sessions_per_ip": 10,
         "rate_limit": {"max_connections_per_minute": 2, "ban_duration": 1},  # short ban for testing
     }
-    mgr = SessionManager(cfg)
+    from unittest.mock import MagicMock
+
+    mgr = SessionManager(cfg, MagicMock())
     ip = "1.2.3.4"
     now = time.time()
 
@@ -48,7 +50,9 @@ def test_rate_limiting():
 # Function 458: Runs unit tests for the per_ip_limit functionality.
 def test_per_ip_limit():
     cfg = {"max_sessions": 100, "max_sessions_per_ip": 1}
-    mgr = SessionManager(cfg)
+    from unittest.mock import MagicMock
+
+    mgr = SessionManager(cfg, MagicMock())
     ip = "5.6.7.8"
 
     # 1. Allowed

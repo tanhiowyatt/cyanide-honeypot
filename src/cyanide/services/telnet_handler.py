@@ -32,7 +32,13 @@ class TelnetHandler:
         accepted, reason = self.services.session.can_accept(src_ip)
         if not accepted:
             self.logger.log_event(
-                "system", "connection_rejected", {"src_ip": src_ip, "reason": reason}
+                "system", "connection_rejected", {
+                    "protocol": "telnet",
+                    "src_ip": src_ip, 
+                    "reason": reason,
+                    "active_sessions": self.services.session.active_sessions,
+                    "per_ip_sessions": self.services.session.sessions_per_ip.get(src_ip, 0)
+                }
             )
             writer.close()
             return
@@ -86,6 +92,9 @@ class TelnetHandler:
             # Create VFS early — we need it for /etc/issue banner and will reuse it for the shell
             fs = self.server.get_filesystem(session_id, src_ip)
 
+            bytes_in = 0
+            bytes_out = 0
+            
             # --- /etc/issue pre-login banner (read from VFS, just like a real Linux host) ---
             try:
                 from cyanide.vfs.nodes import File as VFSFile
@@ -105,29 +114,47 @@ class TelnetHandler:
                     banner = raw.replace("\n", "\r\n")
                     if not banner.endswith("\r\n"):
                         banner += "\r\n"
-                    writer.write(banner.encode())
+                    bs = banner.encode()
+                    writer.write(bs)
+                    bytes_out += len(bs)
                     await writer.drain()
             except Exception:
                 pass  # silently skip banner if unreadable
 
             # Simple auth
             writer.write(b"login: ")
+            bytes_out += len(b"login: ")
             self.stats.on_traffic("out", len(b"login: "))
             await writer.drain()
             login_data = await reader.readuntil(b"\n")
+            bytes_in += len(login_data)
             self.stats.on_traffic("in", len(login_data))
             username = login_data.decode().strip()
 
             writer.write(b"Password: ")
+            bytes_out += len(b"Password: ")
             self.stats.on_traffic("out", len(b"Password: "))
             await writer.drain()
             pass_data = await reader.readuntil(b"\n")
+            bytes_in += len(pass_data)
             self.stats.on_traffic("in", len(pass_data))
             password = pass_data.decode().strip()
 
             # Auth Check
             success = self.server.is_valid_user(username, password)
             self.stats.on_auth("telnet", src_ip, username, password, success)
+            
+            self.logger.log_event(
+                session_id,
+                "auth_attempt",
+                {
+                    "protocol": "telnet",
+                    "username": username,
+                    "password_len": len(password),
+                    "success": success
+                }
+            )
+            
             self.logger.log_event(
                 session_id,
                 "auth",
@@ -141,10 +168,22 @@ class TelnetHandler:
             )
 
             if not success:
-                writer.write(b"\r\nLogin incorrect\r\n")
+                resp = b"\r\nLogin incorrect\r\n"
+                bytes_out += len(resp)
+                writer.write(resp)
                 await writer.drain()
                 writer.close()
                 return
+                
+            self.logger.log_event(
+                session_id,
+                "session_start",
+                {
+                    "protocol": "telnet",
+                    "src_ip": src_ip,
+                    "session_id": session_id
+                }
+            )
 
             # Function 197: Performs operations related to quarantine hook.
             def quarantine_hook(f, c):
@@ -155,8 +194,10 @@ class TelnetHandler:
             )
 
             prompt = f"{username}@server:~$ "
-            writer.write(prompt.encode())
-            self.stats.on_traffic("out", len(prompt))
+            prompt_bs = prompt.encode()
+            writer.write(prompt_bs)
+            bytes_out += len(prompt_bs)
+            self.stats.on_traffic("out", len(prompt_bs))
             self.server._log_tty(
                 tty_state, "OUT", prompt
             )  # Keep using server's helper for now or move it?
@@ -170,11 +211,14 @@ class TelnetHandler:
                     line = await asyncio.wait_for(
                         reader.readuntil(b"\n"), timeout=self.session_timeout
                     )
+                    bytes_in += len(line)
                     self.stats.on_traffic("in", len(line))
                     cmd = line.decode().strip()
                     if not cmd:
-                        writer.write(prompt.encode())
-                        self.stats.on_traffic("out", len(prompt))
+                        prompt_bs = prompt.encode()
+                        writer.write(prompt_bs)
+                        bytes_out += len(prompt_bs)
+                        self.stats.on_traffic("out", len(prompt_bs))
                         await writer.drain()
                         continue
 
@@ -194,6 +238,7 @@ class TelnetHandler:
                             "src_ip": src_ip,
                             "username": username,
                             "input": cmd,
+                            "cwd": shell.cwd,
                             "client_version": "Telnet",
                         },
                     )
@@ -215,6 +260,7 @@ class TelnetHandler:
                     output = stdout + stderr
                     resp = output.replace("\n", "\r\n").encode()
                     writer.write(resp)
+                    bytes_out += len(resp)
                     self.stats.on_traffic("out", len(resp))
                     self.server._log_tty(tty_state, "OUT", resp)
 
@@ -226,12 +272,16 @@ class TelnetHandler:
                         cwd = cwd.replace("/root", "~", 1)
 
                     prompt = f"{username}@server:{cwd}$ "
-                    writer.write(prompt.encode())
-                    self.stats.on_traffic("out", len(prompt))
+                    prompt_bs = prompt.encode()
+                    writer.write(prompt_bs)
+                    bytes_out += len(prompt_bs)
+                    self.stats.on_traffic("out", len(prompt_bs))
                     await writer.drain()
 
                 except asyncio.TimeoutError:
-                    writer.write(b"\r\nTimeout.\r\n")
+                    resp = b"\r\nTimeout.\r\n"
+                    bytes_out += len(resp)
+                    writer.write(resp)
                     break
         except Exception as e:
             self.logger.log_event(
@@ -251,8 +301,10 @@ class TelnetHandler:
                     "protocol": "telnet",
                     "src_ip": src_ip,
                     "username": username,
-                    "commands": commands,
                     "duration": duration,
+                    "command_count": len(commands),
+                    "bytes_in": bytes_in,
+                    "bytes_out": bytes_out,
                 },
             )
 

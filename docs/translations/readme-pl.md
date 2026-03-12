@@ -1,90 +1,86 @@
-# Cyanide
+[![Stars](https://img.shields.io/github/stars/tanhiowyatt/cyanide?style=flat&logo=GitHub&color=yellow)](https://github.com/tanhiowyatt/cyanide/stargazers)
+[![CI](https://github.com/tanhiowyatt/cyanide/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/tanhiowyatt/cyanide/actions/workflows/ci.yml)
+[![Security Scan](https://github.com/tanhiowyatt/cyanide/actions/workflows/security_scan.yml/badge.svg)](https://github.com/tanhiowyatt/cyanide/actions/workflows/security_scan.yml)
 
-**Cyanide** to honeypot SSH i Telnet o wysokiej interakcji, zaprojektowany do zwodzenia i analizowania zachowań atakujących. Łączy w sobie realistyczną emulację systemu plików Linux, zaawansowaną symulację komend oraz hybrydowy silnik ML do wykrywania anomalii.
+<p align="center">
+  <img src="../../assets/branding/name.png" alt="Cyanide" width="500" height="auto">
+</p>
 
----
+# Cyanide – Honeypot SSH i Telnet o średnim poziomie interakcji
 
-## 🌟 Główne Funkcje
-
-### 🧠 Realistyczna Emulacja
-*   **Wieloprotokołowość**: Obsługa SSH (`asyncssh`) i Telnet na niestandardowych portach (domyślnie 2222/2223).
-*   **Dynamiczny VFS**: W pełni funkcjonalny system plików Linux w pamięci, ładowany z profili YAML. Zmiany są zachowywane w ramach sesji.
-*   **Zaawansowany Shell**: Obsługa potoków (`|`), przekierowań (`>`, `>>`), logiki (`&&`, `||`) i zmiennych środowiskowych.
-*   **Anti-Fingerprinting**:
-    *   **Network Jitter**: Losowe opóźnienia odpowiedzi (50-300ms).
-    *   **Profile OS**: Realistyczne maskowanie jako **Ubuntu**, **Debian** lub **CentOS** z dynamicznymi listami procesów (`ps`), plikami `/proc` i historycznymi znacznikami czasu systemu plików.
-
-### 🛡️ Hybrydowy System Wykrywania
-Cyanide wykorzystuje 3-warstwowy silnik do identyfikacji zagrożeń:
-1.  **Detektor Anomalii ML**: Sieć neuronowa (autoenkoder) wykrywa nietypowe struktury komend.
-2.  **Silnik Reguł**: Sygnatury Regex dla znanych ataków (`wget`, `curl | bash`).
-3.  **Analizator Kontekstu**: Analiza semantyczna dostępu do plików (`/etc/shadow`) i reputacji IP.
-
-### 📊 Informatyka Śledcza i Logowanie
-*   **Nagrywanie TTY**: Pełny zapis sesji kompatybilny z `scriptreplay`.
-*   **Logi JSON**: Szczegółowe zdarzenia dla ELK/Splunk.
-*   **Biometria Klawiatury**: Analiza rytmu pisania.
-*   **Kwarantanna**: Automatyczna izolacja pobranego malware (`wget`).
-*   **VirusTotal**: Automatyczne skanowanie plików w kwarantannie.
+**Cyanide** to honeypot SSH i Telnet o średnim poziomie interakcji (medium-interaction), zaprojektowany w celu zmylenia atakujących i dogłębnej analizy ich zachowań. Łączy w sobie realistyczną emulację systemu plików Linux, zaawansowaną symulację komend (z obsługą potoków i przekierowań), solidne mechanizmy zapobiegające wykryciu oraz hybrydowy silnik ML do wykrywania anomalii.
 
 ---
 
-## 📚 Dokumentacja Techniczna
+### Funkcje
 
-Projekt Cyanide posiada rozbudowaną dokumentację techniczną podzieloną na moduły funkcjonalne. Zapraszamy do naszego **[Centrum Dokumentacji (Documentation Hub)](../index.md)**.
+#### 1) Machine Learning do automatycznej klasyfikacji ataków i ekstrakcji IOC
+- System automatycznie kategoryzuje aktywność sieciową na typy ataków (brute-force, credential stuffing, rekonesans, próby eksploitacji) na podstawie zachowania sesji i charakterystyki ładunku (payload).
+- Zdarzenia są normalizowane wraz z ekstracją wskaźników kompromitacji (IOC), w tym adresów IP, portów, danych uwierzytelniających, user-agentów/banerów, komend, adresów URL, haszy artefaktów i słowników częstotliwości ataków.
+- Generowane jest podsumowanie sesji, szczegółowo opisujące zamiary ataku, odchylenia od norm bazowych oraz zalecane IOC do blokowania lub integracji z regułami wykrywania.
 
-| Sekcja | Opis |
-|:---|:---|
-| 🏛️ **[Architektura Rdzenia](../core/index.md)** | Mechanika silnika, [konfiguracja](../core/configuration.md) i skalowanie. |
-| 📁 **[Silnik VFS](../vfs/index.md)** | Warstwa wirtualnego systemu plików i mapowanie profili OS. |
-| 🌐 **[Sieć i Proxy](../networking/index.md)** | Architektura MiTM-proxy i sieciowa anty-forensyka. |
-| 🧠 **[Analityka i ML](../ml-analytics/index.md)** | Wewnętrzne działanie systemu wykrywania zagrożeń. |
-| 🧪 **[Testy](../tests/index.md)** | Opis stosu testowego i metryki pokrycia kodu. |
-| 🔧 **[Utrzymanie](../tooling/index.md)** | Forensyka, odtwarzacz TTY i skrypty monitorujące. |
+#### 2) Zwiększony realizm w celu uniknięcia wykrycia honeypota
+- Realistyczne czasy odpowiedzi i ich zmienność (błędy, opóźnienia, formaty komunikatów) zwiększają wskaźnik błędnej klasyfikacji przez automatyczne detektory honeypotów.
+- Dynamiczne profile środowiska: banery usług, wersje i scenariusze operacyjne rozwijają się naturalnie, unikając statycznych szablonów.
+- Zachowanie interfejsu imitujące człowieka: wiarygodne ograniczenia, komunikaty o błędach i drobne niespójności charakterystyczne dla systemów produkcyjnych.
+
+#### 3) Zaawansowane integracje SOC i analityczne
+- Strukturalne logi JSON ze ustandaryzowanym schematem zdarzeń ułatwiającym korelację i wyszukiwanie.
+- Eksport zdarzeń do systemów zewnętrznych: stosy SIEM/logów (ELK/Splunk), powiadomienia webhook (Slack/Discord/Telegram) w czasie rzeczywistym.
+- Konfigurowalne triggery i reguły dla alertów o krytycznych wzorcach (np. anomalna prędkość brute-force, przesyłanie dropperów, podejrzane komendy/ładunki).
 
 ---
 
-## 🚀 Wdrożenie
-
-**Zaleca się uruchamianie jako kontener Docker.**
-
-### 🐳 Docker Compose
+### Szybki start
 
 ```bash
-# 1. Uruchom pełny stos (Honeypot + MailHog + Jaeger)
-docker-compose -f deployments/docker/docker-compose.yml up --build -d
+1. Uruchom środowisko
+docker-compose up -d
 
-# 2. Monitoruj logi
-docker-compose -f deployments/docker/docker-compose.yml logs -f cyanide
+2. Połącz się przez SSH
+ssh root@localhost -p 2222
 
-# 3. Zatrzymaj
-docker-compose -f deployments/docker/docker-compose.yml down
+Z lokalnymi zmianami
+docker-compose up -d --build
 ```
 
-### 🔧 Konfiguracja
+---
 
-Konfiguracja odbywa się przez pliki **YAML** w `configs/`:
+### Jak działa honeypot
 
-| Plik | Przeznaczenie |
-|------|---------------|
-| `configs/app.yaml` | Główna konfiguracja (porty, timeouty, ML). |
-| `configs/profiles/*.yaml` | Profile OS. Definiują strukturę systemu plików i metadane. |
-| `configs/fs.yaml` | (Opcjonalnie) Niestandardowy szablon systemu plików. |
+Honeypot Cyanide wdraża **usługę-pułapkę** (decoy service) i prowadzi atakujących przez **kontrolowany scenariusz**: emuluje realistyczną usługę bez przyznawania rzeczywistego dostępu do hosta.
 
-**Zmienne środowiskowe** w `docker-compose.yml` nadpisują ustawienia z `app.yaml`.
+#### Profile YAML (Podstawa zachowania)
+Zachowanie usługi jest definiowane za pomocą **profili YAML**:
+- Emulowane funkcje (banery/wersje, błędy, ograniczenia);
+- Logika odpowiedzi (reguły/szablony, rozgałęzianie);
+- Stan sesji (uwierzytelnianie, kontekst, liczniki);
+- Czynniki realizmu (opóźnienia/jitter, randomizacja).
+
+#### MsgPack (Szybki czas wykonywania)
+YAML służy jako „kod źródłowy”, kompilowany/buforowany do formatu **MsgPack** na potrzeby produkcyjne:
+- Szybsze ładowanie/dekodowanie niż YAML/JSON;
+- Mniejszy rozmiar, łatwiejsze buforowanie/dystrybucja;
+- Stabilniejsza wydajność przy wysokim obciążeniu.
+
+#### Przepływ sesji
+1. Przychodzące zdarzenie (logowanie/komenda/ładunek)
+2. Aktualizacja stanu
+3. Zastosowanie reguł profilu (YAML/MsgPack)
+4. Generowanie odpowiedzi (z realistycznym czasem)
+5. Logowanie + ekstrakcja IOC
+
+#### Logi i IOC
+Przechwytywane są strukturalne zdarzenia: IP/ID sesji, próby logowania, komendy/ładunki, czasy i wyniki. Na tej podstawie ekstrahowane są **IOC**, klasyfikowane ataki, a alerty eksportowane do systemów SOC.
 
 ---
 
-## 🛠️ Zarządzanie i Narzędzia
+### Twórcy
 
-Skrypty w `scripts/management/` pomagają zarządzać honeypotem:
-
-| Skrypt | Komenda | Opis |
-|--------|---------|------|
-| **Stats** | `python3 scripts/management/stats.py` | Statystyki w czasie rzeczywistym (uptime, sesje). |
-| **Replay** | `scriptreplay <timing> <log>` | Odtwarzanie sesji TTY (pliki w `var/log/cyanide/tty/`). |
+Ten honeypot został stworzony przez **tanhiowyatt** i **Koshanzova Nikolaya**, założycieli Cyanide Labs. Nasza początkowa współpraca nad zaawansowanymi prototypami honeypotów przekształciła się w obecny zestaw narzędzi cyberbezpieczeństwa open-source, koncentrujący się na realistycznej symulacji zagrożeń, klasyfikacji ataków opartej na ML i bezproblemowej integracji z SOC.
 
 ---
 
-## ⚠️ Ostrzeżenie
-Oprogramowanie służy **wyłącznie do celów edukacyjnych i badawczych**. Uruchamianie honeypota wiąże się z ryzykiem. Autor nie ponosi odpowiedzialności za szkody.
+### Ostrzeżenie
+
+To oprogramowanie służy wyłącznie do celów edukacyjnych i badawczych. Uruchamianie honeypota wiąże się ze znacznym ryzykiem. Autor nie ponosi odpowiedzialności za jakiekolwiek szkody lub niewłaściwe użycie.

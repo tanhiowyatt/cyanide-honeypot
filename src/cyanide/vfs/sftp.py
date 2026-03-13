@@ -89,7 +89,15 @@ class CyanideSFTPHandler(asyncssh.SFTPServer):
             self.session_id = "conn_" + self.server_factory.conn_id
             self.src_ip = self.server_factory.src_ip
         else:
-            raise RuntimeError("CyanideSFTPHandler requires cyanide_factory on connection")
+            # Fallback for direct subsystem requests if factory is missing
+            self.honeypot = getattr(chan, "honeypot", None)
+            self.fs = getattr(chan, "fs", None)
+            self.session_id = getattr(chan, "session_id", "unknown")
+            self.src_ip = getattr(chan, "src_ip", "unknown")
+
+        if not self.honeypot:
+            # We really need the honeypot for logging and VFS
+            raise RuntimeError("CyanideSFTPHandler requires honeypot context")
 
         self.username = self.conn.get_extra_info("username") or "root"
         self.cyanide_logger = self.honeypot.logger

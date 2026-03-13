@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import random
+import sys
 import time
 import traceback
 import uuid
@@ -26,7 +27,6 @@ from cyanide.vfs.engine import FakeFilesystem
 from cyanide.vfs.rsync import RsyncHandler
 
 # Protocol Handlers
-from cyanide.vfs.scp import SCPHandler
 
 from .async_logger import AsyncLogger
 from .config import _CONFIG_EVENTS
@@ -601,12 +601,82 @@ class CyanideServer:
                     return int(limit)
 
                 # Build algorithm lists if configured
+                async def cyanide_process_factory(process):
+                    """Expert AsyncSSH process factory handling shell and exec."""
+                    try:
+                        command = process.command
+                        conn = process.channel.get_connection()
+                        factory = getattr(conn, 'cyanide_factory', None)
+                        
+                        if not factory:
+                            process.exit(1)
+                            return
+
+                        honeypot_ref = factory.honeypot
+                        
+                        # 1. Get/Create session
+                        sess = factory.sessions.get(factory.conn_id)
+                        if not sess:
+                            sess = factory.session_requested()
+
+                        if not sess:
+                            process.exit(1)
+                            return
+
+                        # Cross-link process and session
+                        sess.process = process
+                        sess.channel = process.channel
+
+                        if not command:
+                            # Shell request
+                            if not sess.shell:
+                                sess.shell_requested()
+
+                            # Start session (sends Banner + Prompt)
+                            sess.session_started()
+                            await process.stdout.drain()
+                            
+                            # 2. Expert stdin loop
+                            # AsyncSSH uses process.stdin for the loop when process_factory is active
+                            async for data in process.stdin:
+                                try:
+                                    sess.data_received(data, None)
+                                    await process.stdout.drain()
+                                except (asyncssh.TerminalSizeChange, asyncssh.BreakReceived, 
+                                        asyncssh.SignalReceived, asyncssh.TerminalModeChange):
+                                    continue
+                                except Exception as e:
+                                    print(f"DEBUG: CyanideProcess stdin loop error: {e}", flush=True)
+                                    break
+                            
+                            sess.session_ended()
+                        else:
+                            # Log command
+                            honeypot_ref.logger.log_event(
+                                "conn_" + factory.conn_id,
+                                "command.input",
+                                {
+                                    "protocol": "ssh",
+                                    "src_ip": factory.src_ip,
+                                    "username": factory.username,
+                                    "input": command,
+                                    "client_version": factory.client_version,
+                                },
+                            )
+                            # Use async exec logic
+                            await sess._async_exec(command)
+                    except Exception as e:
+                        print(f"DEBUG: CyanideProcess EXCEPTION: {e}", flush=True)
+                        traceback.print_exc()
+                        process.exit(1)
+
                 ssh_opts = {
                     "server_host_keys": host_keys,
                     "server_factory": lambda: SSHServerFactory(self),
                     "reuse_address": True,
                     "server_version": chosen_version,
-                    "encoding": None,  # Cyanide requires raw bytes for SCP/rsync
+                    "process_factory": cyanide_process_factory,
+                    "encoding": "utf-8", 
                     # Cyanide-grade security limits
                     "login_timeout": ssh_conf.get("login_timeout", 60),
                     "rekey_bytes": parse_rekey(ssh_conf.get("rekey_limit", "1G")),
@@ -617,118 +687,7 @@ class CyanideServer:
 
                     ssh_opts["sftp_factory"] = CyanideSFTPHandler
 
-                # process_factory handles exec/shell requests (correct asyncssh API).
-                # It receives an SSHServerProcess with .command, .stdin, .stdout, etc.
-                honeypot_ref = self
-                ssh_conf_ref = ssh_conf
-
-                async def cyanide_process_factory(process):
-                    """Route exec/shell to our honeypot handlers."""
-                    import sys
-                    import traceback
-
-                    try:
-                        conn = process.channel.get_connection()
-                        # Retrieve the per-connection factory that SSHServerFactory stores
-                        factory = getattr(conn, "cyanide_factory", None)
-                        if factory is None:
-                            process.exit(1)
-                            return
-
-                        command = process.command  # None for shell, str for exec
-                        print(
-                            f"DEBUG process_factory: command={command!r} pid={id(process)}",
-                            flush=True,
-                        )
-
-                        if command is None:
-                            # Shell request — delegate to SSHSession shell handler
-                            sess = factory.sessions.get(factory.conn_id)
-                            if sess is None:
-                                # In high-level process_factory mode, session_requested might not be called by asyncssh.
-                                # We manually ensure the session object exists.
-                                sess = factory.session_requested()
-                                
-                            if sess:
-                                if not sess.shell:
-                                    sess.shell_requested()
-                                    
-                                sess.channel = process.channel
-                                sess.session_started()
-                                # Hand off stdin processing to SSHSession
-                                async for data in process.stdin:
-                                    sess.data_received(data, None)
-                                sess.session_ended()
-                            else:
-                                process.exit(1)
-                            return
-
-                        # Log command
-                        honeypot_ref.logger.log_event(
-                            "conn_" + factory.conn_id,
-                            "command.input",
-                            {
-                                "protocol": "ssh",
-                                "src_ip": factory.src_ip,
-                                "username": factory.username,
-                                "input": command,
-                                "client_version": factory.client_version,
-                            },
-                        )
-
-                        # SCP interception
-                        if command.startswith("scp ") and ssh_conf_ref.get("scp_enabled", True):
-                            from cyanide.vfs.scp import SCPHandler
-
-                            scp = SCPHandler(factory, process=process)
-                            rc = await scp.handle(command)
-                            process.exit(rc)
-                            return
-
-                        # rsync interception
-                        if command.startswith("rsync ") and ssh_conf_ref.get("rsync_enabled", True):
-                            from cyanide.vfs.rsync import RsyncHandler
-
-                            rsync = RsyncHandler(factory, process=process)
-                            rc = await rsync.handle(command)
-                            process.exit(rc)
-                            return
-
-                        # Regular exec → ShellEmulator
-                        fs = factory.fs or honeypot_ref.get_filesystem(factory.src_ip)
-
-                        def q_hook(f, c):
-                            honeypot_ref.save_quarantine_file(
-                                f, c, "conn_" + factory.conn_id, factory.src_ip
-                            )
-
-                        shell = ShellEmulator(
-                            fs,
-                            factory.username,
-                            quarantine_callback=q_hook,
-                            config=honeypot_ref.config,
-                        )
-                        stdout, stderr, rc = await shell.execute(command)
-                        print(f"DEBUG process_factory exec done rc={rc} out={stdout!r}", flush=True)
-                        process.stdout.write(
-                            stdout.encode("utf-8") if isinstance(stdout, str) else stdout
-                        )
-                        if stderr:
-                            process.stderr.write(
-                                stderr.encode("utf-8") if isinstance(stderr, str) else stderr
-                            )
-                        process.exit(rc)
-
-                    except Exception as exc:
-                        print(f"DEBUG process_factory EXCEPTION: {exc}", flush=True)
-                        traceback.print_exc(file=sys.stdout)
-                        sys.stdout.flush()
-                        try:
-                            process.exit(1)
-                        except Exception:
-                            pass
-
-                ssh_opts["process_factory"] = cyanide_process_factory
+                ssh_opts["allow_scp"] = True
 
                 # Map user config keys to asyncssh.listen kwargs
                 algo_map = {
@@ -1125,7 +1084,7 @@ class SSHServerFactory(asyncssh.SSHServer):
 
     # Function 63: Performs operations related to session requested.
     def session_requested(self):
-        print(f"DEBUG: session_requested for {self.src_ip}")
+        print(f"DEBUG: session_requested for {self.src_ip}", flush=True)
         sess = SSHSession(self.honeypot, self.fs, self.src_ip, self.src_port, self.conn_id)
         self.sessions[self.conn_id] = sess
         return sess
@@ -1272,9 +1231,11 @@ class SSHSession(asyncssh.SSHServerSession):
         # Traffic
         self.bytes_in = 0
         self.bytes_out = 0
+        self.process: Optional[asyncssh.SSHServerProcess] = None
 
     # Function 65: Performs operations related to connection made.
     def connection_made(self, channel):
+        super().connection_made(channel)
         self.channel = channel
         conn = channel.get_connection()
         self.username = conn.get_extra_info("username") or "root"
@@ -1408,6 +1369,7 @@ class SSHSession(asyncssh.SSHServerSession):
 
     # Function 69: Performs operations related to shell requested.
     def shell_requested(self):
+        print(f"DEBUG: shell_requested called for {self.src_ip}", flush=True)
         # Function 70: Performs operations related to q hook.
         def q_hook(f, c):
             self.honeypot.save_quarantine_file(f, c, self.session_id, self.src_ip)
@@ -1435,8 +1397,41 @@ class SSHSession(asyncssh.SSHServerSession):
     def session_started(self):
         self._ensure_tty_log()
         if self.shell:
-            # self.channel.write(f"Welcome into {self.username} shell\r\n")
-            self.channel.write(self._get_prompt())
+            # Banner/MOTD for authenticity
+            banner = (
+                "\r\n"
+                "Welcome to Ubuntu 22.04.1 LTS (GNU/Linux 5.15.0-41-generic x86_64)\r\n"
+                "\r\n"
+                " * Documentation:  https://help.ubuntu.com\r\n"
+                " * Management:     https://landscape.canonical.com\r\n"
+                " * Support:        https://ubuntu.com/advantage\r\n"
+                "\r\n"
+                "Last login: Fri Mar 13 14:20:01 2026 from 192.168.1.10\r\n"
+            )
+            self._write(banner)
+            prompt = self._get_prompt()
+            self._write(prompt)
+
+    # Function 72.1: Unified write method for SSH/Telnet.
+    def _write(self, data):
+        """Helper to write to channel/process and log."""
+        if not data:
+            return
+        
+        # If we have an asyncssh process (with encoding), use its stdout
+        if hasattr(self, 'process') and self.process and hasattr(self.process, 'stdout'):
+            if isinstance(data, bytes):
+                data = data.decode('utf-8', 'ignore')
+            self.process.stdout.write(data)
+        else:
+            # Fallback to raw channel (bytes)
+            if isinstance(data, str):
+                encoded = data.encode('utf-8')
+            else:
+                encoded = data
+            self.channel.write(encoded)
+            
+        self._log_tty("OUT", data)
 
     # Function 73: Handles event logging and telemetry.
     def _ensure_tty_log(self):
@@ -1486,6 +1481,9 @@ class SSHSession(asyncssh.SSHServerSession):
     # Function 77: Performs operations related to process input.
     async def _process_input(self, data):
         try:
+            if isinstance(data, bytes):
+                data = data.decode("utf-8", errors="ignore")
+
             # Detect paste (multiple characters in one packet including newline)
             is_paste = len(data) > 1 and ("\n" in data or "\r" in data)
 
@@ -1538,8 +1536,8 @@ class SSHSession(asyncssh.SSHServerSession):
                 self.keystrokes = []
 
                 if not cmd:
-                    self.channel.write("\r\n" + self._get_prompt())
-                    self._log_tty("OUT", "\r\n" + self._get_prompt())
+                    prompt = "\r\n" + self._get_prompt()
+                    self._write(prompt)
                     continue
 
                 self.commands.append(cmd)
@@ -1610,17 +1608,14 @@ class SSHSession(asyncssh.SSHServerSession):
                     )
 
                 response = stdout + stderr
-
-                self.channel.write(response)
+                self._write(response)
                 self.bytes_out += len(response)
                 self.honeypot.stats.on_traffic("out", len(response))
-                self._log_tty("OUT", response)
 
                 curr_prompt = self._get_prompt()
-                self.channel.write(curr_prompt)
+                self._write(curr_prompt)
                 self.bytes_out += len(curr_prompt)
                 self.honeypot.stats.on_traffic("out", len(curr_prompt))
-                self._log_tty("OUT", curr_prompt)
                 self._log_tty("IN", cmd + "\n")
 
         except Exception as e:
@@ -1662,43 +1657,28 @@ class SSHSession(asyncssh.SSHServerSession):
             traceback.print_exc(file=sys.stdout)
             sys.stdout.flush()
 
-        # SCP/rsync Interception
+        # ML Analysis with bot detection
+        if (
+            self.honeypot.services.analytics.ml_enabled
+            and self.honeypot.services.analytics.ml_pipeline
+        ):
+            self.honeypot._analyze_command(
+                command, self.username, self.src_ip, self.session_id, "ssh"
+            )
+
+        # Rsync Interception (SCP is now handled by SFTP subsystem)
         ssh_conf = self.honeypot.config.get("ssh", {})
         try:
-            if command.startswith("scp ") and ssh_conf.get("scp_enabled", True):
-                scp = SCPHandler(self)
-                asyncio.create_task(self._run_scp(scp, command))
-                return True
-
             if command.startswith("rsync ") and ssh_conf.get("rsync_enabled", True):
                 rsync = RsyncHandler(self)
                 asyncio.create_task(self._run_rsync(rsync, command))
                 return True
         except Exception as e:
             print(f"DEBUG exec_requested INTERCEPT ERROR: {e}", flush=True)
-            import sys
-            import traceback
 
-            traceback.print_exc(file=sys.stdout)
-            sys.stdout.flush()
-
-        print("DEBUG exec_requested creating _async_exec task", flush=True)
+        print(f"DEBUG exec_requested starting _async_exec: {command}", flush=True)
         asyncio.create_task(self._async_exec(command))
         return True
-
-    # Function 79.1: Runs SCP handler and handles exit.
-    async def _run_scp(self, scp, command):
-        try:
-            rc = await scp.handle(command)
-            self.channel.exit(rc)
-            self.channel.close()
-        except Exception as e:
-            self.honeypot.logger.log_event(
-                self.session_id, "error", {"message": f"SCP handler crashed: {e}"}
-            )
-            traceback.print_exc()
-            self.channel.exit(1)
-            self.channel.close()
 
     # Function 79.2: Runs rsync handler and handles exit.
     async def _run_rsync(self, rsync, command):
@@ -1738,12 +1718,12 @@ class SSHSession(asyncssh.SSHServerSession):
             stdout, stderr, rc = await shell.execute(command)
             print(f"DEBUG _async_exec done rc={rc} stdout={stdout!r}", flush=True)
 
-            self.channel.write(stdout)
+            self.channel.write(stdout.encode() if isinstance(stdout, str) else stdout)
             self.honeypot.stats.on_traffic("out", len(stdout))
             self._log_tty("OUT", stdout)
 
             if stderr:
-                self.channel.write_stderr(stderr)
+                self.channel.write_stderr(stderr.encode() if isinstance(stderr, str) else stderr)
                 self.honeypot.stats.on_traffic("out", len(stderr))
                 self._log_tty("OUT", stderr)
 

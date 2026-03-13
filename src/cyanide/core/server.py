@@ -25,8 +25,6 @@ from cyanide.services.telnet_handler import TelnetHandler
 from cyanide.vfs.engine import FakeFilesystem
 from cyanide.vfs.rsync import RsyncHandler
 
-# Protocol Handlers
-
 from .async_logger import AsyncLogger
 from .config import _CONFIG_EVENTS
 from .defaults import DEFAULT_METADATA
@@ -34,6 +32,8 @@ from .stats import StatsManager
 from .telemetry import setup_telemetry
 from .vm_pool import VMPool
 from .vt_scanner import VTScanner
+
+# Protocol Handlers
 
 
 class ServiceRegistry:

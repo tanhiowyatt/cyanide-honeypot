@@ -56,7 +56,6 @@ class RestrictedUnpickler(pickle.Unpickler):
         if module in self.SAFE_MODULES:
             return super().find_class(module, name)
 
-
         raise pickle.UnpicklingError(
             f"RestrictedUnpickler: Unsafe class '{module}.{name}' detected."
         )

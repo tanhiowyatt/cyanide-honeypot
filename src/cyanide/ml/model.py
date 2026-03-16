@@ -137,7 +137,6 @@ class CommandAutoencoder(nn.Module):
             model.load_state_dict(checkpoint["model_state"])
             model.threshold = checkpoint.get("threshold", 0.05)
 
-
             model.to(model.device)
             model.eval()
             logger.info(f"[*] PyTorch Autoencoder loaded from {path}")

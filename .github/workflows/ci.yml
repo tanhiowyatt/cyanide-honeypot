@@ -15,7 +15,11 @@ jobs:
       packages: write
     strategy:
       matrix:
-        platform: [linux/amd64, linux/arm64]
+        include:
+          - platform: linux/amd64
+            arch: amd64
+          - platform: linux/arm64
+            arch: arm64
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -49,7 +53,7 @@ jobs:
           platforms: ${{ matrix.platform }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
-            ghcr.io/${{ github.repository }}:${{ matrix.platform }}-latest
+            ghcr.io/${{ github.repository }}:${{ matrix.arch }}-latest
             ghcr.io/${{ github.repository }}:latest
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max

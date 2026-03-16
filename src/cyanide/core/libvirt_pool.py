@@ -50,9 +50,7 @@ class LibvirtPool:
         self.conn = None
         self._connect()
 
-        self.vms: Dict[str, dict] = (
-            {}
-        )
+        self.vms: Dict[str, dict] = {}
         self.leases: Dict[str, Lease] = {}
 
         self.lock = asyncio.Lock()
@@ -194,9 +192,7 @@ class LibvirtPool:
         while True:
             await asyncio.sleep(60)
             async with self.lock:
-                for vm_id, v in list(
-                    self.vms.items()
-                ):
+                for vm_id, v in list(self.vms.items()):
                     if v["state"] == "ready":
                         pass
 

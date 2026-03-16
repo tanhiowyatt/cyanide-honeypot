@@ -30,9 +30,7 @@ class ShellEmulator:
         self.username = username
         self.config = config or {}
         self.quarantine_callback = quarantine_callback
-        self.dns_cache: dict[str, tuple[str, float]] = (
-            {}
-        )
+        self.dns_cache: dict[str, tuple[str, float]] = {}
         self.cwd = (
             "/home/admin"
             if username == "admin"
@@ -42,9 +40,7 @@ class ShellEmulator:
             self.cwd = "/"
 
         self.max_chain_depth = self.config.get("shell", {}).get("max_chain_depth", 100)
-        self.max_output_size = self.config.get("shell", {}).get(
-            "max_output_size", 1024 * 1024
-        )
+        self.max_output_size = self.config.get("shell", {}).get("max_output_size", 1024 * 1024)
 
         self.pending_input_callback = None
         self.pending_input_prompt = None

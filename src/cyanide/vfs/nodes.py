@@ -1,5 +1,5 @@
 import datetime
-from typing import Dict
+from typing import Dict, cast
 
 
 class Node:
@@ -52,4 +52,4 @@ class Directory(Node):
     # Function 311: Performs operations related to children.
     @property
     def children(self) -> Dict[str, Node]:
-        return self._children_getter()
+        return cast(Dict[str, Node], self._children_getter())

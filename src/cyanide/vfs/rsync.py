@@ -184,7 +184,6 @@ class RsyncHandler:
             if flags <= 0:
                 break
 
-
             l1 = 0
             if flags & 0x04:
                 l1 = await self._read_byte()

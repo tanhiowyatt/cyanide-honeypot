@@ -158,9 +158,7 @@ def load_config(path: Path = Path("configs/app.yaml")):
             or (config_data.get("honeypot") or {}).get("hostname")
             or os.getenv("HOSTNAME", "server01")
         ),
-        "log_path": get_val(
-            "logging", "directory", "LOG_PATH", "var/log/cyanide"
-        ),
+        "log_path": get_val("logging", "directory", "LOG_PATH", "var/log/cyanide"),
         "logging": {
             "directory": get_val("logging", "directory", "LOGGING_DIRECTORY", "var/log/cyanide"),
             "logtype": get_val("logging", "logtype", "LOGGING_LOGTYPE", "plain"),

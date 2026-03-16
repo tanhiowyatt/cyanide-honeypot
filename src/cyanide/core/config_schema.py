@@ -204,8 +204,6 @@ class CyanideConfig(BaseModel):
     rate_limit: RateLimitConfig = Field(default_factory=lambda: RateLimitConfig())
     allow_local_network: bool = False
 
-    users: List[Dict[str, str]] = Field(
-        default_factory=list
-    )
+    users: List[Dict[str, str]] = Field(default_factory=list)
 
     model_config = ConfigDict(extra="ignore")

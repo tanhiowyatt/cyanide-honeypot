@@ -34,7 +34,6 @@ from .vm_pool import VMPool
 from .vt_scanner import VTScanner
 
 
-
 class ServiceRegistry:
     # Function 37: Initializes the class instance and its attributes.
     def __init__(
@@ -1172,7 +1171,6 @@ class SSHSession(asyncssh.SSHServerSession):
         self.honeypot.stats.on_connect("ssh", self.src_ip)
 
         asyncio.create_task(self.honeypot.log_geoip(self.session_id, self.src_ip, "ssh"))
-
 
         try:
             # Function 66: Retrieves val data.

@@ -17,7 +17,6 @@ class CpCommand(Command):
 
         dest_path = self.emulator.resolve_path(dest_str)
 
-
         for src_str in sources:
             src_path = self.emulator.resolve_path(src_str)
 

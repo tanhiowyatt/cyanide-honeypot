@@ -193,9 +193,7 @@ class TelnetHandler:
             writer.write(prompt_bs)
             bytes_out += len(prompt_bs)
             self.stats.on_traffic("out", len(prompt_bs))
-            self.server._log_tty(
-                tty_state, "OUT", prompt
-            )
+            self.server._log_tty(tty_state, "OUT", prompt)
 
             await writer.drain()
 

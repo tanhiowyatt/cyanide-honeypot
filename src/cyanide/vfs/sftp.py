@@ -54,7 +54,6 @@ class CyanideSFTPFile:
         return await self.handler.stat(self.path)
 
     async def fsetstat(self, attrs: asyncssh.SFTPAttrs):
-        # We log but mostly ignore attribute changes to keep the VFS simple
         self.handler._log_op("fsetstat", self.path, extra={"attrs": str(attrs)})
 
     async def close(self):
@@ -89,14 +88,12 @@ class CyanideSFTPHandler(asyncssh.SFTPServer):
             self.session_id = "conn_" + self.server_factory.conn_id
             self.src_ip = self.server_factory.src_ip
         else:
-            # Fallback for direct subsystem requests if factory is missing
             self.honeypot = getattr(chan, "honeypot", None)
             self.fs = getattr(chan, "fs", None)
             self.session_id = getattr(chan, "session_id", "unknown")
             self.src_ip = getattr(chan, "src_ip", "unknown")
 
         if not self.honeypot:
-            # We really need the honeypot for logging and VFS
             raise RuntimeError("CyanideSFTPHandler requires honeypot context")
 
         self.username = self.conn.get_extra_info("username") or "root"

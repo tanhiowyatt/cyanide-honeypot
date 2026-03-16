@@ -8,7 +8,6 @@ class PingCommand(Command):
             return "", "ping: usage error: Destination address required\n", 1
 
         hostname = args[0]
-        # SSRF Protection
         is_valid, err, ip = self.validate_url(f"http://{hostname}")
         if not is_valid:
             return "", f"ping: {hostname}: {err}\n", 2

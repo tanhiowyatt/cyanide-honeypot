@@ -1,8 +1,6 @@
 from typing import Dict
 
 
-# Import dependencies (handle circular imports carefully if needed)
-# Here we assume these are available
 class AnalyticsService:
     """
     Handles ML analysis, GeoIP enrichment, and statistics.
@@ -19,7 +17,6 @@ class AnalyticsService:
         )
 
         try:
-            # Local imports to avoid circular dependencies
             from cyanide.core.geoip import GeoIP
             from cyanide.core.stats import StatsManager
 
@@ -35,7 +32,6 @@ class AnalyticsService:
                 "system", "service_init_error", {"service": "AnalyticsService", "error": str(e)}
             )
 
-        # ML Initialization
         self.ml_enabled = config.get("ml", {}).get("enabled", False)
         self.ml_online_learning = config.get("ml", {}).get("online_learning", False)
         self.ml_pipeline = None
@@ -96,13 +92,11 @@ class AnalyticsService:
             return
 
         try:
-            # Analyze command
             result = self.ml_pipeline.analyze_command(cmd)
 
             is_anomaly = result["is_anomaly"]
             source_type = "bot" if is_bot else "human"
 
-            # Log ML 'thought' via centralized logger
             self.logger.log_event(
                 session_id,
                 "ml_thought",
@@ -142,17 +136,13 @@ class AnalyticsService:
             return
 
         try:
-            # Combine filename and snippet of content for analysis
-            # Most attackers use specific filenames or content patterns
             sample_len = 100
             content_snippet = content[:sample_len].decode("utf-8", "ignore")
             analysis_str = f"FILE_UPLOAD: {filename} CONTENT: {content_snippet}"
 
-            # Analyze
             result = self.ml_pipeline.analyze_command(analysis_str)
             is_anomaly = result["is_anomaly"]
 
-            # Log ML 'thought' via centralized logger
             self.logger.log_event(
                 session_id,
                 "ml_thought",

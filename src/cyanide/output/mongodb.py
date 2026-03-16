@@ -25,7 +25,7 @@ class Plugin(OutputPlugin):
         try:
             self.client = pymongo.MongoClient(self.uri, serverSelectionTimeoutMS=5000)
             if self.client:
-                self.client.admin.command("ping")  # Test connection
+                self.client.admin.command("ping")
                 self.db = self.client[self.database]
         except Exception as e:
             logging.error(f"[MongoDB] Connection failed: {e}")

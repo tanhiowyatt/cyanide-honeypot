@@ -17,7 +17,6 @@ class CpCommand(Command):
 
         dest_path = self.emulator.resolve_path(dest_str)
 
-        # If dest doesn't exist, checks later
 
         for src_str in sources:
             src_path = self.emulator.resolve_path(src_str)

@@ -30,7 +30,6 @@ class SMTPHandler:
             )
 
         try:
-            # Send Banner
             hostname = self.server.config.get("honeypot", {}).get("hostname", "server01")
             banner = f"220 {hostname} ESMTP Postfix\r\n"
             writer.write(banner.encode())
@@ -63,7 +62,6 @@ class SMTPHandler:
                 elif cmd == "DATA":
                     writer.write(b"354 End data with <CR><LF>.<CR><LF>\r\n")
                     await writer.drain()
-                    # Read until . on a line by itself
                     while True:
                         data_line = await reader.readline()
                         if not data_line or data_line.strip() == b".":

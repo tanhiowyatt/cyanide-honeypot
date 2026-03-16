@@ -14,9 +14,8 @@ class UnameCommand(Command):
         Returns:
              tuple: (system_info, empty_stderr, 0)
         """
-        # Get Profile from FS
         profile = getattr(self.fs, "profile", None)
-        uname_a = "Linux server 5.15.0-91-generic..."  # fallback
+        uname_a = "Linux server 5.15.0-91-generic..."
         uname_r = "5.15.0-91-generic"
 
         if profile:
@@ -33,7 +32,6 @@ class UnameCommand(Command):
             return f"{uname_r}\n", "", 0
 
         if any(arg.startswith("-") for arg in args):
-            # Simple error for now if not handled
             invalid_flag = next(
                 arg for arg in args if arg.startswith("-") and arg not in ["-a", "-r"]
             )
@@ -44,7 +42,4 @@ class UnameCommand(Command):
                 1,
             )
 
-        # Ignore non-flag args or treat as invalid? standard uname ignores extra args?
-        # Actually `uname` takes no non-option arguments.
-        # "uname: extra operand 'foo'"
         return "Linux\n", "", 0

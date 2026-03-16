@@ -26,12 +26,10 @@ class RestrictedUnpickler(pickle.Unpickler):
     }
 
     SAFE_MODULES = {
-        # Core data structures
         "collections",
         "datetime",
         "pathlib",
         "re",
-        # ML Libraries (required for model persistence)
         "numpy",
         "numpy.core.multiarray",
         "numpy.core.numeric",
@@ -39,10 +37,9 @@ class RestrictedUnpickler(pickle.Unpickler):
         "sklearn.cluster",
         "sklearn.cluster._kmeans",
         "sklearn.feature_extraction.text",
-        "scipy.sparse",  # Often used by sklearn
+        "scipy.sparse",
         "scipy.sparse._csr",
-        "joblib",  # Often used by sklearn
-        # Internal Project Modules
+        "joblib",
         "cyanide.ml.model",
         "cyanide.ml.classifier",
         "src.cyanide.ml.model",
@@ -52,21 +49,14 @@ class RestrictedUnpickler(pickle.Unpickler):
 
     # Function 34: Performs operations related to find class.
     def find_class(self, module, name):
-        # 1. Allow Safe Builtins
         if module == "builtins":
             if name in self.SAFE_BUILTINS:
                 return getattr(builtins, name)
-            # For robustness, reject other builtins like eval, exec, etc.
 
-        # 2. Allow Whitelisted Modules
         if module in self.SAFE_MODULES:
             return super().find_class(module, name)
 
-        # 3. Allow specific submodules of safe modules (prefix check)
-        # e.g. numpy.core.multiarray is safe if numpy is safe?
-        # Let's be explicit with the list above to be stricter.
 
-        # nosemgrep: python.lang.security.deserialization.pickle.avoid-pickle
         raise pickle.UnpicklingError(
             f"RestrictedUnpickler: Unsafe class '{module}.{name}' detected."
         )

@@ -19,15 +19,13 @@ class KnowledgeBase:
 
     # Function 109: Initializes the class instance and its attributes.
     def __init__(self):
-        # TF-IDF vectorizer (Char n-grams for command similarity)
-        # TF-IDF vectorizer (Optimized for command similarity)
         self.vectorizer = TfidfVectorizer(
-            max_features=10000,  # Increased from 5000
-            ngram_range=(2, 4),  # Increased context from (1,3)
-            min_df=1,  # Keep rare tokens
-            max_df=0.98,  # Less strict max
+            max_features=10000,
+            ngram_range=(2, 4),
+            min_df=1,
+            max_df=0.98,
             analyzer="char_wb",
-            sublinear_tf=True,  # Smoothing
+            sublinear_tf=True,
             norm="l2",
         )
 
@@ -48,7 +46,6 @@ class KnowledgeBase:
         kb_dir = Path(kb_dir)
         logger.info(f"[*] Loading KB data from {kb_dir}...")
 
-        # 1. Load command mappings (Atomic Red Team + Manual)
         for filename in ["atomic_red_team_mapping.jsonl", "manual_mappings.jsonl"]:
             mappings_file = kb_dir / filename
             if mappings_file.exists():
@@ -64,7 +61,6 @@ class KnowledgeBase:
                                 technique_id = parts[0].strip()
                                 technique_name = parts[1].strip()
                             else:
-                                # Fallback or skip
                                 continue
 
                             self.command_corpus.append(command)
@@ -78,19 +74,14 @@ class KnowledgeBase:
                         except (json.JSONDecodeError, IndexError):
                             continue
 
-        # 2. Load techniques
         self._load_jsonl_db(kb_dir / "mitre_techniques.jsonl", self.technique_db)
 
-        # 3. Load tactics
         self._load_jsonl_db(kb_dir / "mitre_tactics.jsonl", self.tactic_db)
 
-        # 4. Load groups
         self._load_jsonl_db(kb_dir / "mitre_groups.jsonl", self.group_db)
 
-        # 5. Load malware
         self._load_jsonl_db(kb_dir / "mitre_malware.jsonl", self.malware_db)
 
-        # 6. Load relationships
         rel_file = kb_dir / "mitre_relationships.json"
         if rel_file.exists():
             with open(rel_file, "r") as f:
@@ -158,7 +149,6 @@ class KnowledgeBase:
             }
             results.append(result)
 
-        # Re-sort results: Similarity DESC, then Manual Mapping DESC
         results.sort(
             key=lambda x: (x["similarity"], 1 if x["source"] == "manual_mapping" else 0),
             reverse=True,
@@ -197,17 +187,15 @@ class KnowledgeBase:
     def _get_related_groups(self, technique_id):
         groups = []
         for rel in self.relationships.get("uses", []):
-            # Group USES Technique
             if rel.get("target_id") == technique_id and rel.get("source_type") == "group":
                 group_info = self.group_db.get(rel["source_id"], {})
                 groups.append({"id": rel["source_id"], "name": group_info.get("name", "Unknown")})
-        return groups[:5]  # Limit
+        return groups[:5]
 
     # Function 117: Performs operations related to get related malware.
     def _get_related_malware(self, technique_id):
         malware = []
         for rel in self.relationships.get("uses", []):
-            # Malware USES Technique
             if rel.get("target_id") == technique_id and rel.get("source_type") == "malware":
                 mal_info = self.malware_db.get(rel["source_id"], {})
                 malware.append({"id": rel["source_id"], "name": mal_info.get("name", "Unknown")})
@@ -222,9 +210,7 @@ class KnowledgeBase:
 
         best_match = matches[0]
 
-        # Confidence Threshold Check (lowered to 0.35)
         if best_match["similarity"] < 0.35:
-            # Fallback: Keyword Matching
             fallback = self._fallback_classify(command)
             if fallback:
                 return fallback
@@ -235,7 +221,6 @@ class KnowledgeBase:
                 "confidence": best_match["similarity"],
             }
 
-        # Determine Confidence Level
         sim = best_match["similarity"]
         if sim >= 0.7:
             conf_level = "HIGH"
@@ -244,7 +229,6 @@ class KnowledgeBase:
         else:
             conf_level = "LOW"
 
-        # Build Classified Result
         technique_id = best_match["technique_id"]
         technique_info = self.technique_db.get(technique_id, {})
 
@@ -294,7 +278,6 @@ class KnowledgeBase:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "wb") as f:
-            # nosemgrep: python.lang.security.deserialization.pickle.avoid-pickle
             pickle.dump(
                 {
                     "vectorizer": self.vectorizer,
@@ -316,7 +299,6 @@ class KnowledgeBase:
     def load(self, path):
         try:
             with open(path, "rb") as f:
-                # nosemgrep: python.lang.security.deserialization.pickle.avoid-pickle
                 data = security.load(f)
                 self.__dict__.update(data)
             logger.info(f"[*] KB loaded from {path}")

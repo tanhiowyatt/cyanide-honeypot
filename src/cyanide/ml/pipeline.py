@@ -20,7 +20,6 @@ class CyanideML:
         self.kb = KnowledgeBase()
         self.kb.load(self.model_dir / "knowledge_base.pkl")
 
-        # Hybrid Layers
         self.rule_engine = SecurityRuleEngine()
         self.context_analyzer = ContextAnalyzer()
 
@@ -29,29 +28,23 @@ class CyanideML:
         """
         Multi-layer analysis: ML -> Rules -> Context -> Fusion
         """
-        # 1. ML Anomaly Detection (Layer 1)
         is_anomaly_ml, score, error = self.anomaly_detector.predict(command)
 
-        # 2. Security Rule Engine (Layer 2)
         rule_result = self.rule_engine.evaluate(command)
 
-        # 3. Context Analysis (Layer 3)
         context_result_url = self.context_analyzer.analyze_url(command)
         context_result_path = self.context_analyzer.analyze_file_paths(command)
 
-        # 4. Fusion Logic
         final_verdict = "anomaly" if is_anomaly_ml else "clean"
         final_score = float(score)
         fusion_source = "ml"
 
-        # Override Rule 1: Security Rule Match
         if rule_result["matched"]:
-            is_anomaly_ml = True  # Propagate to KB logic trigger
+            is_anomaly_ml = True
             final_verdict = "anomaly"
             fusion_source = "rule"
             final_score = max(final_score, rule_result["confidence"])
 
-        # Override Rule 2: Suspicious Context
         context_triggered = False
         context_score = 0.0
 
@@ -73,20 +66,16 @@ class CyanideML:
                     fusion_source = "context"
             final_score = max(final_score, context_score)
 
-        # 5. KB Classification (Only if Anomaly)
         classification = None
         severity = "BENIGN"
 
         if is_anomaly_ml:
-            # Try ML/KB Classification first
             classification = self.kb.classify_command(command)
 
-            # Use Rule/Context Classification if ML failed or Rule is better
             if rule_result["matched"] and (
                 not classification.get("classified")
                 or rule_result["confidence"] > classification.get("confidence", 0)
             ):
-                # Enrich from Rule's Technique ID
                 enriched = self.kb.enrich_technique(rule_result["technique"])
                 if enriched:
                     classification = {
@@ -96,10 +85,7 @@ class CyanideML:
                         "match_method": "rule_based",
                         **enriched,
                     }
-                    # Override description if needed, or keep KB description for context
-                    # classification['technique']['description'] = 'Identified by Security Rule Engine: ' + rule_result['description']
                 else:
-                    # Fallback if technique not in KB
                     classification = {
                         "classified": True,
                         "technique": {
@@ -137,7 +123,6 @@ class CyanideML:
                     }
 
             severity = self._determine_severity(classification)
-            # Force severity upgrade if rule is CRITICAL/HIGH
             if rule_result["matched"]:
                 if rule_result["severity"] in ["CRITICAL", "HIGH"]:
                     severity = rule_result["severity"]
@@ -152,7 +137,7 @@ class CyanideML:
             "classification": classification,
             "severity": severity,
             "detection_layers": {
-                "ml_detected": score > self.anomaly_detector.threshold,  # Raw ML detection
+                "ml_detected": score > self.anomaly_detector.threshold,
                 "rule_match": rule_result["matched"],
                 "context_suspicious": context_triggered,
             },
@@ -174,7 +159,6 @@ class CyanideML:
             else:
                 tactics.add(str(t).lower())
 
-        # Priority Logic
         if "impact" in tactics:
             return "CRITICAL"
 

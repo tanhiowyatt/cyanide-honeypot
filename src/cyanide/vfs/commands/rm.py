@@ -30,8 +30,6 @@ class RmCommand(Command):
             if isinstance(node, Directory) and not recursive:
                 return "", f"rm: cannot remove '{arg}': Is a directory\n", 1
 
-            # Remove
-            # Use fs.remove to ensure audit callback is triggered
             self.fs.remove(path)
 
         return "", "", 0

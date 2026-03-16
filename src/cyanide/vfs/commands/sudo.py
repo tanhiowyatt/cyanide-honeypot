@@ -10,7 +10,6 @@ class SudoCommand(Command):
         target_user = "root"
         command_args = []
 
-        # Simple argument parsing
         i = 0
         interactive = False
 
@@ -35,35 +34,24 @@ class SudoCommand(Command):
                 interactive = True
                 i += 1
             elif arg.startswith("-"):
-                # Ignore other flags for now (like -n)
                 i += 1
             else:
-                # Start of command
                 command_args = args[i:]
                 break
 
-        # If no command, implies interactive shell logic?
         if not command_args and not interactive:
-            # sudo without args usually shows usage or -s behavior?
-            # On ubuntu 'sudo' showing usage. But 'sudo -i' is shell.
-            # If just 'sudo', print usage? Or treat as -s?
-            # Let's treat as usage.
             pass
 
         if not command_args:
             if interactive:
-                # Switch current emulator to root!
                 self.emulator.username = target_user
                 if target_user == "root":
                     self.emulator.cwd = "/root"
-                    # Ensure root dir exists (should be fixed now)
                     if not self.fs.exists("/root"):
                         self.emulator.cwd = "/"
                 else:
                     self.emulator.cwd = f"/home/{target_user}"
 
-                # We can't easily change the prompt in real-time until next loop,
-                # but valid user change is persistent.
                 return "", "", 0
             else:
                 return (
@@ -72,19 +60,12 @@ class SudoCommand(Command):
                     1,
                 )
 
-        # Execute command as target user
-        # We need a new shell emulator for that user?
-        # Or just temporary context?
-        # Creating a new emulator is safest to isolate permissions logic.
         from cyanide.core.emulator import ShellEmulator
 
         temp_shell = ShellEmulator(self.fs, target_user, self.emulator.quarantine_callback)
-        # Inherit CWD? Sudo usually keeps CWD unless -i
         if not interactive:
             temp_shell.cwd = self.emulator.cwd
 
-        # We need to rejoin the command args into a command line string
-        # This is a bit lossy but best we can do given args list
         import shlex
 
         cmd_line = shlex.join(command_args)

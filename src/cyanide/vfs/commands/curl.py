@@ -38,18 +38,13 @@ class CurlCommand(Command):
             else:
                 return "", "curl: try 'curl --help' for more information\n", 1
 
-        # Security: Validate URL
         is_valid, error, resolved_ip = self.validate_url(url)
         if not is_valid:
             return "", f"curl: (1) {error}\n", 1
 
-        # Use host for request to allow SNI/SSL verification
         request_url = url
         headers: Dict[str, str] = {}
-        # We obtained resolved_ip during validation but we don't force it in URL
-        # aiohttp will resolve it again, which is fine for now to fix SSL
 
-        # Determine output mode
         save_to_file = False
         filename = None
 
@@ -62,12 +57,10 @@ class CurlCommand(Command):
             if not filename:
                 filename = "index.html"
 
-        # Execute Request
         try:
             async with aiohttp.ClientSession() as session:
                 if parsed.head:
                     async with session.head(request_url, headers=headers, timeout=10) as resp:
-                        # Format headers like curl
                         version_str = "1.1"
                         if resp.version:
                             version_str = f"{resp.version.major}.{resp.version.minor}"
@@ -89,8 +82,6 @@ class CurlCommand(Command):
 
                         content = await resp.read()
 
-                        # ALWAYs save to Quarantine (Real FS) for analysis
-                        # We use a temp name if we don't have a filename yet, or derive it from URL
                         q_filename = (
                             filename if filename else PurePosixPath(url).name or "index.html"
                         )
@@ -98,9 +89,7 @@ class CurlCommand(Command):
                         if self.emulator.quarantine_callback:
                             self.emulator.quarantine_callback(q_filename, content)
 
-                        # Output handling
                         if save_to_file:
-                            # Save to Fake FS
                             full_path = self.emulator.resolve_path(filename)
                             parent_dir = str(PurePosixPath(full_path).parent)
 
@@ -122,13 +111,11 @@ class CurlCommand(Command):
                                 return "", "curl: (23) Check output path\n", 23
 
                             if not parsed.silent:
-                                # Curl progress meter simulation (simplified)
                                 stderr = f"  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current\n                                 Dload  Upload   Total   Spent    Left  Speed\n100  {len(content)}  100  {len(content)}    0     0   {len(content)}      0 --:--:-- --:--:-- --:--:--  {len(content)}\n"
                                 return "", stderr, 0
                             return "", "", 0
 
                         else:
-                            # Print to stdout
                             return content.decode("utf-8", errors="ignore"), "", 0
 
         except aiohttp.ClientError as e:

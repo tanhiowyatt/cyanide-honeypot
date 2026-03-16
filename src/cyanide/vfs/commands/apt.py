@@ -4,7 +4,6 @@ from .base import Command
 class AptCommand(Command):
     # Function 204: Executes the 'apt' command logic within the virtual filesystem.
     async def execute(self, args: list[str], input_data: str = "") -> tuple[str, str, int]:
-        # Check OS profile support
         os_profile = getattr(self.fs, "os_profile", "ubuntu").lower()
         if os_profile not in ["ubuntu", "debian", "kali", "custom"]:
             return "", f"bash: {args[0] if args else 'apt'}: command not found\n", 127
@@ -57,7 +56,6 @@ class AptCommand(Command):
             if not clean_pkgs:
                 return "0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.\n", "", 0
 
-            # Audit / Log installations
             if subcommand == "install":
                 for pkg in clean_pkgs:
                     if self.fs.stats:
@@ -79,7 +77,6 @@ class AptCommand(Command):
                     "After this operation, 3,141 kB of additional disk space will be used.\n"
                 )
 
-            # Simple interactive delay loop simulating installation
             for pkg in clean_pkgs:
                 output += f"Selecting previously unselected package {pkg}.\n"
                 output += f"Preparing to unpack .../{pkg}_amd64.deb ...\n"

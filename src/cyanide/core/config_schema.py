@@ -13,7 +13,6 @@ class SSHConfig(BaseModel):
     target_port: Optional[int] = 22222
     pool_protocol: str = "ssh"
 
-    # Algorithm negotiation
     ciphers: List[str] = Field(
         default_factory=lambda: [
             "aes256-gcm@openssh.com",
@@ -65,14 +64,12 @@ class SSHConfig(BaseModel):
         ]
     )
 
-    # Security & Persistence
     data_path: str = "var/lib/cyanide/keys"
     auth_tries: int = 3
     login_timeout: int = 60
     idle_timeout: int = 3600
     rekey_limit: str = "1G"
 
-    # File Transfer
     sftp_enabled: bool = True
     scp_enabled: bool = True
     rsync_enabled: bool = True
@@ -91,7 +88,6 @@ class SSHConfig(BaseModel):
         }
     )
 
-    # Port Forwarding
     forwarding_enabled: bool = False
     forward_redirect_enabled: bool = False
     forward_redirect_rules: Dict[str, str] = Field(default_factory=dict)
@@ -177,18 +173,14 @@ class LoggingConfig(BaseModel):
 
 
 class CyanideConfig(BaseModel):
-    # ML
     ml: Dict[str, Any] = Field(default_factory=dict)
 
-    # Cleanup
     cleanup: Dict[str, Any] = Field(default_factory=dict)
 
-    # Output Plugins
     output: Dict[str, Any] = Field(default_factory=dict)
 
-    # Paths & Core
     hostname: str = "server01"
-    log_path: str = "var/log/cyanide"  # Deprecated in favor of logging.directory
+    log_path: str = "var/log/cyanide"
     fs_yaml: Optional[str] = None
     quarantine_path: str = "var/quarantine"
     quarantine_max_size_mb: int = 500
@@ -197,13 +189,11 @@ class CyanideConfig(BaseModel):
     custom_profile: Dict[str, str] = Field(default_factory=dict)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
 
-    # Core (Session Manager)
     listen_ip: str = "0.0.0.0"
     max_sessions: int = 100
     max_sessions_per_ip: int = 5
     session_timeout: int = 300
 
-    # Services
     ssh: SSHConfig = Field(default_factory=lambda: SSHConfig())
     telnet: TelnetConfig = Field(default_factory=lambda: TelnetConfig())
     metrics: MetricsConfig = Field(default_factory=lambda: MetricsConfig())
@@ -214,9 +204,8 @@ class CyanideConfig(BaseModel):
     rate_limit: RateLimitConfig = Field(default_factory=lambda: RateLimitConfig())
     allow_local_network: bool = False
 
-    # Auth
     users: List[Dict[str, str]] = Field(
         default_factory=list
-    )  # simplified from UserConfig for now as config.py uses dicts
+    )
 
     model_config = ConfigDict(extra="ignore")

@@ -17,12 +17,9 @@ class SuCommand(Command):
             else:
                 target_user = args[0]
 
-        # If already that user, just return
         if self.emulator.username == target_user:
             return "", "", 0
 
-        # For honeypot realism, we always "prompt" for password when becoming root
-        # or switching from non-root to any user.
         self.target_user = target_user
         self.login_shell = login_shell
 
@@ -33,16 +30,10 @@ class SuCommand(Command):
 
     # Function 267: Performs operations related to on password.
     async def _on_password(self, password: str) -> tuple[str, str, int]:
-        # Realistic behavior: any non-empty password works, or strictly 'root'
-        # Let's go with 'root' as the magic word, or anything if you want it to be easy.
-        # But actually, standard honeypots often accept anything to let them in.
-        # User said "make request for root password", let's assume 'root' or 'cyanide'.
-        # For simplicity and maximum "capture", let's accept 'root' or 'password'.
 
         valid_passwords = ["root", "password", "cyanide", "admin"]
 
         if password.strip() in valid_passwords or not password.strip():
-            # Success
             self.emulator.username = self.target_user
             if self.target_user == "root":
                 if self.login_shell or self.emulator.cwd == "/":
@@ -51,7 +42,6 @@ class SuCommand(Command):
                 if self.login_shell:
                     self.emulator.cwd = f"/home/{self.target_user}"
 
-            # Ensure dir exists
             if not self.fs.exists(self.emulator.cwd):
                 self.fs.mkdir_p(self.emulator.cwd, owner=self.target_user)
 

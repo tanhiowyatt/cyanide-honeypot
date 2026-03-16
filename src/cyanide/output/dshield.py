@@ -23,7 +23,6 @@ class Plugin(OutputPlugin):
         if not self.userid or not self.authkey:
             return
 
-        # DShield primarily wants connection logs.
         if event.get("eventid") not in ["client_fingerprint", "auth"]:
             return
 

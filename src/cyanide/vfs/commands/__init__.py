@@ -65,9 +65,7 @@ from .who import WhoCommand
 from .whoami import WhoamiCommand
 from .yum import YumCommand
 
-# Central command registry
 COMMAND_MAP = {
-    # Navigation/Basics
     "cd": CdCommand,
     "ls": LsCommand,
     "pwd": PwdCommand,
@@ -84,7 +82,6 @@ COMMAND_MAP = {
     "w": WCommand,
     "cat": CatCommand,
     "chmod": ChmodCommand,
-    # File Operations
     "touch": TouchCommand,
     "mkdir": MkdirCommand,
     "rmdir": RmdirCommand,
@@ -92,19 +89,16 @@ COMMAND_MAP = {
     "cp": CpCommand,
     "mv": MvCommand,
     "find": FindCommand,
-    # Text Processing
     "grep": GrepCommand,
     "head": HeadCommand,
     "tail": TailCommand,
     "awk": AwkCommand,
-    # Networking
     "ip": IpCommand,
     "ifconfig": IfconfigCommand,
     "route": RouteCommand,
     "netstat": NetstatCommand,
     "ss": SsCommand,
     "lsof": LsofCommand,
-    # System
     "env": EnvCommand,
     "history": HistoryCommand,
     "last": LastCommand,
@@ -115,14 +109,12 @@ COMMAND_MAP = {
     "free": FreeCommand,
     "alias": AliasCommand,
     "unalias": UnaliasCommand,
-    # Package Managers
     "apt": AptCommand,
     "apt-get": AptCommand,
     "dpkg": DpkgCommand,
     "yum": YumCommand,
     "dnf": YumCommand,
     "rpm": RpmCommand,
-    # Dev Tools
     "python": PythonCommand,
     "python3": PythonCommand,
     "perl": PerlCommand,
@@ -130,13 +122,11 @@ COMMAND_MAP = {
     "make": MakeCommand,
     "nc": NcCommand,
     "netcat": NcCommand,
-    # Privilege Escalation
     "pkexec": PkexecCommand,
     "doas": DoasCommand,
     "visudo": VisudoCommand,
     "bash": BashCommand,
     "sh": BashCommand,
-    # Misc/Realism
     "curl": CurlCommand,
     "wget": WgetCommand,
     "ping": PingCommand,

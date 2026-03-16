@@ -15,7 +15,6 @@ class ExportCommand(Command):
         Returns:
             tuple: (stdout, stderr, 0)
         """
-        # Often SSH clients send 'export LANG=...' on startup
         for arg in args:
             if "=" in arg:
                 key, val = arg.split("=", 1)

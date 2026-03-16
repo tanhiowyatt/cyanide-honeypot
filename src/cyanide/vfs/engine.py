@@ -35,7 +35,6 @@ class VirtualDirectory(Directory):
     def __init__(
         self, name: str, path: str, fs: "FakeFilesystem", config: Optional[Dict[str, Any]] = None
     ):
-        # Pass a lambda to nodes.Directory to lazy-load children
         super().__init__(name, children_getter=lambda: self._lazy_children(), **(config or {}))
         self.path = path
         self.fs = fs
@@ -81,7 +80,6 @@ class FakeFilesystem:
         self.dynamic_files: Dict[str, Any] = {}
         self.static_manifest: Dict[str, Any] = {}
 
-        # Memory Layer (Writes during session)
         self.memory_overlay: Dict[str, Dict[str, Any]] = {}
         self.deleted_paths: Set[str] = set()
 
@@ -113,7 +111,6 @@ class FakeFilesystem:
             "uucp:x:10:",
         ]
 
-        # Add configured users
         uid = 1000
         for user_entry in self.users:
             username = user_entry.get("user")
@@ -143,7 +140,6 @@ class FakeFilesystem:
     # Function 290: Performs operations related to initialize user homes.
     def _initialize_user_homes(self):
         """Automatically create /home/[user] for all configured users."""
-        # First, ensure /home exists
         self.mkdir_p("/home")
 
         for user_entry in self.users:
@@ -181,7 +177,6 @@ class FakeFilesystem:
         if path in self.deleted_paths:
             return None
 
-        # 1. Check Memory Overlay
         if path in self.memory_overlay:
             config = self.memory_overlay[path]
             return (
@@ -190,14 +185,12 @@ class FakeFilesystem:
                 else VirtualFile(os.path.basename(path), path, self, config)
             )
 
-        # 2. Check Static/Dynamic Manifests
         if path in self.dynamic_files:
             return VirtualFile(os.path.basename(path), path, self, self.dynamic_files[path])
         if path in self.static_manifest:
             config = self.static_manifest[path]
             return VirtualFile(os.path.basename(path), path, self, config)
 
-        # 3. Check Patterns & Directory structure
         if self.is_dir(path):
             return VirtualDirectory(os.path.basename(path) or "/", path, self)
 
@@ -219,7 +212,6 @@ class FakeFilesystem:
         ):
             return True
 
-        # Parent directories of any defined file
         all_paths = (
             list(self.dynamic_files.keys())
             + list(self.static_manifest.keys())
@@ -241,7 +233,6 @@ class FakeFilesystem:
         if path in self.memory_overlay:
             return self.memory_overlay[path].get("type") == "dir"
 
-        # If it's a parent of any file, it's a dir
         all_paths = (
             list(self.dynamic_files.keys())
             + list(self.static_manifest.keys())
@@ -263,7 +254,6 @@ class FakeFilesystem:
         if path in self.dynamic_files or path in self.static_manifest:
             return True
 
-        # Pattern check - must exist and not be a dir
         if not self.exists(path):
             return False
         return not self.is_dir(path)
@@ -277,7 +267,6 @@ class FakeFilesystem:
         contents = set()
         prefix = path.rstrip("/") + "/"
 
-        # 1. Memory and Manifest
         all_paths = (
             list(self.dynamic_files.keys())
             + list(self.static_manifest.keys())
@@ -288,7 +277,6 @@ class FakeFilesystem:
                 rel = p[len(prefix) :].split("/")[0]
                 contents.add(rel)
 
-        # Remove deleted items that might have been added by parent logic
         return sorted([c for c in contents if posixpath.join(path, c) not in self.deleted_paths])
 
     # Function 297: Retrieves content data.
@@ -302,11 +290,9 @@ class FakeFilesystem:
         if self.stats:
             self.stats.on_file_op("read", path)
 
-        # 1. Memory Overlay
         if path in self.memory_overlay:
             return str(self.memory_overlay[path].get("content", ""))
 
-        # 2. Dynamic Files
         if path in self.dynamic_files:
             config = self.dynamic_files[path]
             provider = PROVIDERS.get(config.get("provider"))
@@ -316,7 +302,6 @@ class FakeFilesystem:
                 return self._render(config["content"])
             return ""
 
-        # 3. Static Manifest
         if path in self.static_manifest:
             config = self.static_manifest[path]
             return self._render(config.get("content", ""))
@@ -327,7 +312,7 @@ class FakeFilesystem:
     def mkfile(self, path: str, content="", owner="root", group="root", perm="-rw-r--r--"):
         path = self.resolve(path)
         parent_path = posixpath.dirname(path)
-        if parent_path != path:  # Not root
+        if parent_path != path:
             if not self.exists(parent_path) or not self.is_dir(parent_path):
                 return None
 
@@ -385,7 +370,6 @@ class FakeFilesystem:
         if not path:
             return "/"
         res = posixpath.normpath(path)
-        # posixpath.normpath might preserve // on some platforms
         if res.startswith("//") and not res.startswith("///"):
             res = "/" + res.lstrip("/")
         return res
@@ -402,19 +386,16 @@ class FakeFilesystem:
             if not recursive:
                 return False
 
-            # Recursive copy of a directory
             if not self.exists(dst):
                 self.mkdir_p(dst)
             elif self.is_file(dst):
-                return False  # Cannot copy dir over file
+                return False
 
             for item in self.list_dir(src):
                 self.copy(posixpath.join(src, item), posixpath.join(dst, item), recursive=True)
             return True
         else:
-            # File copy
             content = self.get_content(src)
-            # If dst is a dir, copy INTO it
             if self.exists(dst) and self.is_dir(dst):
                 dst = posixpath.join(dst, posixpath.basename(src))
 
@@ -429,7 +410,6 @@ class FakeFilesystem:
         if not self.exists(src):
             return False
 
-        # Implementation: copy then remove
         if self.copy(src, dst, recursive=True):
             return self.remove(src)
         return False

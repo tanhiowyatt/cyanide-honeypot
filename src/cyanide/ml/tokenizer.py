@@ -18,14 +18,11 @@ class CharacterLevelTokenizer:
         self.pad_token = 0
         self.unk_token = 1
 
-        # Initialize with standard ASCII
         self._build_vocab()
 
     # Function 141: Performs operations related to build vocab.
     def _build_vocab(self):
-        # Basic ASCII printable + some common extras
         chars = "".join([chr(i) for i in range(32, 127)])
-        # Add special tokens
         self.vocab = ["<PAD>", "<UNK>"] + list(chars)
         self.char_map = {c: i for i, c in enumerate(self.vocab)}
         self.index_map = {i: c for i, c in enumerate(self.vocab)}
@@ -39,11 +36,9 @@ class CharacterLevelTokenizer:
         text = str(text)
         tokens = [self.char_map.get(c, self.unk_token) for c in text]
 
-        # Truncate
         if len(tokens) > self.max_length:
             tokens = tokens[: self.max_length]
 
-        # Pad
         if len(tokens) < self.max_length:
             tokens += [self.pad_token] * (self.max_length - len(tokens))
 
@@ -64,7 +59,6 @@ class CharacterLevelTokenizer:
     # Function 144: Performs operations related to save.
     def save(self, path):
         with open(path, "wb") as f:
-            # nosemgrep: python.lang.security.deserialization.pickle.avoid-pickle
             pickle.dump(
                 {
                     "char_map": self.char_map,
@@ -77,7 +71,6 @@ class CharacterLevelTokenizer:
     # Function 145: Performs operations related to load.
     def load(self, path):
         with open(path, "rb") as f:
-            # nosemgrep: python.lang.security.deserialization.pickle.avoid-pickle
             data = security.load(f)
             self.char_map = data["char_map"]
             self.index_map = data["index_map"]

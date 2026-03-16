@@ -13,7 +13,6 @@ class RpmCommand(Command):
 
         action = args[0]
 
-        # Super simplified logic for common rpm flags
         if "-i" in action or action == "-ivh" or action == "-Uvh":
             targets = [a for a in args[1:] if not a.startswith("-")]
             if not targets:
@@ -27,7 +26,6 @@ class RpmCommand(Command):
 
                 pkg_name = target.split("/")[-1].replace(".rpm", "")
 
-                # Log to stats if available
                 if self.fs.stats:
                     self.fs.stats.on_file_op("download", f"rpm://{pkg_name}")
 

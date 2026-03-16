@@ -8,17 +8,15 @@ class UptimeCommand(Command):
 
     # Function 273: Executes the 'uptime' command logic within the virtual filesystem.
     async def execute(self, args: list[str], input_data: str = "") -> tuple[str, str, int]:
-        # Try to get uptime from /proc/uptime
         uptime_content = self.fs.get_content("/proc/uptime")
         if not uptime_content:
-            uptime_seconds = 3600.0  # Fallback
+            uptime_seconds = 3600.0
         else:
             try:
                 uptime_seconds = float(uptime_content.split()[0])
             except (ValueError, IndexError):
                 uptime_seconds = 3600.0
 
-        # Format: 10:45:01 up 1:23, 1 user, load average: 0.05, 0.03, 0.05
         current_time = time.strftime("%H:%M:%S")
         hours = int(uptime_seconds // 3600)
         minutes = int((uptime_seconds % 3600) // 60)

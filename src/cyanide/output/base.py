@@ -26,7 +26,6 @@ class OutputPlugin(ABC):
     def stop(self):
         """Stop the background worker thread and flush the queue."""
         self.running = False
-        # Block until queue is empty or timeout
         start_time = time.time()
         while not self.queue.empty() and time.time() - start_time < 5.0:
             time.sleep(0.1)
@@ -39,19 +38,16 @@ class OutputPlugin(ABC):
         try:
             self.queue.put_nowait(event)
         except queue.Full:
-            # Drop event if queue is full to prevent memory exhaustion
             pass
 
     def _worker_loop(self):
         """Background thread loop to pull events and construct batches if necessary."""
         while self.running or not self.queue.empty():
             try:
-                # Use a timeout so we can periodically check self.running
                 event = self.queue.get(timeout=1.0)
                 try:
                     self.write(event)
                 except Exception:
-                    # Specific plugins should handle their own logging of write failures
                     pass
                 finally:
                     self.queue.task_done()

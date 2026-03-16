@@ -37,7 +37,6 @@ class YumCommand(Command):
             if not clean_pkgs:
                 return "Loaded plugins: fastestmirror\nNo packages provided.\n", "", 0
 
-            # Audit / Log installations
             if subcommand == "install":
                 for pkg in clean_pkgs:
                     if self.fs.stats:

@@ -11,16 +11,12 @@ class SecurityRuleEngine:
 
     # Function 135: Initializes the class instance and its attributes.
     def __init__(self):
-        # Format: (Regex Pattern, Severity, Description, TechniqueID, Confidence)
-        # Severity: LOW=1, MEDIUM=2, HIGH=3, CRITICAL=4
-        # Confidence: 0.0-1.0 (Probability of malicious intent)
         self.rules = self._load_rules()
         self.compiled_rules = self._compile_rules()
 
     # Function 136: Performs operations related to load rules.
     def _load_rules(self) -> List[dict]:
         return [
-            # --- Privilege Escalation (T1548) ---
             {
                 "category": "privesc",
                 "pattern": r"\bsudo\s+su\b",
@@ -45,7 +41,6 @@ class SecurityRuleEngine:
                 "technique": "T1548.001",
                 "confidence": 0.9,
             },
-            # --- Credential Access (T1003, T1552) ---
             {
                 "category": "cred_access",
                 "pattern": r"/etc/shadow",
@@ -70,7 +65,6 @@ class SecurityRuleEngine:
                 "technique": "T1552.001",
                 "confidence": 0.8,
             },
-            # --- Persistence (T1546, T1053) ---
             {
                 "category": "persistence",
                 "pattern": r"echo\s+.*\s+>>\s+\.bashrc",
@@ -87,7 +81,6 @@ class SecurityRuleEngine:
                 "technique": "T1053.003",
                 "confidence": 0.9,
             },
-            # --- Reconnaissance (T1082, T1087) ---
             {
                 "category": "recon",
                 "pattern": r"\buname\s+-a",
@@ -120,7 +113,6 @@ class SecurityRuleEngine:
                 "technique": "T1033",
                 "confidence": 0.6,
             },
-            # --- Defense Evasion (T1070) ---
             {
                 "category": "defense_evasion",
                 "pattern": r"rm\s+/var/log",
@@ -137,7 +129,6 @@ class SecurityRuleEngine:
                 "technique": "T1070.003",
                 "confidence": 0.9,
             },
-            # --- Network/Download (T1105) ---
             {
                 "category": "command_c2",
                 "pattern": r"\bwget\b",
@@ -162,7 +153,6 @@ class SecurityRuleEngine:
                 "technique": "T1059",
                 "confidence": 0.95,
             },
-            # --- Additional Coverage (Gaps from Testing) ---
             {
                 "category": "privesc",
                 "pattern": r"\bsudo\s+-s\b",
@@ -203,7 +193,6 @@ class SecurityRuleEngine:
                 "technique": "T1059.004",
                 "confidence": 0.8,
             },
-            # --- New Rules (Fixing FNs) ---
             {
                 "category": "discovery",
                 "pattern": r"find\s+.*\s+-perm\s+(-4000|-u\+s)",
@@ -236,7 +225,6 @@ class SecurityRuleEngine:
                 "technique": "T1027",
                 "confidence": 0.95,
             },
-            # Generic obfuscation detection (backslash insertion)
             {
                 "category": "defense_evasion",
                 "pattern": r"\w+\\\w+",
@@ -251,7 +239,6 @@ class SecurityRuleEngine:
     def _compile_rules(self):
         compiled = []
         for rule in self.rules:
-            # We add a compiled regex object to the rule dict
             c_rule = rule.copy()
             c_rule["regex"] = re.compile(rule["pattern"], re.IGNORECASE)
             compiled.append(c_rule)
@@ -266,15 +253,12 @@ class SecurityRuleEngine:
         """
         matches = []
 
-        # 1. Regex Rules
         for rule in self.compiled_rules:
             if rule["regex"].search(command):
                 matches.append(rule)
 
-        # 2. Entropy Check
         entropy = self._calculate_entropy(command)
         if entropy > 4.5 and len(command) > 20:
-            # High entropy + sufficient length = likely obfuscated/encrypted
             matches.append(
                 {
                     "category": "obfuscation",
@@ -283,15 +267,13 @@ class SecurityRuleEngine:
                     "technique": "T1027",
                     "confidence": 0.85,
                     "description": f"High entropy command ({entropy:.2f})",
-                    "regex": None,  # Dummy
+                    "regex": None,
                 }
             )
 
         if not matches:
             return {"matched": False}
 
-        # Sort matches by (Confidence DESC, Severity DESC)
-        # Severity mapping
         sev_map = {"CRITICAL": 4, "HIGH": 3, "MEDIUM": 2, "LOW": 1}
 
         best_match = sorted(

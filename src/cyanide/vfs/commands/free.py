@@ -6,26 +6,20 @@ class FreeCommand(Command):
     async def execute(self, args, input_data=""):
         import random
 
-        # Base total memory (8GB by default)
         is_mb = "-m" in args
         total = 8192 if is_mb else 8388608
 
-        # Randomize used memory (20-60%)
         used_percent = random.uniform(0.2, 0.6)
         used = int(total * used_percent)
 
-        # Randomize shared (very low)
         shared = random.randint(10, 100) if is_mb else random.randint(10240, 102400)
 
-        # Randomize buff/cache (10-30%)
         buff_cache_percent = random.uniform(0.1, 0.3)
         buff_cache = int(total * buff_cache_percent)
 
-        # Calculate free and available
         free = total - used - buff_cache
-        available = total - used - (shared // 2)  # simplified linux available memory heuristic
+        available = total - used - (shared // 2)
 
-        # Swap (usually 2GB)
         swap_total = 2048 if is_mb else 2097152
         swap_used = random.randint(0, 100) if is_mb else random.randint(0, 102400)
         swap_free = swap_total - swap_used

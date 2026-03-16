@@ -20,12 +20,9 @@ class ChmodCommand(Command):
                     1,
                 )
 
-            # Simple mock: if numeric, update node.perm
             if mode.isdigit():
-                # ... simplified
                 node.perm = "-rwxrwxrwx" if mode == "777" else node.perm
             else:
-                # e.g. +x
                 if "+x" in mode:
                     p = list(node.perm)
                     p[3] = "x"

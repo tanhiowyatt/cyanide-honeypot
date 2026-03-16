@@ -25,7 +25,6 @@ class CommandAutoencoder(nn.Module):
 
         self.tokenizer = CharacterLevelTokenizer(max_length=input_dim)
 
-        # Encoder
         self.encoder = nn.Sequential(
             nn.Linear(input_dim, 256),
             nn.ReLU(),
@@ -37,7 +36,6 @@ class CommandAutoencoder(nn.Module):
             nn.ReLU(),
         )
 
-        # Decoder
         self.decoder = nn.Sequential(
             nn.Linear(latent_dim, 128),
             nn.ReLU(),
@@ -49,7 +47,6 @@ class CommandAutoencoder(nn.Module):
             nn.Sigmoid(),
         )
 
-        # Device management
         self.device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
         if torch.cuda.is_available():
             self.device = torch.device("cuda")
@@ -115,17 +112,13 @@ class CommandAutoencoder(nn.Module):
     @staticmethod
     def load(path):
         try:
-            # Legacy numpy global handling for secure load
             pass
 
-            # Secure load with weights_only=True (PyTorch 2.6+ default)
             try:
                 checkpoint = torch.load(path, map_location=torch.device("cpu"), weights_only=True)
             except Exception as e:
-                # Fallback for models with legacy formats or non-standard globals (like numpy scalars)
                 error_msg = str(e)
                 if "numpy.core.multiarray.scalar" in error_msg:
-                    # Known safe legacy global, load without warning
                     checkpoint = torch.load(
                         path, map_location=torch.device("cpu"), weights_only=False
                     )
@@ -144,8 +137,6 @@ class CommandAutoencoder(nn.Module):
             model.load_state_dict(checkpoint["model_state"])
             model.threshold = checkpoint.get("threshold", 0.05)
 
-            # Tokenizer is recreated in __init__ using input_dim (max_length)
-            # which is the current design of CharacterLevelTokenizer.
 
             model.to(model.device)
             model.eval()

@@ -22,7 +22,6 @@ class Plugin(OutputPlugin):
         self.database = config.get("database", "cyanide")
         self.table = config.get("table", "events")
 
-        # Security: Validate table name to prevent SQL Injection in f-string queries
         import re
 
         if not re.match(r"^[a-zA-Z0-9_]+$", self.table):
@@ -76,4 +75,4 @@ class Plugin(OutputPlugin):
             cursor.close()
         except Exception as e:
             logging.error(f"[MySQL] Write failure: {e}")
-            self.conn = None  # Force reconnect next time
+            self.conn = None

@@ -20,9 +20,7 @@ class CatCommand(Command):
         output = ""
         for arg in args:
             if "*" in arg:
-                # Very basic wildcard handling for flag*
                 if "flag" in arg:
-                    # Look for flag in cwd
                     files = self.fs.list_dir(self.emulator.cwd)
                     for f in files:
                         if "flag" in f:

@@ -19,16 +19,14 @@ class Plugin(OutputPlugin):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     def write(self, event: Dict[str, Any]):
-        # Construct GELF dictionary
         gelf = {
             "version": "1.1",
             "host": event.get("session", "cyanide_sensor"),
             "short_message": event.get("eventid", "cyanide_event"),
             "timestamp": event.get("timestamp"),
-            "level": 6,  # Informational
+            "level": 6,
         }
 
-        # Add all other fields as additional GELF fields (starting with _)
         for k, v in event.items():
             if k not in ["timestamp", "session", "eventid"]:
                 if isinstance(v, (dict, list)):
@@ -37,7 +35,6 @@ class Plugin(OutputPlugin):
                     gelf[f"_{k}"] = v
 
         payload = json.dumps(gelf).encode("utf-8")
-        # Compress if large
         if len(payload) > 512:
             payload = zlib.compress(payload)
 

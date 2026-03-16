@@ -11,7 +11,7 @@ try:
 
     LIBVIRT_AVAILABLE = True
 except ImportError:
-    libvirt = None  # type: ignore
+    libvirt = None
     LIBVIRT_AVAILABLE = False
 
 
@@ -50,15 +50,13 @@ class LibvirtPool:
         self.conn = None
         self._connect()
 
-        # State tracking
         self.vms: Dict[str, dict] = (
             {}
-        )  # vm_id -> {"state": "ready|leased|rebuilding", "ip": ..., "last_used": ...}
-        self.leases: Dict[str, Lease] = {}  # session_id -> Lease
+        )
+        self.leases: Dict[str, Lease] = {}
 
         self.lock = asyncio.Lock()
 
-        # Start background tasks
         self._bg_tasks: List[asyncio.Task] = []
 
     def _connect(self):
@@ -107,18 +105,14 @@ class LibvirtPool:
     def _get_domain_ip(self, dom) -> Optional[str]:
         if self.use_nat:
             return str(self.nat_public_ip)
-        # In a real implementation this would query the guest agent or lease file
-        # For simplicity we might assume a static mapping or query it
         return "127.0.0.1"
 
     async def reserve_target(self, session_id: str, protocol: str) -> Optional[Lease]:
         """Reserve a VM for a session."""
         async with self.lock:
-            # Find a ready VM
             ready_vms = [vid for vid, v in self.vms.items() if v["state"] == "ready"]
 
             if not ready_vms:
-                # Need to provision a new one if below max_vms
                 if len(self.vms) < self.max_vms:
                     new_vm_id = f"{self.guest_tag}-{len(self.vms) + 1}"
                     await self._provision_vm(new_vm_id)
@@ -155,7 +149,6 @@ class LibvirtPool:
             if lease.vm_id in self.vms:
                 logger.info(f"Releasing VM {lease.vm_id} from session {lease.session_id}")
                 self.vms[lease.vm_id]["state"] = "rebuilding"
-                # Schedule rebuild/revert in background to not block
                 asyncio.create_task(self._rebuild_vm(lease.vm_id))
 
     async def _provision_vm(self, vm_id: str):
@@ -167,10 +160,8 @@ class LibvirtPool:
             "last_used": time.time(),
         }
 
-        # Simulate libvirt provisioning
         if self.conn:
             try:
-                # In actual implementation: read self.config['guest_config'] XML, replace names, call defineXML, create
                 pass
             except Exception as e:
                 logger.error(f"Failed to provision {vm_id}: {e}")
@@ -183,12 +174,10 @@ class LibvirtPool:
         logger.info(f"Rebuilding/Reverting VM: {vm_id}")
         if self.conn:
             try:
-                # Implementation: lookup domain, destroy, revertToSnapshot, create
                 dom = self.conn.lookupByName(vm_id)
                 if dom.isActive():
                     dom.destroy()
                 if self.save_snapshots:
-                    # try to revert to a predefined snapshot
                     pass
                 dom.create()
             except Exception as e:
@@ -207,10 +196,8 @@ class LibvirtPool:
             async with self.lock:
                 for vm_id, v in list(
                     self.vms.items()
-                ):  # wrap in list to allow mutation if evicting
+                ):
                     if v["state"] == "ready":
-                        # Check if it actually responds on SSH/Telnet ports
-                        # Evict or restart if dead
                         pass
 
     async def _recycle_loop(self):

@@ -8,16 +8,13 @@ class TouchCommand(Command):
             return "", "touch: missing file operand\n", 1
 
         for arg in args:
-            # Ignore flags for now
             if arg.startswith("-"):
                 continue
 
             path = self.emulator.resolve_path(arg)
             if self.fs.exists(path):
-                # Update timestamp (fake)
                 pass
             else:
-                # Create empty file
                 if self.fs.mkfile(path, content="", owner=self.username) is None:
                     return (
                         "",

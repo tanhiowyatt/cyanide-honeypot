@@ -21,10 +21,9 @@ def load_config(path: Path = Path("configs/app.yaml")):
     """Load and normalized configuration from YAML file and .env."""
     _CONFIG_EVENTS.clear()
 
-    # Load .env file
     env_path = Path("configs/.env")
     if not env_path.exists():
-        env_path = Path(".env")  # Fallback to root .env
+        env_path = Path(".env")
 
     _CONFIG_EVENTS.append(
         {
@@ -49,7 +48,6 @@ def load_config(path: Path = Path("configs/app.yaml")):
         except Exception as e:
             logger.error(f"Error loading config {path}: {e}")
     else:
-        # Check for example file as fallback if main doesn't exist?
         logger.warning(f"Config file not found at {path}, using .env and defaults.")
 
     def apply_env_overrides(data: dict, prefix: str = "CYANIDE_") -> dict:
@@ -80,14 +78,12 @@ def load_config(path: Path = Path("configs/app.yaml")):
 
             remainder = env_key[len(prefix) :].lower()
 
-            # 1. Exact top-level match (e.g., CYANIDE_USERS)
             if remainder in data:
                 data[remainder] = parse_val(env_val)
                 override_count += 1
                 override_keys.append(remainder)
                 continue
 
-            # 2. Schema-guided nested match
             mapped = False
             for top_key, top_val in data.items():
                 if remainder.startswith(top_key + "_"):
@@ -96,8 +92,6 @@ def load_config(path: Path = Path("configs/app.yaml")):
 
                     sub_remainder = remainder[len(top_key) + 1 :]
 
-                    # 2a. Direct match (e.g. CYANIDE_SSH_ENABLED -> data['ssh']['enabled'])
-                    # OR match with sub_key (e.g. CYANIDE_OUTPUT_SQLITE_ENABLED)
                     if sub_remainder in top_val:
                         top_val[sub_remainder] = parse_val(env_val)
                         override_count += 1
@@ -105,7 +99,6 @@ def load_config(path: Path = Path("configs/app.yaml")):
                         mapped = True
                         break
 
-                    # 2b. Third level match (e.g., CYANIDE_OUTPUT_SLACK_ENABLED)
                     for sub_key, sub_val in top_val.items():
                         if sub_remainder.startswith(sub_key + "_"):
                             if isinstance(sub_val, dict):
@@ -131,7 +124,6 @@ def load_config(path: Path = Path("configs/app.yaml")):
     config_data = apply_env_overrides(config_data)
 
     def get_val(section, key, env_var, default, cast=str):
-        # Priority: Env (Full Name) > Env (Simplified) > Config File (Nested) > Default
         full_env_var = f"CYANIDE_{section.upper()}__" + (
             env_var if env_var not in (key.upper(), key) else key.upper()
         )
@@ -159,10 +151,7 @@ def load_config(path: Path = Path("configs/app.yaml")):
                 return default
         return val
 
-    # Convert to dictionary structure expected by CyanideServer
     config = {
-        # Hostname priority: CYANIDE_HONEYPOT__HOSTNAME > CYANIDE_CORE__HOSTNAME
-        #   > app.yaml > HOSTNAME (Docker sets this to container ID) > default
         "hostname": (
             os.getenv("CYANIDE_HONEYPOT__HOSTNAME")
             or os.getenv("CYANIDE_CORE__HOSTNAME")
@@ -171,7 +160,7 @@ def load_config(path: Path = Path("configs/app.yaml")):
         ),
         "log_path": get_val(
             "logging", "directory", "LOG_PATH", "var/log/cyanide"
-        ),  # Backwards compatibility logic
+        ),
         "logging": {
             "directory": get_val("logging", "directory", "LOGGING_DIRECTORY", "var/log/cyanide"),
             "logtype": get_val("logging", "logtype", "LOGGING_LOGTYPE", "plain"),
@@ -397,7 +386,6 @@ def load_config(path: Path = Path("configs/app.yaml")):
         "users": [],
     }
 
-    # User loading
     users_env = os.getenv("CYANIDE_AUTH__USERS") or os.getenv("CYANIDE_USERS")
     env_users_loaded = False
     if users_env:
@@ -409,7 +397,6 @@ def load_config(path: Path = Path("configs/app.yaml")):
         except json.JSONDecodeError:
             logger.error(f"Failed to parse users env var: {users_env}")
 
-    # Load users from YAML only if ENV didn't provide them
     if not env_users_loaded:
         yaml_users = config_data.get("users", [])
         if isinstance(yaml_users, list):
@@ -440,10 +427,8 @@ def load_config(path: Path = Path("configs/app.yaml")):
         "paths": ["var/log/cyanide", "var/lib/cyanide", "var/quarantine"],
     }
 
-    # Load Custom Profile metadata
     config["custom_profile"] = config_data.get("custom_profile", {})
 
-    # Rate Limit
     config["rate_limit"] = {
         "max_connections_per_minute": get_val(
             "rate_limit", "max_connections_per_minute", "RATE_LIMIT_MAX", 60, int
@@ -451,7 +436,6 @@ def load_config(path: Path = Path("configs/app.yaml")):
         "ban_duration": get_val("rate_limit", "ban_duration", "RATE_LIMIT_BAN", 3600, int),
     }
 
-    # OpenTelemetry
     config["otel"] = {
         "enabled": get_val("otel", "enabled", "OTEL_ENABLED", False, bool),
         "exporter": get_val("otel", "exporter", "OTEL_EXPORTER", "otlp"),
@@ -460,13 +444,11 @@ def load_config(path: Path = Path("configs/app.yaml")):
         ),
     }
 
-    # VirusTotal
     config["virustotal"] = {
         "enabled": get_val("virustotal", "enabled", "VIRUSTOTAL_ENABLED", False, bool),
         "api_key": get_val("virustotal", "api_key", "VIRUSTOTAL_API_KEY", None),
     }
 
-    # Output Plugins
     config["output"] = config_data.get("output", {})
 
     try:
@@ -477,5 +459,4 @@ def load_config(path: Path = Path("configs/app.yaml")):
         return model.model_dump()
     except ValidationError as e:
         _CONFIG_EVENTS.append({"action": "config_schema_error", "data": {"error": str(e)}})
-        # Re-raise to let the caller handle it (e.g., main.py or tests)
         raise

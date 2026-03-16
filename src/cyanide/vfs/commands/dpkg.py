@@ -34,7 +34,6 @@ class DpkgCommand(Command):
 
                 pkg_name = target.split("/")[-1].replace(".deb", "")
 
-                # Log to stats if available
                 if self.fs.stats:
                     self.fs.stats.on_file_op("download", f"dpkg://{pkg_name}")
 

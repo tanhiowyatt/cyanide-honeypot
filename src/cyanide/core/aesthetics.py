@@ -1,11 +1,10 @@
 from pathlib import Path
 
-# ANSI Color Codes
-CLR_LOGO = "\033[1;37m"  # Bold White
-CLR_USER = "\033[1;32m"  # Bold Green
-CLR_SEP = "\033[0m"  # Reset
-CLR_KEY = "\033[1;33m"  # Bold Yellow
-CLR_VAL = "\033[0m"  # Reset
+CLR_LOGO = "\033[1;37m"
+CLR_USER = "\033[1;32m"
+CLR_SEP = "\033[0m"
+CLR_KEY = "\033[1;33m"
+CLR_VAL = "\033[0m"
 RESET = "\033[0m"
 
 
@@ -15,12 +14,10 @@ def print_startup_banner(config, resolved_profile: str = ""):
     root_dir = Path.cwd()
     logo_path = root_dir / "assets/branding/logo.txt"
 
-    # 1. Read Logo ASCII
     logo_lines = []
     logo_raw = []
     if logo_path.exists():
         try:
-            # Wrap logo in color
             logo_raw = logo_path.read_text().splitlines()
             logo_lines = [f"{CLR_LOGO}{line}{RESET}" for line in logo_raw]
         except Exception:
@@ -29,7 +26,6 @@ def print_startup_banner(config, resolved_profile: str = ""):
     if not logo_lines or not config:
         return
 
-    # 2. Gather Dynamic Information
     hostname = config.get("hostname", "cyanide")
     user_host = f"{CLR_USER}root@{hostname}{RESET}"
     separator = f"{CLR_SEP}{'-' * (len('root@') + len(hostname))}{RESET}"
@@ -54,24 +50,17 @@ def print_startup_banner(config, resolved_profile: str = ""):
         f"{fmt_key('Quarantine:')} {config.get('quarantine_max_size_mb', 500)}MB max",
     ]
 
-    # 3. Print Side-by-Side
-    print()  # Leading newline
+    print()
     max_h = max(len(logo_lines), len(info_fields))
-    # Calculate width based on raw logo lines (without ANSI codes)
-    # Use the already loaded logo_raw instead of re-reading from disk
     logo_width = max(len(line) for line in logo_raw) + 4 if logo_raw else 0
 
     for i in range(max_h):
         r_part = info_fields[i] if i < len(info_fields) else ""
 
-        # When padding l_part, we need to account for hidden ANSI characters
-        # Or just pad the raw line and then wrap in color?
-        # Let's pad the raw line for correct alignment
         raw_l = logo_raw[i] if i < len(logo_raw) else ""
         padded_raw_l = f"{raw_l:<{logo_width}}"
-        # Wrap the whole padded part in logo color
         colored_l = f"{CLR_LOGO}{padded_raw_l}{RESET}"
 
         print(f"{colored_l}{r_part}")
 
-    print()  # Trailing newline
+    print()

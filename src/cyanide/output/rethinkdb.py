@@ -33,7 +33,6 @@ class Plugin(OutputPlugin):
                 password=self.password,
             )
 
-            # Check database and table existence
             if self.database not in r.db_list().run(self.conn):
                 r.db_create(self.database).run(self.conn)
             if self.table not in r.db(self.database).table_list().run(self.conn):

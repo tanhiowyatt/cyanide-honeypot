@@ -55,7 +55,6 @@ class TCPProxy:
         """Handle incoming client connection."""
         src_ip, src_port = client_writer.get_extra_info("peername")
 
-        # Log connection
         logger.info(
             json.dumps(
                 {
@@ -74,7 +73,6 @@ class TCPProxy:
         lease = None
 
         try:
-            # Determine target
             if self.pool:
                 lease = await self.pool.reserve_target(session_id, self.protocol_name)
                 if lease:
@@ -99,7 +97,6 @@ class TCPProxy:
             return
 
         try:
-            # Create tasks for bidirectional forwarding
             client_to_target = asyncio.create_task(
                 self.forward(client_reader, target_writer, "client_to_target")
             )
@@ -107,16 +104,13 @@ class TCPProxy:
                 self.forward(target_reader, client_writer, "target_to_client")
             )
 
-            # Wait for either to finish
             done, pending = await asyncio.wait(
                 [client_to_target, target_to_client], return_when=asyncio.FIRST_COMPLETED
             )
 
-            # Cancel pending
             for task in pending:
                 task.cancel()
         finally:
-            # Close connections
             target_writer.close()
             client_writer.close()
             await target_writer.wait_closed()
@@ -134,9 +128,6 @@ class TCPProxy:
                 if not data:
                     break
 
-                # Monitor/Log payload
-                # Log only first 50 bytes to avoid spam, or specific patterns?
-                # For monitoring, we might want full capture (hex encoded).
                 if len(data) > 0:
                     logger.info(
                         json.dumps(

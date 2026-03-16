@@ -24,23 +24,18 @@ class CyanideLogger:
         }
         self.plugins = self._load_plugins()
 
-        # 1. Server Log - System events, errors, lifecycle
         self.server_log = self._setup_logger("cyanide_server", self.log_dir / "cyanide-server.json")
 
-        # 2. FS Log - Hacker activity: commands, auth, file uploads, TTY
         self.fs_log = self._setup_logger("cyanide_fs", self.log_dir / "cyanide-fs.json")
 
-        # 3. ML Log - Detailed ML verdicts and thoughts
         self.ml_log = self._setup_logger("cyanide_ml", self.log_dir / "cyanide-ml.json")
 
-        # 4. Stats Log - Periodic snapshots
         self.stats_log = self._setup_logger("cyanide_stats", self.log_dir / "cyanide-stats.json")
 
     def _load_plugins(self):
         plugins = []
         import importlib
 
-        # Whitelist of allowed output plugins based on existing files in cyanide.output
         VALID_PLUGINS = {
             "dshield",
             "elasticsearch",
@@ -54,7 +49,6 @@ class CyanideLogger:
             "splunk_hec",
             "sqlite",
             "syslog",
-            # Testing/Mocking
             "mock_plugin",
             "failer",
         }
@@ -88,9 +82,6 @@ class CyanideLogger:
         logger = logging.getLogger(name)
         logger.setLevel(logging.INFO)
 
-        # In case this logger already has handlers (e.g. from previous tests),
-        # we check if they point to the same file. To keep it simple and robust,
-        # we'll just clear existing handlers and add the new one.
         if logger.handlers:
             for existing_handler in logger.handlers[:]:
                 logger.removeHandler(existing_handler)
@@ -117,7 +108,6 @@ class CyanideLogger:
                 max_bytes = rotation.get("max_bytes", 10485760)
                 handler = RotatingFileHandler(path, maxBytes=max_bytes, backupCount=backup_count)
             else:
-                # Fallback
                 handler = logging.FileHandler(path)
         else:
             handler = logging.FileHandler(path)
@@ -130,7 +120,6 @@ class CyanideLogger:
     # Function 102: Handles event logging and telemetry.
     def _get_target_logger(self, event_type):
         """Routes event target logger based on event_type."""
-        # Hacker activity (FS/Interactive)
         if event_type in [
             "command.input",
             "auth",
@@ -147,13 +136,10 @@ class CyanideLogger:
             "sftp_op",
         ]:
             return self.fs_log
-        # ML Logic
         if event_type.startswith("ml_") or event_type == "ml_thought":
             return self.ml_log
-        # Statistics
         if event_type == "stats":
             return self.stats_log
-        # Default: Server system log
         return self.server_log
 
     # Function 103: Handles event logging and telemetry.
@@ -173,5 +159,4 @@ class CyanideLogger:
         logger.info(json.dumps(entry))
 
         for plugin in self.plugins:
-            # We copy the entry to prevent one plugin from accidentally mutating it
             plugin.emit(entry.copy())

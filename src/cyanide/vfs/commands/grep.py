@@ -6,7 +6,6 @@ from .base import Command
 class GrepCommand(Command):
     # Function 236: Executes the 'grep' command logic within the virtual filesystem.
     async def execute(self, args, input_data=""):
-        # Improved grep: supports -i, -v
         parser = argparse.ArgumentParser(prog="grep", add_help=False)
         parser.add_argument("-i", "--ignore-case", action="store_true")
         parser.add_argument("-v", "--invert-match", action="store_true")
@@ -34,7 +33,6 @@ class GrepCommand(Command):
             for f in files:
                 path = self.emulator.resolve_path(f)
                 if recursive and self.fs.is_dir(path):
-                    # Recursive search
                     all_files = self._get_recursive_files(path)
                     for filepath in all_files:
                         content = self.fs.get_content(filepath)

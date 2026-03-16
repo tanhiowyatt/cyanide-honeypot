@@ -6,15 +6,14 @@ import sys
 import warnings
 from pathlib import Path
 
-# Add src to path if not already there
 parent_dir = str(Path(__file__).resolve().parent.parent)
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
-from pydantic import ValidationError  # noqa: E402
+from pydantic import ValidationError
 
-from cyanide.core import CyanideServer, load_config  # noqa: E402
-from cyanide.core.aesthetics import print_startup_banner  # noqa: E402
+from cyanide.core import CyanideServer, load_config
+from cyanide.core.aesthetics import print_startup_banner
 
 CONFIG_PATH = Path("configs/app.yaml")
 
@@ -28,12 +27,9 @@ def is_docker():
 # Function 107: Main entry point for the application execution.
 async def async_main():
     """Main entry point."""
-    # Silence noise ONLY if NOT in Docker
     if not is_docker():
         warnings.filterwarnings("ignore")
         logging.getLogger("asyncssh").setLevel(logging.ERROR)
-        # We don't silence everything here to allow debugging if needed,
-        # but we hide the known noisy ones.
 
     try:
         config = load_config(CONFIG_PATH)
@@ -44,7 +40,6 @@ async def async_main():
     server = CyanideServer(config)
     print_startup_banner(config, resolved_profile=server.resolved_profile_name)
 
-    # Handle signals gracefully
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, lambda: sys.exit(0))

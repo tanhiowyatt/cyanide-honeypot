@@ -30,7 +30,6 @@ class RmdirCommand(Command):
                     1,
                 )
 
-            # Remove
             node.parent.remove_child(node.name)
 
         return "", "", 0

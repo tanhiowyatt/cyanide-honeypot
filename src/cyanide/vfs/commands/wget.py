@@ -31,13 +31,11 @@ class WgetCommand(Command):
         if not parsed.url:
             return "", "wget: missing URL\n", 1
 
-        # Security: Validate URL
         is_valid, error, resolved_ip = self.validate_url(parsed.url)
         if not is_valid:
             return "", f"wget: error: {error}\n", 1
 
         url = parsed.url
-        # Use host for request to allow SNI/SSL verification
         request_url = url
         headers: Dict[str, str] = {}
         filename = parsed.output_document
@@ -46,7 +44,6 @@ class WgetCommand(Command):
             if not filename:
                 filename = "index.html"
 
-        # Resolve target path in FakeFS
         full_path = self.emulator.resolve_path(filename)
 
         output_msg = ""
@@ -67,12 +64,9 @@ class WgetCommand(Command):
 
                     content = await resp.read()
 
-            # 1. Save to Quarantine (Real FS)
             if self.emulator.quarantine_callback:
                 self.emulator.quarantine_callback(filename, content)
 
-            # 2. Save to Fake FS
-            # We save actual content to support `cat` later
             if (
                 self.fs.mkfile(
                     full_path,

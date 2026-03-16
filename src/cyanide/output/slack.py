@@ -27,7 +27,6 @@ class Plugin(OutputPlugin):
         eventid = event.get("eventid", "unknown")
         data = {k: v for k, v in event.items() if k not in ["timestamp", "session", "eventid"]}
 
-        # Simple formatting
         text = f"*{self.username} Event*: `{eventid}`\n*Session*: `{session}`\n*Details*: ```{json.dumps(data, indent=2)}```"
 
         payload = {"username": self.username, "icon_emoji": self.icon_emoji, "text": text}

@@ -13,7 +13,6 @@ class WhoCommand(Command):
         Returns:
             tuple: (user_list, empty_stderr, 0)
         """
-        # Fake output compatible with typical 'who'
         now = time.strftime("%Y-%m-%d %H:%M")
         return (
             f"root     pts/0        {now} (192.168.1.50)\nadmin    pts/1        {now} (10.0.0.2)\n",

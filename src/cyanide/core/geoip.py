@@ -47,12 +47,10 @@ class GeoIP:
                                 "lon": data.get("lon"),
                                 "org": data.get("org"),
                             }
-                            # Update Cache
                             if len(self.cache) < self.cache_size:
                                 self.cache[ip] = result
                             return result
         except Exception:
-            # Silently fail to avoid log spam on network issues
             pass
 
         return None

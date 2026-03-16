@@ -14,12 +14,10 @@ class AliasCommand(Command):
         rc = 0
         for arg in args:
             if "=" in arg:
-                # Setting an alias
                 parts = arg.split("=", 1)
                 name = parts[0]
                 value = parts[1]
 
-                # Remove quotes if they wrap the whole value
                 if len(value) >= 2 and (
                     (value.startswith("'") and value.endswith("'"))
                     or (value.startswith('"') and value.endswith('"'))
@@ -28,7 +26,6 @@ class AliasCommand(Command):
 
                 self.emulator.aliases[name] = value
             else:
-                # Querying an alias
                 if arg in self.emulator.aliases:
                     output += f"alias {arg}='{self.emulator.aliases[arg]}'\n"
                 else:

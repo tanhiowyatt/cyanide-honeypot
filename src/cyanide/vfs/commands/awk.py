@@ -29,15 +29,11 @@ class AwkCommand(Command):
         if not program:
             return "", "awk: no program specified\n", 1
 
-        # Simple {print $1, $2} parser
-        # We only support {print ...} right now
         print_match = re.search(r"\{print\s+(.*)\}", program)
         if not print_match:
-            # If it doesn't match our simple pattern, just return empty (standard behavior for unsupported scripts)
             return "", "", 0
 
         fields_to_print = []
-        # Support $0, $1, $2...
         raw_fields = [f.strip() for f in print_match.group(1).split(",")]
         for f in raw_fields:
             if f.startswith("$"):
@@ -63,7 +59,6 @@ class AwkCommand(Command):
             if not line.strip():
                 continue
 
-            # Split by separator (handle multiple spaces if separator is space)
             if separator == " ":
                 fields = line.split()
             else:

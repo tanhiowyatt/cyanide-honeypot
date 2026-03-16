@@ -46,7 +46,6 @@ class VTScanner:
 
         try:
             async with aiohttp.ClientSession() as session:
-                # 1. Check if already analyzed
                 url = f"{self.base_url}/files/{sha256}"
                 async with session.get(url, headers=self.headers) as resp:
                     if resp.status == 200:
@@ -57,7 +56,6 @@ class VTScanner:
                         result["malicious"] = stats.get("malicious", 0)
                         result["suspicious"] = stats.get("suspicious", 0)
 
-                        # Get popular threat label
                         threat_info = attributes.get("popular_threat_classification", {})
                         if threat_info:
                             result["label"] = threat_info.get("suggested_threat_label", "detected")
@@ -69,9 +67,6 @@ class VTScanner:
                         return result
 
                     elif resp.status == 404:
-                        # 2. Upload if not found
-                        # Note: This is simplified. VT suggests getting an upload URL for files > 32MB
-                        # Assuming honeypot payloads are small.
                         result["status"] = "uploaded_queued"
 
                         upload_url = f"{self.base_url}/files"
@@ -83,8 +78,6 @@ class VTScanner:
                         ) as upload_resp:
                             if upload_resp.status == 200:
                                 upload_data = await upload_resp.json()
-                                # We get an analysis ID, not the result immediately.
-                                # To get result we must poll. For now, we just log valid upload.
                                 analysis_id = upload_data.get("data", {}).get("id")
                                 result["analysis_id"] = analysis_id
                                 result["info"] = "File uploaded to VirusTotal. Analysis pending."
@@ -97,7 +90,7 @@ class VTScanner:
                             self.logger.log_event(
                                 "system", "vt_error", {"status": 401, "message": "Unauthorized"}
                             )
-                        self.enabled = False  # Disable invalid key
+                        self.enabled = False
                         return None
                     elif resp.status == 429:
                         if self.logger:

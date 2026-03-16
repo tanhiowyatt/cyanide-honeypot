@@ -17,7 +17,6 @@ class Plugin(OutputPlugin):
         self.db_path = config.get("path", "var/log/cyanide/events.sqlite")
         self.table = config.get("table", "events")
 
-        # Security: Validate table name to prevent SQL Injection in f-string queries
         import re
 
         if not re.match(r"^[a-zA-Z0-9_]+$", self.table):

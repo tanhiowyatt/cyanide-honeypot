@@ -15,7 +15,7 @@ class TelnetHandler:
 
     # Function 195: Initializes the class instance and its attributes.
     def __init__(self, server, config: Dict):
-        self.server = server  # Reference to CyanideServer for shared resources if needed
+        self.server = server
         self.config = config
         self.logger = server.logger
         self.services = server.services
@@ -28,7 +28,6 @@ class TelnetHandler:
         """Handle Telnet connection."""
         src_ip, src_port = writer.get_extra_info("peername")
 
-        # Session Management
         accepted, reason = self.services.session.can_accept(src_ip)
         if not accepted:
             self.logger.log_event(
@@ -48,7 +47,6 @@ class TelnetHandler:
         session_id = self.services.session.register_session(src_ip, "telnet")
         start_time = time.time()
 
-        # Setup TTY logging
         folder_name = f"telnet_{src_ip}_{session_id}"
         log_dir = Path(self.logger.log_dir) / "tty" / folder_name
         log_dir.mkdir(parents=True, exist_ok=True)
@@ -87,17 +85,14 @@ class TelnetHandler:
                 },
             )
 
-            # Analytics: GeoIP
             asyncio.create_task(self.services.analytics.log_geoip(session_id, src_ip, "telnet"))
             self.stats.on_connect("telnet", src_ip)
 
-            # Create VFS early — we need it for /etc/issue banner and will reuse it for the shell
             fs = self.server.get_filesystem(session_id, src_ip)
 
             bytes_in = 0
             bytes_out = 0
 
-            # --- /etc/issue pre-login banner (read from VFS, just like a real Linux host) ---
             try:
                 from cyanide.vfs.nodes import File as VFSFile
 
@@ -106,12 +101,10 @@ class TelnetHandler:
                 if issue_node and isinstance(issue_node, VFSFile):
                     raw = issue_node.content or ""
                 else:
-                    # Fallback: build from profile metadata
                     profile = getattr(self.server, "profile", {}) or {}
                     os_name = profile.get("os_name", "")
                     raw = f"{os_name} \\n \\l\n" if os_name else ""
                 if raw:
-                    # Expand /etc/issue escape sequences: \n = hostname, \l = tty line
                     raw = raw.replace("\\n", hostname).replace("\\l", "pts/0")
                     banner = raw.replace("\n", "\r\n")
                     if not banner.endswith("\r\n"):
@@ -121,9 +114,8 @@ class TelnetHandler:
                     bytes_out += len(bs)
                     await writer.drain()
             except Exception:
-                pass  # silently skip banner if unreadable
+                pass
 
-            # Simple auth
             try:
                 writer.write(b"login: ")
                 bytes_out += len(b"login: ")
@@ -148,7 +140,6 @@ class TelnetHandler:
                 )
                 return False, bytes_in, bytes_out, "", False
 
-            # Auth Check
             success = self.server.is_valid_user(username, password)
             self.stats.on_auth("telnet", src_ip, username, password, success)
 
@@ -204,9 +195,7 @@ class TelnetHandler:
             self.stats.on_traffic("out", len(prompt_bs))
             self.server._log_tty(
                 tty_state, "OUT", prompt
-            )  # Keep using server's helper for now or move it?
-            # It's better to duplicate/move _log_tty to a util or base class.
-            # For now, let's copy the logic or assume server has it. Server has it.
+            )
 
             await writer.drain()
 
@@ -232,7 +221,6 @@ class TelnetHandler:
                     if cmd in ("exit", "logout"):
                         break
 
-                    # Log & Analytics
                     self.stats.on_command("telnet", src_ip, username, cmd)
                     self.logger.log_event(
                         session_id,
@@ -247,12 +235,10 @@ class TelnetHandler:
                         },
                     )
 
-                    # ML
                     self.services.analytics.analyze_command(
                         cmd, username, src_ip, session_id, "telnet"
                     )
 
-                    # Jitter
                     await asyncio.sleep(random.uniform(0.05, 0.3))
 
                     stdout, stderr, rc = await shell.execute(cmd)
@@ -268,7 +254,6 @@ class TelnetHandler:
                     self.stats.on_traffic("out", len(resp))
                     self.server._log_tty(tty_state, "OUT", resp)
 
-                    # Update prompt
                     cwd = shell.cwd
                     if cwd.startswith(f"/home/{username}"):
                         cwd = cwd.replace(f"/home/{username}", "~", 1)

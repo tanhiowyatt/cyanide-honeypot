@@ -20,7 +20,6 @@ class LsCommand(Command):
         long_format = False
         target_path = self.emulator.cwd
 
-        # Parse flags
         paths = []
         for arg in args:
             if arg.startswith("-"):
@@ -44,22 +43,19 @@ class LsCommand(Command):
             )
 
         if not isinstance(target_node, Directory):
-            # It's a file, list it
             if long_format:
                 return self._format_long([(target_node, target_node.name)]), "", 0
             return f"{target_node.name}\n", "", 0
 
-        # It's a directory
         children_names = sorted(target_node.children.keys())
         nodes_to_list = []
 
         if show_all:
-            # Use tuples (node, display_name) to handle . and ..
             nodes_to_list.append((target_node, "."))
             if target_node.parent:
                 nodes_to_list.append((target_node.parent, ".."))
             else:
-                nodes_to_list.append((target_node, ".."))  # root parent is root
+                nodes_to_list.append((target_node, ".."))
 
         for name in children_names:
             if not show_all and name.startswith("."):
@@ -79,7 +75,6 @@ class LsCommand(Command):
         """Format listing in long format (-l)."""
         output = ""
         for node, name in nodes_with_names:
-            # Fake date format
             date_str = node.mtime.strftime("%b %d %H:%M")
 
             output += f"{node.perm} 1 {node.owner} {node.group} {node.size} {date_str} {name}\n"

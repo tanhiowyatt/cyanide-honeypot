@@ -41,7 +41,6 @@ class CyanideSSHClientConnection(asyncssh.SSHClientConnection):
             session_id: Unique session ID.
             src_ip: Attacker's source IP.
         """
-        # server_channel_factory: function to create the Server-side proxy channel
         self.server_channel_factory = server_channel_factory
         self.session_id = session_id
         self.src_ip = src_ip
@@ -126,7 +125,6 @@ class CyanideSSHServer(asyncssh.SSHServer):
             logger.error(f"Error bridging session: {e}")
             return False
 
-        # We return the Session object directly
         return ProxyServerSession(
             self.pool, self.target_host, self.target_port, self.session_id, self.src_ip, self.fs
         )
@@ -169,7 +167,6 @@ class ProxyServerSession(asyncssh.SSHServerSession):
     def connection_made(self, chan):
         """Called when attacker channel is open."""
         self._chan = chan
-        # Start connection to backend
         asyncio.create_task(self._connect_backend())
 
     # Function 158: Performs operations related to connect backend.
@@ -199,14 +196,11 @@ class ProxyServerSession(asyncssh.SSHServerSession):
                 logger.error("Channel not available during backend connect")
                 return
 
-            # Wait for shell or exec request
             await self.request_event.wait()
 
             req_type, args = self.pending_request
             command = args if req_type == "exec" else None
 
-            # Create session on backend
-            # We pass a callback that creates the Client-Side Proxy Channel
             self.backend_channel, _ = await self.backend_conn.create_session(
                 lambda: ProxyClientChannel(self.session_id, self.src_ip, self._chan),
                 command=command,
@@ -214,7 +208,6 @@ class ProxyServerSession(asyncssh.SSHServerSession):
                 term_size=self._chan.get_terminal_size(),
             )
 
-            # Start flush loop for our side (Attacker -> Backend)
             self.send_task = asyncio.create_task(self._send_loop())
 
         except Exception as e:
@@ -227,7 +220,7 @@ class ProxyServerSession(asyncssh.SSHServerSession):
         """Handle data from attacker."""
         log_entry = {
             "timestamp": datetime.datetime.now().isoformat(),
-            "direction": "out",  # Attacker -> Proxy -> Backend
+            "direction": "out",
             "session_id": self.session_id,
             "src_ip": self.src_ip,
             "data_hex": data.hex() if isinstance(data, bytes) else data.encode().hex(),
@@ -253,7 +246,6 @@ class ProxyServerSession(asyncssh.SSHServerSession):
     # Function 162: Performs operations related to pty requested.
     def pty_requested(self, term_type, term_size, term_modes):
         """Handle PTY request."""
-        # Handled by get_terminal_type in _connect_backend
         return True
 
     # Function 163: Performs operations related to terminal window resized.
@@ -343,7 +335,7 @@ class ProxyClientChannel(asyncssh.SSHClientSession):
         """Handle data from backend."""
         log_entry = {
             "timestamp": datetime.datetime.now().isoformat(),
-            "direction": "in",  # Backend -> Proxy -> Attacker
+            "direction": "in",
             "session_id": self.session_id,
             "data_hex": data.hex() if isinstance(data, bytes) else data.encode().hex(),
             "data_len": len(data),
@@ -372,7 +364,6 @@ class ProxyClientChannel(asyncssh.SSHClientSession):
             while True:
                 if self.buffer and self.peer_channel:
                     await asyncio.sleep(0.5)
-                    # If data is str, join as str. If bytes, as bytes.
                     if self.buffer:
                         chunk = self.buffer[0]
                         for b in self.buffer[1:]:
@@ -392,7 +383,6 @@ async def main():
     dst_port = 2222
     listen_port = 2220
 
-    # Generate host key in memory instead of saving to disk
     from asyncssh import generate_private_key
 
     key = generate_private_key("ssh-rsa")

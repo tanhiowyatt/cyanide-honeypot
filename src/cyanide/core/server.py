@@ -33,7 +33,6 @@ from .telemetry import setup_telemetry
 from .vm_pool import VMPool
 from .vt_scanner import VTScanner
 
-# Protocol Handlers
 
 
 class ServiceRegistry:
@@ -59,7 +58,6 @@ class CyanideServer:
         """Initialize honeypot server with configuration."""
         self.config = config
 
-        # --- 1. Initialize Logger First ---
         try:
             log_dir = config.get("logging", {}).get("directory", "var/log/cyanide")
             logging_config = config.get("logging", {})
@@ -70,16 +68,13 @@ class CyanideServer:
                 "system", "service_init_status", {"message": "Logger initialized"}
             )
 
-            # Flush buffered config events
             for ev in _CONFIG_EVENTS:
                 self.logger.log_event("system", ev["action"], ev["data"])
 
         except Exception as e:
-            # Last resort print if logger fails
             logging.error(f"[!] CyanideServer: Failed to initialize Logger: {e}")
             raise
 
-        # --- 2. Stats & Telemetry ---
         try:
             self.stats = StatsManager()
             self.tracer = setup_telemetry("cyanide-honeypot", config.get("otel", {}), "1.0.0")
@@ -90,13 +85,8 @@ class CyanideServer:
             self.logger.log_event(
                 "system", "service_init_error", {"service": "Telemetry", "error": str(e)}
             )
-            # We might not want to crash just because telemetry failed, but Telemetry returns a proxy
-            # and may have already logged via standard logging.
-            # However, the previous logic raised, so we stay consistent.
             raise
 
-        # --- Initialize Services ---
-        # 1. Session Manager
         try:
             session_mgr = SessionManager(config, self.logger)
             self.logger.log_event(
@@ -108,11 +98,8 @@ class CyanideServer:
             )
             raise
 
-        # 2. Quarantine Service
         try:
             quarantine_svc = QuarantineService(config, self.logger)
-            # Pass VTScanner to QuarantineService
-            # VirusTotal
             vt_key = config.get("virustotal", {}).get("api_key", "")
             self.vt_scanner = VTScanner(vt_key, self.logger)
             quarantine_svc.set_scanner(self.vt_scanner)
@@ -128,7 +115,6 @@ class CyanideServer:
             )
             raise
 
-        # 3. Analytics Service
         try:
             analytics_svc = AnalyticsService(config, self.logger)
             self.logger.log_event(
@@ -140,7 +126,6 @@ class CyanideServer:
             )
             raise
 
-        # Register Services (telnet=None initially due to circular dependency)
         try:
             self.services = ServiceRegistry(
                 session=session_mgr,
@@ -158,10 +143,8 @@ class CyanideServer:
             )
             raise
 
-        # 4. Telnet Handler
         telnet_handler = TelnetHandler(self, config)
 
-        # Update declared telnet service
         self.services.telnet = telnet_handler
 
         self.ssh_server: Any = None
@@ -174,14 +157,11 @@ class CyanideServer:
 
         self.users = config.get("users", [])
 
-        # OS Profile and VFS root
         from .fs_utils import resolve_os_profile
 
         self.os_profile = resolve_os_profile(config.get("os_profile", "ubuntu"))
         self.vfs_root = config.get("vfs_root", "configs/profiles")
 
-        # Initialize initial profile from VFS (lazy or explicitly here)
-        # We create a dummy FS to grab the context metadata for banners
         try:
             temp_fs = FakeFilesystem(
                 os_profile=self.os_profile, root_dir=self.vfs_root, users=self.users
@@ -233,7 +213,6 @@ class CyanideServer:
     def _fs_audit_hook(self, action, path, session_id="unknown", src_ip="unknown"):
         """Callback for filesystem auditing."""
         try:
-            # Honeytoken Tripwires
             HONEYTOKENS = [
                 "/home/admin/secret.conf",
                 "/home/admin/flag.txt",
@@ -286,7 +265,6 @@ class CyanideServer:
                 session_id, "error", {"message": f"Error initializing new VFS: {e}"}
             )
             traceback.print_exc()
-            # Absolute fallback
             return FakeFilesystem(audit_callback=audit_hook, stats=self.stats)
 
     # Function 47: Handles event logging and telemetry.
@@ -330,7 +308,6 @@ class CyanideServer:
                 self.services.quarantine.save_file(filename, content, session_id, src_ip)
             )
         except RuntimeError:
-            # No loop running
             pass
 
     # Function 49: Handles event logging and telemetry.
@@ -339,11 +316,9 @@ class CyanideServer:
         if direction != "OUT" and not hasattr(session_obj, "tty_log_path_jsonl"):
             return
 
-        # 1. JSONL Log
         if hasattr(session_obj, "tty_log_path_jsonl"):
             try:
                 now = time.time()
-                # Convert to string if bytes
                 if isinstance(data, bytes):
                     readable_data = data.decode("utf-8", "ignore")
                 else:
@@ -356,7 +331,6 @@ class CyanideServer:
                     "system", "tty_error", {"message": f"Error saving JSONL TTY: {e}"}
                 )
 
-        # 2. Timing + TypeScript Log (scriptreplay)
         if hasattr(session_obj, "tty_log_path") and hasattr(session_obj, "tty_timing_path"):
             try:
                 now = time.time()
@@ -387,9 +361,7 @@ class CyanideServer:
         # Function 51: Handles incoming request events.
         async def handle_request(reader, writer):
             try:
-                # 1. Read full request headers robustly
                 try:
-                    # Limit headers to 16KB to prevent DoS
                     header_data = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), timeout=3.0)
                 except (
                     asyncio.IncompleteReadError,
@@ -415,7 +387,6 @@ class CyanideServer:
                     writer.close()
                     return
 
-                # Route path
                 content = ""
                 content_type = "text/plain"
 
@@ -466,7 +437,6 @@ class CyanideServer:
                 try:
                     writer.write(response)
                     await writer.drain()
-                    # Give CI networking a moment to catch up
                     await asyncio.sleep(0.05)
                 except Exception:
                     pass
@@ -475,7 +445,6 @@ class CyanideServer:
             finally:
                 try:
                     writer.close()
-                    # We don't wait_closed here to prevent hanging if the peer is unresponsive
                 except Exception:
                     pass
 
@@ -496,12 +465,10 @@ class CyanideServer:
         data_dir = Path(ssh_conf.get("data_path", "var/lib/cyanide/keys"))
         data_dir.mkdir(parents=True, exist_ok=True)
 
-        # Key types to support (Mimicry)
         key_types = ["ssh-rsa", "ssh-ed25519", "ecdsa-sha2-nistp256"]
         loaded_keys = []
 
         for ktype in key_types:
-            # Filename based on type (e.g., host_key_ssh-rsa)
             key_path = data_dir / f"host_key_{ktype}"
 
             if key_path.exists():
@@ -521,7 +488,6 @@ class CyanideServer:
                     )
                     key = asyncssh.generate_private_key(ktype)
                     key.write_private_key(str(key_path))
-                    # Set permissions to 600
                     key_path.chmod(0o600)
                     loaded_keys.append(key)
                 except Exception as e:
@@ -530,7 +496,6 @@ class CyanideServer:
                     )
 
         if not loaded_keys:
-            # Emergency fallback: generate a non-persistent RSA key
             return [asyncssh.generate_private_key("ssh-rsa")]
 
         return loaded_keys
@@ -538,13 +503,10 @@ class CyanideServer:
     # Function 52: Performs operations related to start.
     async def start(self):
         """Start all honeypot services and enter main event loop."""
-        # Start Async Logger
         await self.async_logger.start()
 
-        # Load/Persistence SSH Host Keys
         host_keys = self._get_host_keys()
 
-        # Initialize VM Pool if needed
         if self.config.get("pool", {}).get("enabled", False):
             self.logger.log_event("system", "service_starting", {"service": "vm_pool"})
             self.vm_pool = VMPool(self.config)
@@ -565,19 +527,16 @@ class CyanideServer:
                     "system", "service_error", {"service": "vm_pool", "error": str(e)}
                 )
         else:
-            self.vm_pool = VMPool(self.config)  # Create dummy or disabled logic
+            self.vm_pool = VMPool(self.config)
             self.background_tasks.append(asyncio.create_task(self.vm_pool.start()))
 
-        # Start SSH Server
         ssh_conf = self.config.get("ssh", {})
         ssh_enabled = ssh_conf.get("enabled", True)
         if ssh_enabled:
             ssh_port = ssh_conf["port"]
-            backend_mode = ssh_conf.get("backend_mode", "emulated")  # emulated, proxy, pool
+            backend_mode = ssh_conf.get("backend_mode", "emulated")
 
             if backend_mode == "emulated":
-                # Anti-Fingerprinting
-                # Use override from config if available, otherwise use banner from profile
                 chosen_version = ssh_conf.get("version") or self.profile.get("ssh_banner", "")
                 if chosen_version.startswith("SSH-2.0-"):
                     chosen_version = chosen_version[8:]
@@ -586,10 +545,9 @@ class CyanideServer:
                     "system", "system_status", {"message": f"SSH Banner: {chosen_version}"}
                 )
 
-                # Helper for rekey limit parsing
                 def parse_rekey(limit: str) -> int:
                     if not limit:
-                        return 1024**3  # 1G
+                        return 1024**3
                     limit = str(limit).upper()
                     if limit.endswith("G"):
                         return int(limit[:-1]) * 1024**3
@@ -599,7 +557,6 @@ class CyanideServer:
                         return int(limit[:-1]) * 1024
                     return int(limit)
 
-                # Build algorithm lists if configured
                 async def cyanide_process_factory(process):
                     """Expert AsyncSSH process factory handling shell and exec."""
                     try:
@@ -613,7 +570,6 @@ class CyanideServer:
 
                         honeypot_ref = factory.honeypot
 
-                        # 1. Get/Create session
                         sess = factory.sessions.get(factory.conn_id)
                         if not sess:
                             sess = factory.session_requested()
@@ -622,21 +578,16 @@ class CyanideServer:
                             process.exit(1)
                             return
 
-                        # Cross-link process and session
                         sess.process = process
                         sess.channel = process.channel
 
                         if not command:
-                            # Shell request
                             if not sess.shell:
                                 sess.shell_requested()
 
-                            # Start session (sends Banner + Prompt)
                             sess.session_started()
                             await process.stdout.drain()
 
-                            # 2. Expert stdin loop
-                            # AsyncSSH uses process.stdin for the loop when process_factory is active
                             async for data in process.stdin:
                                 try:
                                     sess.data_received(data, None)
@@ -655,7 +606,6 @@ class CyanideServer:
 
                             sess.session_ended()
                         else:
-                            # Log command
                             honeypot_ref.logger.log_event(
                                 "conn_" + factory.conn_id,
                                 "command.input",
@@ -667,7 +617,6 @@ class CyanideServer:
                                     "client_version": factory.client_version,
                                 },
                             )
-                            # Use async exec logic
                             await sess._async_exec(command)
                     except Exception as e:
                         print(f"DEBUG: CyanideProcess EXCEPTION: {e}", flush=True)
@@ -681,7 +630,6 @@ class CyanideServer:
                     "server_version": chosen_version,
                     "process_factory": cyanide_process_factory,
                     "encoding": "utf-8",
-                    # Cyanide-grade security limits
                     "login_timeout": ssh_conf.get("login_timeout", 60),
                     "rekey_bytes": parse_rekey(ssh_conf.get("rekey_limit", "1G")),
                 }
@@ -693,7 +641,6 @@ class CyanideServer:
 
                 ssh_opts["allow_scp"] = True
 
-                # Map user config keys to asyncssh.listen kwargs
                 algo_map = {
                     "kex_algs": "kex_algs",
                     "ciphers": "encryption_algs",
@@ -726,11 +673,6 @@ class CyanideServer:
                     },
                 )
             elif backend_mode == "proxy" or backend_mode == "pool":
-                # Use TCP Proxy for pure SSH monitoring (simplest approach for "Pure Proxy" request)
-                # Or use the specific SSH Proxy implementation if we want to dissect packets?
-                # The user asked for "pure telnet and ssh proxy with monitoring"
-                # Our TCPProxy monitors data.
-                # If pool, use selector.
                 t_host = ssh_conf.get("target_host", "127.0.0.1")
                 t_port = ssh_conf.get("target_port", 22)
                 ssh_proxy = TCPProxy(
@@ -752,7 +694,6 @@ class CyanideServer:
                     },
                 )
 
-        # Start Telnet Server
         telnet_conf = self.config.get("telnet", {})
         telnet_enabled = telnet_conf.get("enabled", False)
         if telnet_enabled:
@@ -792,7 +733,6 @@ class CyanideServer:
                     },
                 )
 
-        # Start SMTP Server
         smtp_conf = self.config.get("smtp", {})
         if smtp_conf.get("enabled", False):
             smtp_port = int(smtp_conf.get("port", 25))
@@ -835,16 +775,12 @@ class CyanideServer:
                     "system", "smtp_error", {"message": f"Failed to start SMTP Service: {e}"}
                 )
 
-        # Start Metrics Server
         self.background_tasks.append(asyncio.create_task(self.start_metrics_server()))
 
-        # Start Cleanup Task
         self.background_tasks.append(asyncio.create_task(self._cleanup_loop()))
 
-        # Start Stats Logging Task
         self.background_tasks.append(asyncio.create_task(self._stats_logging_loop()))
 
-        # Keep running
         try:
             self._stop_event = asyncio.Event()
             await self._stop_event.wait()
@@ -856,7 +792,6 @@ class CyanideServer:
         """Stop all services."""
         self.logger.log_event("system", "system_status", {"message": "Stopping CyanideServer..."})
 
-        # Cancel background tasks
         for task in self.background_tasks:
             task.cancel()
 
@@ -886,19 +821,16 @@ class CyanideServer:
         )
         while True:
             try:
-                # Log current stats
                 stats_data = self.stats.get_stats()
                 self.logger.log_event("system", "stats", stats_data)
             except Exception as e:
                 self.logger.log_event("system", "error", {"message": f"Stats Logging Error: {e}"})
 
-            # Log every 60 seconds (or 10 for demo/dev if needed, but 60 is standard)
             await asyncio.sleep(60)
 
     # Function 55: Performs operations related to cleanup loop.
     async def _cleanup_loop(self):
         """Background task for automatic file cleanup."""
-        # Initial delay to let things start
         await asyncio.sleep(60)
 
         from .cleanup import CleanupManager
@@ -956,7 +888,6 @@ class SSHServerFactory(asyncssh.SSHServer):
         self.src_port = 0
         self.fs = None
         self.conn_id = str(uuid.uuid4())[:8]
-        # Set max auth tries (Cyanide style)
         ssh_conf = self.honeypot.config.get("ssh", {})
         self._max_auth_tries = ssh_conf.get("auth_tries", 3)
         self.sessions: dict[str, Any] = {}
@@ -971,7 +902,6 @@ class SSHServerFactory(asyncssh.SSHServer):
         self.src_ip = conn.get_extra_info("peername")[0]
         self.src_port = conn.get_extra_info("peername")[1]
 
-        # Initialize session filesystem
         self.fs = self.honeypot.get_filesystem(
             session_id="conn_" + self.conn_id, src_ip=self.src_ip
         )
@@ -984,8 +914,6 @@ class SSHServerFactory(asyncssh.SSHServer):
             {"src_ip": self.src_ip, "src_port": self.src_port},
         )
 
-        # Negotiated algorithms are available after handshake,
-        # but for now we log those that the transport already established.
         algos = conn.get_extra_info("algorithms") or {}
 
         self.honeypot.logger.log_event(
@@ -1007,7 +935,6 @@ class SSHServerFactory(asyncssh.SSHServer):
             span.set_attribute("net.peer.ip", self.src_ip)
             span.set_attribute("net.peer.port", self.src_port)
 
-            # Check limits via SessionManager
             accepted, reason = self.honeypot.services.session.can_accept(self.src_ip)
             if not accepted:
                 span.set_attribute("error", True)
@@ -1030,14 +957,12 @@ class SSHServerFactory(asyncssh.SSHServer):
 
             self.honeypot.services.session.register_session(self.src_ip, "ssh")
 
-            # Create a filesystem instance for this connection with IP context
             self.fs = self.honeypot.get_filesystem(
                 session_id="conn_" + self.conn_id, src_ip=self.src_ip
             )
 
     # Function 59: Performs operations related to connection lost.
     def connection_lost(self, exc):
-        # Transport level cleanup - handle leaks here
         self.honeypot.services.session.unregister_session(self.src_ip)
         self.honeypot.logger.log_event(
             "conn_" + self.conn_id,
@@ -1072,7 +997,7 @@ class SSHServerFactory(asyncssh.SSHServer):
 
     # Function 61: Performs operations related to validate password.
     def validate_password(self, username, password):
-        self.username = username  # store for process_factory
+        self.username = username
         success = self.honeypot.is_valid_user(username, password)
         self.honeypot.stats.on_auth("ssh", self.src_ip, username, password, success)
         self.honeypot.logger.log_event(
@@ -1137,7 +1062,6 @@ class SSHServerFactory(asyncssh.SSHServer):
         target_port = dest_port
         mode = "allowed"
 
-        # Policy Router
         port_str = str(dest_port)
         if ssh_conf.get("forward_redirect_enabled"):
             rules = ssh_conf.get("forward_redirect_rules", {})
@@ -1231,10 +1155,7 @@ class SSHSession(asyncssh.SSHServerSession):
         self.buf = ""
         self.shell: Optional[ShellEmulator] = None
         self.last_log_time = time.time()
-        # Prompt is dynamic now
-        # Biometrics
-        self.keystrokes: List[float] = []  # List of timestamps
-        # Traffic
+        self.keystrokes: List[float] = []
         self.bytes_in = 0
         self.bytes_out = 0
         self.process: Optional[asyncssh.SSHServerProcess] = None
@@ -1250,13 +1171,9 @@ class SSHSession(asyncssh.SSHServerSession):
 
         self.honeypot.stats.on_connect("ssh", self.src_ip)
 
-        # GeoIP Lookup
         asyncio.create_task(self.honeypot.log_geoip(self.session_id, self.src_ip, "ssh"))
 
-        # SSH Fingerprinting
 
-        # SSH Fingerprinting
-        # Extract negotiated algorithms (HASSH-like data)
         try:
             # Function 66: Retrieves val data.
             def get_val(key, internal_attr=None, decode=False):
@@ -1271,10 +1188,8 @@ class SSHSession(asyncssh.SSHServerSession):
                         return val
                 return "unknown"
 
-            # KEX
             kex = get_val("kex")
 
-            # Key Algo
             key_algo = get_val("server_host_key")
             if key_algo == "unknown":
                 hk = getattr(conn, "_server_host_key", None)
@@ -1285,18 +1200,14 @@ class SSHSession(asyncssh.SSHServerSession):
                         else str(hk.algorithm)
                     )
 
-            # Cipher
             cipher = get_val("cipher", "_enc_alg_cs", decode=True)
             if cipher == "unknown":
-                # Chacha20 poly1305 often stored in mac field in local implementations
                 mac_raw = getattr(conn, "_mac_alg_cs", None)
                 if mac_raw and b"chacha" in mac_raw:
                     cipher = mac_raw.decode()
 
-            # MAC
             mac = get_val("mac", "_mac_alg_cs", decode=True)
 
-            # Compression
             compression = get_val("compression", "_compress_alg_cs", decode=True)
             if compression == "unknown":
                 if getattr(conn, "_compress_after_auth", False):
@@ -1371,7 +1282,6 @@ class SSHSession(asyncssh.SSHServerSession):
             },
         )
         if self.shell:
-            # Propagate
             pass
 
     # Function 69: Performs operations related to shell requested.
@@ -1405,7 +1315,6 @@ class SSHSession(asyncssh.SSHServerSession):
     def session_started(self):
         self._ensure_tty_log()
         if self.shell:
-            # Banner/MOTD for authenticity
             banner = (
                 "\r\n"
                 "Welcome to Ubuntu 22.04.1 LTS (GNU/Linux 5.15.0-41-generic x86_64)\r\n"
@@ -1426,13 +1335,11 @@ class SSHSession(asyncssh.SSHServerSession):
         if not data:
             return
 
-        # If we have an asyncssh process (with encoding), use its stdout
         if hasattr(self, "process") and self.process and hasattr(self.process, "stdout"):
             if isinstance(data, bytes):
                 data = data.decode("utf-8", "ignore")
             self.process.stdout.write(data)
         else:
-            # Fallback to raw channel (bytes)
             if isinstance(data, str):
                 encoded = data.encode("utf-8")
             else:
@@ -1443,7 +1350,6 @@ class SSHSession(asyncssh.SSHServerSession):
 
     # Function 73: Handles event logging and telemetry.
     def _ensure_tty_log(self):
-        # Setup TTY logging (scriptreplay + JSONL)
         folder_name = f"ssh_{self.src_ip}_{self.session_id}"
         log_dir = Path(self.honeypot.logger.log_dir) / "tty" / folder_name
         log_dir.mkdir(parents=True, exist_ok=True)
@@ -1453,7 +1359,6 @@ class SSHSession(asyncssh.SSHServerSession):
         self.tty_timing_path = log_dir / f"{folder_name}.time"
         self.last_log_time = time.time()
 
-        # Touch files
         open(self.tty_log_path_jsonl, "a").close()
         open(self.tty_log_path, "a").close()
         open(self.tty_timing_path, "a").close()
@@ -1465,7 +1370,6 @@ class SSHSession(asyncssh.SSHServerSession):
     # Function 75: Performs operations related to env received.
     def env_received(self, name, value):
         """Log client environment variables."""
-        # Convert bytes to str if needed
         if isinstance(name, bytes):
             name = name.decode("utf-8", "ignore")
         if isinstance(value, bytes):
@@ -1492,14 +1396,11 @@ class SSHSession(asyncssh.SSHServerSession):
             if isinstance(data, bytes):
                 data = data.decode("utf-8", errors="ignore")
 
-            # Detect paste (multiple characters in one packet including newline)
             is_paste = len(data) > 1 and ("\n" in data or "\r" in data)
 
-            # Record Keystroke Timing
             now = time.time()
             self.keystrokes.append(now)
 
-            # Enhanced Randomized Jitter
             if random.random() < 0.1:
                 delay = random.uniform(0.5, 1.5)
             else:
@@ -1507,7 +1408,6 @@ class SSHSession(asyncssh.SSHServerSession):
 
             await asyncio.sleep(delay)
 
-            # Traffic
             self.bytes_in += len(data)
             self.honeypot.stats.on_traffic("in", len(data))
 
@@ -1527,7 +1427,6 @@ class SSHSession(asyncssh.SSHServerSession):
 
                 cmd = line.strip()
 
-                # Calculate inter-keystroke timing for this command
                 is_bot = is_paste
                 if not is_bot and len(self.keystrokes) > 1:
                     delays = [
@@ -1536,11 +1435,9 @@ class SSHSession(asyncssh.SSHServerSession):
                     ]
                     if delays:
                         avg_delay = sum(delays) / len(delays)
-                        # Threshold < 10ms (0.01s)
                         if avg_delay < 0.01:
                             is_bot = True
 
-                # Reset keystrokes for next command
                 self.keystrokes = []
 
                 if not cmd:
@@ -1554,7 +1451,6 @@ class SSHSession(asyncssh.SSHServerSession):
                     asyncio.create_task(self._close_session())
                     return
 
-                # IOC/C2 Detection
                 import re
 
                 ipv4_regex = r"\b(?:\d{1,3}\.){3}\d{1,3}\b"
@@ -1589,7 +1485,6 @@ class SSHSession(asyncssh.SSHServerSession):
                     },
                 )
 
-                # ML Analysis with bot detection
                 if (
                     self.honeypot.services.analytics.ml_enabled
                     and self.honeypot.services.analytics.ml_pipeline
@@ -1603,8 +1498,7 @@ class SSHSession(asyncssh.SSHServerSession):
                 else:
                     stdout, stderr, rc = "", "Shell not initialized\n", 1
 
-                # Confusion Metric
-                if rc == 127:  # Command not found
+                if rc == 127:
                     self.honeypot.stats.on_command_not_found(cmd)
                     self.honeypot.logger.log_event(
                         self.session_id,
@@ -1665,7 +1559,6 @@ class SSHSession(asyncssh.SSHServerSession):
             traceback.print_exc(file=sys.stdout)
             sys.stdout.flush()
 
-        # ML Analysis with bot detection
         if (
             self.honeypot.services.analytics.ml_enabled
             and self.honeypot.services.analytics.ml_pipeline
@@ -1674,7 +1567,6 @@ class SSHSession(asyncssh.SSHServerSession):
                 command, self.username, self.src_ip, self.session_id, "ssh"
             )
 
-        # Rsync Interception (SCP is now handled by SFTP subsystem)
         ssh_conf = self.honeypot.config.get("ssh", {})
         try:
             if command.startswith("rsync ") and ssh_conf.get("rsync_enabled", True):
@@ -1706,7 +1598,6 @@ class SSHSession(asyncssh.SSHServerSession):
     async def _async_exec(self, command):
         try:
             print(f"DEBUG _async_exec START: {command!r} fs={self.fs!r}", flush=True)
-            # Use Factory
             self._ensure_tty_log()
             fs = self.fs
             if not fs:
@@ -1726,7 +1617,6 @@ class SSHSession(asyncssh.SSHServerSession):
             stdout, stderr, rc = await shell.execute(command)
             print(f"DEBUG _async_exec done rc={rc} stdout={stdout!r}", flush=True)
 
-            # Use process if available, otherwise fallback to channel
             if self.process:
                 if isinstance(stdout, bytes):
                     stdout_str = stdout.decode("utf-8", "ignore")
@@ -1754,7 +1644,6 @@ class SSHSession(asyncssh.SSHServerSession):
                 self._log_tty("OUT", stderr)
 
             if self.process:
-                # completion of cyanide_process_factory signals end, but we can set exit status
                 self.process.exit(rc)
             else:
                 self.channel.write_eof()
@@ -1778,7 +1667,6 @@ class SSHSession(asyncssh.SSHServerSession):
     def session_ended(self):
         duration = time.time() - self.start_time
 
-        # Calculate Biometrics
         keystroke_stats = {}
         if len(self.keystrokes) > 1:
             diffs = []
@@ -1787,7 +1675,6 @@ class SSHSession(asyncssh.SSHServerSession):
 
             avg = sum(diffs) / len(diffs)
 
-            # Variance
             variance = sum((x - avg) ** 2 for x in diffs) / len(diffs)
             std_dev = variance**0.5
 

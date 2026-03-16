@@ -6,7 +6,6 @@ from typing import Any, Dict, Optional
 # Function 281: Provides dynamic content for virtual files.
 def uptime_provider(context: Any, args: Optional[Dict[str, Any]] = None) -> str:
     """Returns a realistic uptime string."""
-    # Start time is some random point in the past
     start_time = time.time() - random.randint(3600, 86400 * 30)
     uptime_sec = time.time() - start_time
     idle_sec = uptime_sec * 0.9
@@ -35,7 +34,6 @@ power management:
 """
 
 
-# Registry of available providers
 PROVIDERS = {
     "uptime_provider": uptime_provider,
     "cpuinfo_provider": cpuinfo_provider,

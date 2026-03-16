@@ -17,13 +17,9 @@ class QuarantineService:
         self.quarantine_path = Path(config.get("quarantine_path", "var/quarantine"))
         self.quarantine_path.mkdir(parents=True, exist_ok=True)
 
-        # Quarantine quota (in MB)
         self.quarantine_max_mb = config.get("quarantine_max_size_mb", 500)
 
-        # VirusTotal Integration (optional dependency)
-        # We'll inject the scanner or handle it here if needed.
-        # For now, let's keep it simple and maybe handle scanning via callback or event
-        self.vt_scanner = None  # Set by server if needed
+        self.vt_scanner = None
 
     # Function 187: Configures or sets scanner.
     def set_scanner(self, scanner):
@@ -38,7 +34,6 @@ class QuarantineService:
         Returns the path to the saved file or None.
         """
         try:
-            # Check Disk Quota
             current_size = sum(
                 f.stat().st_size for f in self.quarantine_path.glob("*") if f.is_file()
             )
@@ -61,11 +56,9 @@ class QuarantineService:
             with open(target_path, "wb") as f:
                 f.write(content)
 
-            # Trigger Async Analysis if scanner is available
             if self.vt_scanner and self.vt_scanner.enabled:
                 asyncio.create_task(self._scan_and_log(filename, content, session_id, src_ip))
 
-            # Trigger ML Analysis
             if hasattr(self.logger, "services") and hasattr(self.logger.services, "analytics"):
                 self.logger.services.analytics.analyze_file(filename, content, session_id, src_ip)
             return str(target_path)

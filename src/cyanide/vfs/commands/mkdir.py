@@ -26,7 +26,6 @@ class MkdirCommand(Command):
                     1,
                 )
 
-            # Simplified logic for -p
             if parsed.parents:
                 self.fs.mkdir_p(resolved, owner=self.username)
             else:

@@ -12,7 +12,6 @@ class StatsManager:
         self.active_sessions = 0
         self.total_sessions = 0
 
-        # Counters
         self.ips: Counter[str] = Counter()
         self.unique_ips: set[str] = set()
         self.usernames: Counter[str] = Counter()
@@ -25,21 +24,16 @@ class StatsManager:
         self.dns_cache_hits = 0
         self.dns_cache_misses = 0
 
-        # Confusion
         self.command_not_found = 0
 
-        # Detailed Auth
         self.auth_success = 0
         self.auth_failures = 0
 
-        # File Operations
-        self.file_ops: Counter[str] = Counter()  # e.g., {"read": 10, "write": 5, "delete": 2}
+        self.file_ops: Counter[str] = Counter()
 
-        # Traffic
         self.bytes_in = 0
         self.bytes_out = 0
 
-        # Recent activity (FIFO)
         self.recent_commands: List[Dict[str, Any]] = []
         self.max_recent = 50
 
@@ -68,7 +62,6 @@ class StatsManager:
     def on_command(self, protocol: str, ip: str, username: str, command: str):
         self.commands[command] += 1
 
-        # Add to recent
         self.recent_commands.insert(
             0,
             {
@@ -153,7 +146,6 @@ class StatsManager:
         lines.append("# TYPE cyanide_uptime_seconds counter")
         lines.append(f"cyanide_uptime_seconds {int(time.time() - self.start_time)}")
 
-        # Auth
         lines.append("# HELP cyanide_auth_success_total Total successful login attempts")
         lines.append("# TYPE cyanide_auth_success_total counter")
         lines.append(f"cyanide_auth_success_total {self.auth_success}")
@@ -162,19 +154,16 @@ class StatsManager:
         lines.append("# TYPE cyanide_auth_failures_total counter")
         lines.append(f"cyanide_auth_failures_total {self.auth_failures}")
 
-        # Protocols
         lines.append("# HELP cyanide_protocols_total Total connections per protocol")
         lines.append("# TYPE cyanide_protocols_total counter")
         for proto, count in self.protocols.items():
             lines.append(f'cyanide_protocols_total{{protocol="{proto}"}} {count}')
 
-        # Honeytokens
         lines.append("# HELP cyanide_honeytoken_hits_total Total hits on honeytoken paths")
         lines.append("# TYPE cyanide_honeytoken_hits_total counter")
         for path, count in self.honeytoken_triggers.items():
             lines.append(f'cyanide_honeytoken_hits_total{{path="{path}"}} {count}')
 
-        # Malware
         lines.append("# HELP cyanide_malware_scans_total Total malware scans performed")
         lines.append("# TYPE cyanide_malware_scans_total counter")
         lines.append(f"cyanide_malware_scans_total {sum(self.malware_scans.values())}")
@@ -183,13 +172,11 @@ class StatsManager:
         lines.append("# TYPE cyanide_malicious_files_total counter")
         lines.append(f"cyanide_malicious_files_total {sum(self.malicious_files.values())}")
 
-        # File Ops
         lines.append("# HELP cyanide_file_ops_total Total filesystem operations by type")
         lines.append("# TYPE cyanide_file_ops_total counter")
         for op, count in self.file_ops.items():
             lines.append(f'cyanide_file_ops_total{{op="{op}"}} {count}')
 
-        # Traffic
         lines.append("# HELP cyanide_traffic_bytes_in_total Total inbound traffic in bytes")
         lines.append("# TYPE cyanide_traffic_bytes_in_total counter")
         lines.append(f"cyanide_traffic_bytes_in_total {self.bytes_in}")
@@ -198,12 +185,10 @@ class StatsManager:
         lines.append("# TYPE cyanide_traffic_bytes_out_total counter")
         lines.append(f"cyanide_traffic_bytes_out_total {self.bytes_out}")
 
-        # Confusion
         lines.append("# HELP cyanide_command_not_found_total Total count of commands not found")
         lines.append("# TYPE cyanide_command_not_found_total counter")
         lines.append(f"cyanide_command_not_found_total {self.command_not_found}")
 
-        # DNS Cache
         lines.append("# HELP cyanide_dns_cache_hits_total Total DNS cache hits")
         lines.append("# TYPE cyanide_dns_cache_hits_total counter")
         lines.append(f"cyanide_dns_cache_hits_total {self.dns_cache_hits}")

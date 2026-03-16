@@ -14,17 +14,16 @@ class SessionManager:
         self.max_sessions_per_ip = config.get("max_sessions_per_ip", 5)
         self.session_timeout = config.get("session_timeout", 300)
 
-        # Rate Limiting
         self.max_connections_per_minute = config.get("rate_limit", {}).get(
             "max_connections_per_minute", 60
         )
         self.ban_duration = config.get("rate_limit", {}).get("ban_duration", 3600)
 
         self.active_sessions = 0
-        self.sessions_per_ip: Dict[str, int] = {}  # Map of IP -> count
+        self.sessions_per_ip: Dict[str, int] = {}
 
-        self.banned_ips: Dict[str, float] = {}  # IP -> expiry_timestamp
-        self.connection_history: Dict[str, List[float]] = {}  # IP -> list of timestamps
+        self.banned_ips: Dict[str, float] = {}
+        self.connection_history: Dict[str, List[float]] = {}
         self.logger = logger
 
     # Function 191: Performs operations related to can accept.
@@ -33,17 +32,14 @@ class SessionManager:
         Check if a connection from IP can be accepted.
         Returns: (accepted, rejection_reason)
         """
-        # 1. Check Ban Status
         now = time.time()
         if ip in self.banned_ips:
             if now < self.banned_ips[ip]:
                 return False, "ip_banned"
             else:
-                del self.banned_ips[ip]  # Ban expired
+                del self.banned_ips[ip]
 
-        # 2. Rate Limiting (Token Bucket / Sliding Window)
         history = self.connection_history.get(ip, [])
-        # Remove old entries
         history = [t for t in history if now - t < 60]
         self.connection_history[ip] = history
 
@@ -56,10 +52,8 @@ class SessionManager:
             )
             return False, "rate_limit_exceeded (banned)"
 
-        # Record attempt (optimistic)
         self.connection_history[ip].append(now)
 
-        # 3. Concurrency Limits
         if self.active_sessions >= self.max_sessions:
             return False, "global_limit_reached"
 

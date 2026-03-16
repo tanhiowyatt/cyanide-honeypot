@@ -10,7 +10,6 @@ import yaml
 
 logger = logging.getLogger("cyanide.vfs.profile_loader")
 
-# In-memory thread-safe cache
 _MEMORY_CACHE: Dict[str, Dict[str, Any]] = {}
 _CACHE_LOCK = threading.Lock()
 
@@ -74,12 +73,9 @@ def load(profile_name: str, profiles_dir: Path) -> Dict[str, Any]:
     static_file = profiles_dir / profile_name / "static.yaml"
     compiled_file = profiles_dir / profile_name / COMPILED_FILE_NAME
 
-    # Always compute target hash to check against cache validity
-    # This ensures auto-invalidation if file is modified during dev
     target_hash = _compute_hash(base_file, static_file)
 
     with _CACHE_LOCK:
-        # 1. Try Memory Cache
         if profile_name in _MEMORY_CACHE:
             cached_data = _MEMORY_CACHE[profile_name]
             if (
@@ -89,7 +85,6 @@ def load(profile_name: str, profiles_dir: Path) -> Dict[str, Any]:
                 logger.debug(f"Profile '{profile_name}' loaded from memory cache.")
                 return cached_data
 
-        # 2. Try Disk Cache
         if compiled_file.exists():
             try:
                 with open(compiled_file, "rb") as f:
@@ -108,7 +103,6 @@ def load(profile_name: str, profiles_dir: Path) -> Dict[str, Any]:
                     f"Failed to load disk cache for '{profile_name}': {e}. Rebuilding..."
                 )
 
-        # 3. Cache Miss (Parse YAML)
         logger.info(f"Parsing YAML for profile '{profile_name}'...")
         parsed_data = _parse_yaml_profile(base_file, static_file)
 
@@ -121,10 +115,8 @@ def load(profile_name: str, profiles_dir: Path) -> Dict[str, Any]:
             "static": parsed_data["static"],
         }
 
-        # Save to Memory
         _MEMORY_CACHE[profile_name] = cache_entry
 
-        # Save to Disk
         try:
             compiled_file.parent.mkdir(parents=True, exist_ok=True)
             with open(compiled_file, "wb") as f:

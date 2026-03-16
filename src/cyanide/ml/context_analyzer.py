@@ -10,7 +10,6 @@ class ContextAnalyzer:
 
     # Function 122: Initializes the class instance and its attributes.
     def __init__(self):
-        # Whitelist - domains that reduce risk
         self.whitelist = {
             "github.com",
             "gitlab.com",
@@ -31,7 +30,6 @@ class ContextAnalyzer:
             "cloudflare.com",
         }
 
-        # Suspicious TLDs
         self.suspicious_tlds = {
             ".xyz",
             ".top",
@@ -50,7 +48,6 @@ class ContextAnalyzer:
             ".cn",
         }
 
-        # Suspicious keywords in URL
         self.url_keywords = {
             "malware",
             "exploit",
@@ -69,7 +66,6 @@ class ContextAnalyzer:
             "hack",
         }
 
-        # Sensitive Paths
         self.sensitive_paths = {
             "/etc/shadow": {"severity": "CRITICAL", "technique": "T1003.008"},
             "/etc/passwd": {"severity": "MEDIUM", "technique": "T1087.001"},
@@ -102,7 +98,6 @@ class ContextAnalyzer:
                 parsed = urlparse(url)
                 domain = parsed.netloc.split(":")[0]
 
-                # Check whitelist
                 is_safe = False
                 for safe_dom in self.whitelist:
                     if domain == safe_dom or domain.endswith("." + safe_dom):
@@ -111,19 +106,16 @@ class ContextAnalyzer:
                         break
 
                 if not is_safe:
-                    # Check IP address
                     if re.match(r"^\d+\.\d+\.\d+\.\d+$", domain):
                         risk_score += 0.4
                         flags.append(f"IP-based URL: {domain}")
 
-                    # Check TLD
                     for tld in self.suspicious_tlds:
                         if domain.endswith(tld):
                             risk_score += 0.5
                             flags.append(f"Suspicious TLD: {tld}")
                             break
 
-                    # Check keywords
                     for kw in self.url_keywords:
                         if kw in url.lower():
                             risk_score += 0.4
@@ -133,7 +125,6 @@ class ContextAnalyzer:
             except Exception:
                 continue
 
-        # Normalize score
         risk_score = max(0.0, min(1.0, risk_score))
         return {
             "has_url": True,
@@ -163,7 +154,6 @@ class ContextAnalyzer:
         if not matched_paths:
             return {"matched": False}
 
-        # Convert severity back to string
         rev_sev_map = {4: "CRITICAL", 3: "HIGH", 2: "MEDIUM", 1: "LOW"}
 
         return {

@@ -13,7 +13,7 @@ class RsyncHandler:
 
     def __init__(self, session: Any, process=None):
         self.session = session
-        self.process = process  # SSHServerProcess (from process_factory)
+        self.process = process
         self.honeypot = session.honeypot
         self.fs = getattr(session, "fs", None)
         if not self.fs:
@@ -29,7 +29,6 @@ class RsyncHandler:
         self.logger = self.honeypot.logger
         self.protocol_version = 31
 
-        # Stats tracking
         self.bytes_read = 0
         self.bytes_written = 0
 
@@ -118,19 +117,17 @@ class RsyncHandler:
             return 1
 
         try:
-            # 1. Handshake
             self._write(struct.pack("<i", self.protocol_version))
             client_version = await self._read_int()
             if client_version == -1:
                 return 1
 
-            self._write(struct.pack("<i", 12345678))  # Checksum seed
+            self._write(struct.pack("<i", 12345678))
             self._log_event(
                 "rsync_handshake",
                 {"client_version": client_version, "server_version": self.protocol_version},
             )
 
-            # 2. Modes
             if is_sender:
                 return await self._handle_pull(dest_path)
             else:
@@ -145,7 +142,6 @@ class RsyncHandler:
         ssh_cfg = self.honeypot.config.get("ssh", {})
         rsync_cfg = ssh_cfg.get("rsync", {})
 
-        # Read file list
         files = []
         try:
             files = await self._read_file_list()
@@ -154,30 +150,26 @@ class RsyncHandler:
                     "rsync_filelist",
                     {
                         "count": len(files),
-                        "files": files[:50],  # Log first 50 files
+                        "files": files[:50],
                         "path": dest_path,
                     },
                 )
         except Exception as e:
             self._log_event("rsync_error", {"op": "file_list_parsing", "error": str(e)})
 
-        # Realistically deny after getting the list
         if not rsync_cfg.get("allow_upload", True):
             self._log_event("rsync_denied", {"direction": "upload", "reason": "upload_disabled"})
         else:
-            # We don't implement the actual transfer, so we deny it anyway as "not implemented"
-            # but we wait long enough to look like we are thinking
             await asyncio.sleep(0.5)
             self._log_event("rsync_denied", {"direction": "upload", "reason": "target_readonly"})
 
-        # rsync error output to stderr
         err_msg = f"rsync: [receiver] push to {dest_path} failed: Permission denied (13)\n"
         if self.process:
             self.process.channel.write_stderr(err_msg.encode())
         else:
             self.session.channel.write_stderr(err_msg.encode())
 
-        return 13  # EACCES
+        return 13
 
     async def _read_file_list(self) -> List[Dict[str, Any]]:
         """
@@ -189,43 +181,36 @@ class RsyncHandler:
 
         while True:
             flags = await self._read_byte()
-            if flags <= 0:  # 0 is end of list
+            if flags <= 0:
                 break
 
-            # rsync name compression:
-            # if flags & 0x04 (SAME_NAME), l1 is inherited from previous
-            # if flags & 0x20 (XMIT_NAME_LONG), l1 is 2 bytes
 
             l1 = 0
-            if flags & 0x04:  # SAME_NAME
+            if flags & 0x04:
                 l1 = await self._read_byte()
 
             l2 = await self._read_byte()
             if l2 == -1:
                 break
 
-            # Name
             name_suffix_bytes = await self._read(l2)
             name_suffix = name_suffix_bytes.decode("utf-8", "ignore")
             name = last_name[:l1] + name_suffix
             last_name = name
 
-            # Size
             size = await self._read_varint()
 
-            # Mtime
             mtime = 0
-            if not (flags & 0x08):  # if NOT XMIT_SAME_TIME
+            if not (flags & 0x08):
                 mtime = await self._read_int()
 
-            # Mode
             mode = 0
-            if not (flags & 0x10):  # if NOT XMIT_SAME_MODE
+            if not (flags & 0x10):
                 mode = await self._read_int()
 
             files.append({"name": name, "size": size, "mode": mode, "mtime": mtime})
 
-            if len(files) > 1000:  # Safety break
+            if len(files) > 1000:
                 break
 
         return files

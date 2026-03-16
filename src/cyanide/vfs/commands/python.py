@@ -5,14 +5,12 @@ class PythonCommand(Command):
     # Function 259: Executes the 'python' command logic within the virtual filesystem.
     async def execute(self, args, input_data=""):
         if "-c" in args:
-            # Common for reverse shells
             return "", "", 0
 
         if "--version" in args or "-V" in args:
             return "Python 3.10.12\n", "", 0
 
         if len(args) > 0 and not args[0].startswith("-"):
-            # Running a script
             target = self.emulator.resolve_path(args[0])
             if not self.fs.exists(target):
                 return (
@@ -22,7 +20,6 @@ class PythonCommand(Command):
                 )
             return "", "", 0
 
-        # Interactive mode
         self.emulator.pending_input_callback = self._on_input
         self.emulator.pending_input_prompt = ">>> "
 
@@ -49,7 +46,6 @@ class PythonCommand(Command):
         elif cmd == "copyright":
             output = "Copyright (c) 2001-2023 Python Software Foundation.\nAll Rights Reserved.\n"
         elif cmd:
-            # Simple fake evaluation: just complain about undefined names to seem real
             if cmd.isalpha() and cmd not in ("print", "import", "def", "class"):
                 output = f"Traceback (most recent call last):\n  File \"<stdin>\", line 1, in <module>\nNameError: name '{cmd}' is not defined\n"
 

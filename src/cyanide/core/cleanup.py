@@ -20,7 +20,6 @@ class CleanupManager:
         self.interval = int(self.config.get("interval", 3600))
         self.retention_days = int(self.config.get("retention_days", 7))
 
-        # Parse paths CSV or list
         raw_paths = self.config.get("paths", "var/log/cyanide,var/quarantine")
         if isinstance(raw_paths, str):
             self.target_paths = [p.strip() for p in raw_paths.split(",")]
@@ -47,7 +46,6 @@ class CleanupManager:
         if retention_days_override is not None:
             days = retention_days_override
 
-        # Calculate cutoff timestamp
         cutoff_time = time.time() - (days * 86400)
         stats = {"deleted": 0, "bytes_freed": 0, "errors": 0}
 

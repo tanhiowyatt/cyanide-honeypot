@@ -11,20 +11,17 @@ class PsCommand(Command):
         Returns:
             tuple: (process_list, empty_stderr, 0)
         """
-        # Get Profile from FS
         profile = getattr(self.fs, "profile", None)
 
         if profile and "processes" in profile:
             processes = list(profile["processes"])
         else:
-            # Fallback common to Linux if no profile data
             processes = [
                 {"pid": 1, "tty": "?", "time": "00:00:15", "cmd": "/sbin/init"},
                 {"pid": 2, "tty": "?", "time": "00:00:00", "cmd": "[kthreadd]"},
                 {"pid": 890, "tty": "?", "time": "00:00:04", "cmd": "/usr/sbin/sshd -D"},
             ]
 
-        # Add current user shell dynamically
         import random
 
         mypid = random.randint(10000, 32000)

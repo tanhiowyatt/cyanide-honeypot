@@ -28,7 +28,7 @@ class AsyncLogger:
         """Stop the background worker and flush remaining logs."""
         self._stop_event.set()
         if self._worker_task:
-            await self.queue.join()  # Wait for queue to empty
+            await self.queue.join()
             await self._worker_task
 
     # Function 12: Handles event logging and telemetry.
@@ -41,7 +41,6 @@ class AsyncLogger:
         """Background task to process log queue."""
         while not self._stop_event.is_set() or not self.queue.empty():
             try:
-                # If stopped, don't wait indefinitely, just poll queue
                 if self._stop_event.is_set():
                     try:
                         filepath, content, mode = self.queue.get_nowait()
@@ -55,7 +54,6 @@ class AsyncLogger:
                     async with aiofiles.open(filepath, mode) as f:
                         await f.write(content)
                 except Exception:
-                    # Silent fail for logger itself to avoid loop
                     pass
                 finally:
                     self.queue.task_done()

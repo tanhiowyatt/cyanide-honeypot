@@ -10,7 +10,6 @@ class FingerCommand(Command):
         if not args:
             output = "Login     Name       Tty      Idle  Login Time   Office     Office Phone\n"
 
-            # Prepare some random users
             potential_users = [
                 ("root", "root"),
                 ("admin", "admin Worker"),
@@ -19,10 +18,8 @@ class FingerCommand(Command):
                 ("service", "Service Account"),
             ]
 
-            # Select 2-4 random sessions
             num_sessions = random.randint(2, 4)
             sessions = random.sample(potential_users, num_sessions)
-            # Ensure root is often present
             if ("root", "root") not in sessions and random.random() > 0.3:
                 sessions[0] = ("root", "root")
 
@@ -30,7 +27,6 @@ class FingerCommand(Command):
                 tty = f"pts/{i}"
                 idle = random.choice(["", "1:20", "5s", "4:15", "1d"])
 
-                # Random login time within last 24h
                 login_dt = datetime.now() - timedelta(minutes=random.randint(10, 1440))
                 login_time = login_dt.strftime("%b %d %H:%M")
 

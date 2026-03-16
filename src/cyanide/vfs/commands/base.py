@@ -23,12 +23,10 @@ class Command:
     # Function 208: Performs operations related to generate mac.
     def generate_mac(self) -> str:
         """Generate a deterministic-ish MAC address for this session."""
-        # Use first 3 octets for a common vendor (e.g., VirtualBox)
         vendor = [0x08, 0x00, 0x27]
-        # Rest is random but stable for this emulator instance
         random.seed(self.emulator.username)
         rest = [random.randint(0x00, 0xFF) for _ in range(3)]
-        random.seed(None)  # Reset seed
+        random.seed(None)
         return ":".join(f"{x:02x}" for x in vendor + rest)
 
     # Function 209: Retrieves random network stats data.
@@ -45,7 +43,6 @@ class Command:
     def get_random_connections(self, count: int = 3) -> list[dict]:
         """Generate some random active connections."""
         connections = []
-        # Always include some static ones (SSH, HTTP)
         connections.append(
             {
                 "proto": "tcp",
@@ -67,7 +64,6 @@ class Command:
             }
         )
 
-        # Add some random established ones
         states = ["ESTABLISHED", "TIME_WAIT", "CLOSE_WAIT"]
         for _ in range(count):
             remote_ip = f"{random.randint(1, 254)}.{random.randint(1, 254)}.{random.randint(1, 254)}.{random.randint(1, 254)}"
@@ -100,7 +96,6 @@ class Command:
         if self.emulator.username == "root":
             return await self.execute(args, input_data=input_data)
 
-        # Check if any path being accessed is protected
         check_paths = paths_to_check or args
         needs_root = False
         for p in check_paths:
@@ -126,9 +121,7 @@ class Command:
     async def _on_password_auth(
         self, password: str, args: list[str], input_data: str
     ) -> tuple[str, str, int]:
-        # Switch to root on any password for now (honeypot logic)
         self.emulator.username = "root"
-        # Optional: update CWD to /root if it was ~ for old user
         return await self.execute(args, input_data=input_data)
 
     # Function 214: Performs operations related to validate url.
@@ -147,7 +140,6 @@ class Command:
             if not hostname:
                 return False, "Invalid URL", None
 
-            # Check DNS cache
             now = time.time()
             if hasattr(self.emulator, "dns_cache") and hostname in self.emulator.dns_cache:
                 ip_str, expiry = self.emulator.dns_cache[hostname]
@@ -159,11 +151,9 @@ class Command:
             if hasattr(self.emulator, "stats"):
                 self.emulator.stats.dns_cache_misses += 1
 
-            # Resolve to IP
             try:
                 ip_list = socket.getaddrinfo(hostname, None)
 
-                # Check ALL IPs
                 allow_local = (
                     self.emulator.config.get("allow_local_network", False)
                     if hasattr(self.emulator, "config")

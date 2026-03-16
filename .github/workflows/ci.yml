@@ -105,7 +105,7 @@ jobs:
         run: pytest --cov=src --cov-report=xml --cov-fail-under=60 tests/
 
       - name: SonarCloud Scan
-        uses: sonarsource/sonarcloud-github-action@ba3875ecf642b2129de2b589510c81a8b53dbf4e # master
+        uses: sonarsource/sonarcloud-github-action@ba3875ecf642b2129de2b589510c81a8b53dbf4e # master # nosemgrep: generic.secrets.security.detected-sonarqube-docs-api-key.detected-sonarqube-docs-api-key
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

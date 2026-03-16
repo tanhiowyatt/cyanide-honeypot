@@ -14,6 +14,6 @@ jobs:
         with:
           fetch-depth: 0 
       - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602 # v6
+        uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602 # v6 # nosemgrep: generic.secrets.security.detected-sonarqube-docs-api-key.detected-sonarqube-docs-api-key
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

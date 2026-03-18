@@ -107,7 +107,7 @@ class ContextAnalyzer:
     def _analyze_single_url(self, url: str) -> tuple[float, list[str]]:
         """Analyzes a single URL and returns its risk score and flags."""
         if not url.startswith("http"):
-            url = "http://" + url
+            url = "https://" + url
 
         try:
             parsed = urlparse(url)

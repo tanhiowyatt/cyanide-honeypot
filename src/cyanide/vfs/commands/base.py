@@ -1,5 +1,6 @@
+import hashlib
 import ipaddress
-import random
+import secrets
 import socket
 import time
 from typing import Optional
@@ -22,21 +23,21 @@ class Command:
 
     # Function 208: Performs operations related to generate mac.
     def generate_mac(self) -> str:
-        """Generate a deterministic-ish MAC address for this session."""
+        """Generate a deterministic MAC address for this session."""
         vendor = [0x08, 0x00, 0x27]
-        random.seed(self.emulator.username)
-        rest = [random.randint(0x00, 0xFF) for _ in range(3)]
-        random.seed(None)
+        h = hashlib.md5(self.emulator.username.encode()).digest()
+        rest = [h[i] for i in range(3)]
         return ":".join(f"{x:02x}" for x in vendor + rest)
 
     # Function 209: Retrieves random network stats data.
     def get_random_network_stats(self) -> dict:
         """Generate some random traffic stats."""
+        rng = secrets.SystemRandom()
         return {
-            "rx_packets": random.randint(1000, 50000),
-            "rx_bytes": random.randint(100000, 5000000),
-            "tx_packets": random.randint(1000, 50000),
-            "tx_bytes": random.randint(100000, 5000000),
+            "rx_packets": rng.randint(1000, 50000),
+            "rx_bytes": rng.randint(100000, 5000000),
+            "tx_packets": rng.randint(1000, 50000),
+            "tx_bytes": rng.randint(100000, 5000000),
         }
 
     # Function 210: Retrieves random connections data.
@@ -65,20 +66,19 @@ class Command:
         )
 
         states = ["ESTABLISHED", "TIME_WAIT", "CLOSE_WAIT"]
+        rng = secrets.SystemRandom()
         for _ in range(count):
-            remote_ip = f"{random.randint(1, 254)}.{random.randint(1, 254)}.{random.randint(1, 254)}.{random.randint(1, 254)}"
-            remote_port = random.randint(1024, 65535)
-            local_port = random.choice(
-                [22, 80] if random.random() > 0.5 else [random.randint(30000, 60000)]
-            )
+            remote_ip = f"{rng.randint(1, 254)}.{rng.randint(1, 254)}.{rng.randint(1, 254)}.{rng.randint(1, 254)}"
+            remote_port = rng.randint(1024, 65535)
+            local_port = rng.choice([22, 80] if rng.random() > 0.5 else [rng.randint(30000, 60000)])
             connections.append(
                 {
                     "proto": "tcp",
                     "local": f"192.168.1.15:{local_port}",
                     "remote": f"{remote_ip}:{remote_port}",
-                    "state": random.choice(states),
-                    "pid": random.randint(1000, 5000),
-                    "name": random.choice(["sshd", "apache2", "curl", "wget", "bash"]),
+                    "state": rng.choice(states),
+                    "pid": rng.randint(1000, 5000),
+                    "name": rng.choice(["sshd", "apache2", "curl", "wget", "bash"]),
                 }
             )
         return connections

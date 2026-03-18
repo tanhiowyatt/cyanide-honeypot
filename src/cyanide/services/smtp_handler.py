@@ -28,7 +28,7 @@ class SMTPHandler:
             "RSET": self._cmd_rset,
         }
 
-    async def handle_connection(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+    def _init_session(self, writer: asyncio.StreamWriter):
         peer = writer.get_extra_info("peername")
         src_ip = peer[0] if peer else "unknown"
         session_id = f"smtp_{int(time.time())}"
@@ -40,40 +40,47 @@ class SMTPHandler:
                 "connect",
                 {"protocol": "smtp", "src_ip": src_ip, "src_port": peer[1] if peer else 0},
             )
+        return src_ip, session_id, hostname, peer
+
+    async def _command_loop(self, reader, writer, session_id, src_ip, hostname):
+        while not reader.at_eof():
+            line = await reader.readline()
+            if not line:
+                break
+
+            cmd_line = line.decode().strip()
+            if not cmd_line:
+                continue
+
+            if self.logger:
+                self.logger.log_event(
+                    session_id,
+                    "command.input",
+                    {"protocol": "smtp", "src_ip": src_ip, "input": cmd_line},
+                )
+
+            parts = cmd_line.split()
+            cmd = parts[0].upper() if parts else ""
+            args = parts[1:] if len(parts) > 1 else []
+
+            handler = self._dispatch_map.get(cmd)
+            if handler:
+                should_continue = await handler(reader, writer, args, src_ip, hostname)
+                if not should_continue:
+                    break
+            else:
+                writer.write(b"502 5.5.2 Error: command not recognized\r\n")
+
+            await writer.drain()
+
+    async def handle_connection(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+        src_ip, session_id, hostname, _ = self._init_session(writer)
 
         try:
             writer.write(f"220 {hostname} ESMTP Postfix\r\n".encode())
             await writer.drain()
 
-            while not reader.at_eof():
-                line = await reader.readline()
-                if not line:
-                    break
-
-                cmd_line = line.decode().strip()
-                if not cmd_line:
-                    continue
-
-                if self.logger:
-                    self.logger.log_event(
-                        session_id,
-                        "command.input",
-                        {"protocol": "smtp", "src_ip": src_ip, "input": cmd_line},
-                    )
-
-                parts = cmd_line.split()
-                cmd = parts[0].upper() if parts else ""
-                args = parts[1:] if len(parts) > 1 else []
-
-                handler = self._dispatch_map.get(cmd)
-                if handler:
-                    should_continue = await handler(reader, writer, args, src_ip, hostname)
-                    if not should_continue:
-                        break
-                else:
-                    writer.write(b"502 5.5.2 Error: command not recognized\r\n")
-
-                await writer.drain()
+            await self._command_loop(reader, writer, session_id, src_ip, hostname)
 
         except (asyncio.IncompleteReadError, ConnectionResetError, BrokenPipeError):
             pass

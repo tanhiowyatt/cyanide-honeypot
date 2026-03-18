@@ -130,10 +130,11 @@ class TelnetHandler:
                 pass
 
         class TTYState:
-            tty_log_path_jsonl = tty_paths["jsonl"]
-            tty_log_path = tty_paths["txt"]
-            tty_timing_path = tty_paths["time"]
-            last_log_time = time.time()
+            def __init__(self):
+                self.tty_log_path_jsonl = tty_paths["jsonl"]
+                self.tty_log_path = tty_paths["txt"]
+                self.tty_timing_path = tty_paths["time"]
+                self.last_log_time = time.time()
 
         return session_id, TTYState(), True
 

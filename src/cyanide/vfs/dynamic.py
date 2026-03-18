@@ -1,4 +1,4 @@
-import random
+import secrets
 import time
 from typing import Any, Dict, Optional
 
@@ -6,7 +6,7 @@ from typing import Any, Dict, Optional
 # Function 281: Provides dynamic content for virtual files.
 def uptime_provider(context: Any, args: Optional[Dict[str, Any]] = None) -> str:
     """Returns a realistic uptime string."""
-    start_time = time.time() - random.randint(3600, 86400 * 30)
+    start_time = time.time() - secrets.SystemRandom().randint(3600, 86400 * 30)
     uptime_sec = time.time() - start_time
     idle_sec = uptime_sec * 0.9
     return f"{uptime_sec:.2f} {idle_sec:.2f}\n"

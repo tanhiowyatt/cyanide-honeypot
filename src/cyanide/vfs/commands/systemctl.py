@@ -1,4 +1,4 @@
-import random
+import secrets
 
 from .base import Command
 
@@ -10,14 +10,15 @@ class SystemctlCommand(Command):
             service = (
                 args[args.index("status") + 1] if args.index("status") + 1 < len(args) else "ssh"
             )
+            rng = secrets.SystemRandom()
             return (
                 (
                     f"● {service}.service - {service.capitalize()} Service\n"
                     f"   Loaded: loaded (/lib/systemd/system/{service}.service; enabled; vendor preset: enabled)\n"
                     "   Active: active (running) since Fri 2026-02-20 09:00:00 UTC; 2h ago\n"
-                    f" Main PID: {random.randint(100, 2000)} ({service})\n"
+                    f" Main PID: {rng.randint(100, 2000)} ({service})\n"
                     "    Tasks: 1\n"
-                    f"   Memory: {random.randint(5, 50)}.0M\n"
+                    f"   Memory: {rng.randint(5, 50)}.0M\n"
                     f"   CGroup: /system.slice/{service}.service\n"
                 ),
                 "",

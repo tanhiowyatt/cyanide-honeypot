@@ -11,7 +11,7 @@ class GeoIP:
 
     # Function 32: Initializes the class instance and its attributes.
     def __init__(self, cache_size=1000):
-        self.base_url = "http://ip-api.com/json"
+        self.base_url = "https://ip-api.com/json"
         self.cache: Dict[str, Any] = {}
         self.cache_size = cache_size
 

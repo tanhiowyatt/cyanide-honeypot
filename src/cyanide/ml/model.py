@@ -112,9 +112,13 @@ class CommandAutoencoder(nn.Module):
     # Function 131: Performs operations related to load.
     @staticmethod
     def load(path):
-        from cyanide.core import security
+        """Secure model loading using weights_only=True."""
+        try:
+            # weights_only=True is the most secure way to load PyTorch models (S5334)
+            # It only allows loading of tensors and standard Python types.
+            # nosemgrep: trailofbits.python.pickles-in-pytorch.pickles-in-pytorch
+            checkpoint = torch.load(path, map_location=torch.device("cpu"), weights_only=True)
 
-        def _build_model(checkpoint, source_info):
             model = CommandAutoencoder(
                 input_dim=checkpoint.get("input_dim", 512),
                 latent_dim=checkpoint.get("latent_dim", 64),
@@ -123,26 +127,8 @@ class CommandAutoencoder(nn.Module):
             model.threshold = checkpoint.get("threshold", 0.05)
             model.to(model.device)
             model.eval()
-            logger.info(f"[*] PyTorch Autoencoder loaded with {source_info} from {path}")
+            logger.info(f"[*] PyTorch Autoencoder loaded securely (weights_only) from {path}")
             return model
-
-        try:
-            # Tier 1: Strict weights_only (fastest and most secure if no legacy data)
-            # nosemgrep: trailofbits.python.pickles-in-pytorch.pickles-in-pytorch
-            checkpoint = torch.load(path, map_location=torch.device("cpu"), weights_only=True)
-            return _build_model(checkpoint, "strict weights_only")
-        except Exception:
-            try:
-                # Tier 2: RestrictedUnpickler (Secure fallback for legacy data/numpy core paths)
-                # This uses our own whitelist defined in cyanide.core.security
-                # nosemgrep: trailofbits.python.pickles-in-pytorch.pickles-in-pytorch
-                checkpoint = torch.load(
-                    path,
-                    map_location=torch.device("cpu"),
-                    weights_only=False,
-                    pickle_module=security,
-                )
-                return _build_model(checkpoint, "RestrictedUnpickler")
-            except Exception as e:
-                logger.error(f"[!] Failed to load model even with RestrictedUnpickler: {e}")
-                return CommandAutoencoder()
+        except Exception as e:
+            logger.error(f"[!] Failed to load model securely from {path}: {e}")
+            return CommandAutoencoder()

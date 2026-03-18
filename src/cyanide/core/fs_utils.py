@@ -1,4 +1,4 @@
-import random
+import secrets
 from pathlib import Path
 from typing import List
 
@@ -43,7 +43,7 @@ def resolve_os_profile(profile_name: str) -> str:
     profiles = list_profiles()
 
     if profile_name == "random":
-        return random.choice(profiles)
+        return secrets.choice(profiles)
 
     if profile_name in profiles:
         return profile_name

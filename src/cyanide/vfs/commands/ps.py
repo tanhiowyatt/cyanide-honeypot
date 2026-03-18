@@ -22,9 +22,9 @@ class PsCommand(Command):
                 {"pid": 890, "tty": "?", "time": "00:00:04", "cmd": "/usr/sbin/sshd -D"},
             ]
 
-        import random
+        import secrets
 
-        mypid = random.randint(10000, 32000)
+        mypid = secrets.SystemRandom().randint(10000, 32000)
         processes.append({"pid": mypid, "tty": "pts/0", "time": "00:00:00", "cmd": "-bash"})
         processes.append({"pid": mypid + 1, "tty": "pts/0", "time": "00:00:00", "cmd": "ps"})
 

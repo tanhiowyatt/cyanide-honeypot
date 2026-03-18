@@ -118,6 +118,22 @@ class ShellEmulator:
             return str(self.fs.resolve(path))
         return str(self.fs.resolve(f"{self.cwd}/{path}"))
 
+    def _should_skip_node(self, node: CommandNode, last_rc: int) -> bool:
+        """Determine if the current node should be skipped based on previous result."""
+        if node.operator == "||" and last_rc != 0:
+            return False
+        if node.operator in (";", None):
+            return False
+        return True
+
+    def _get_next_should_execute(self, node: CommandNode, rc: int) -> bool:
+        """Determine if the next node should be executed based on current result."""
+        if node.operator == "&&":
+            return rc == 0
+        if node.operator == "||":
+            return rc != 0
+        return True
+
     async def _execute_nodes(self, nodes: List[CommandNode]) -> tuple[str, str, int]:
         full_stdout = ""
         full_stderr = ""
@@ -126,11 +142,10 @@ class ShellEmulator:
 
         for node in nodes:
             if not should_execute:
-                if node.operator == "||" and last_rc != 0:
+                if self._should_skip_node(node, last_rc):
                     should_execute = True
-                elif node.operator == ";" or node.operator is None:
-                    should_execute = True
-                continue
+                else:
+                    continue
 
             stdout, stderr, rc = await self._execute_pipeline(node.cmd_line)
 
@@ -144,12 +159,7 @@ class ShellEmulator:
                 last_rc = 1
                 break
 
-            if node.operator == "&&":
-                should_execute = rc == 0
-            elif node.operator == "||":
-                should_execute = rc != 0
-            elif node.operator == ";" or node.operator is None:
-                should_execute = True
+            should_execute = self._get_next_should_execute(node, rc)
 
         return full_stdout, full_stderr, last_rc
 
@@ -184,7 +194,11 @@ class ShellEmulator:
         if len(nodes) > self.max_chain_depth:
             return "", "shell: maximum command chain depth exceeded\n", 1
 
-        return await self._execute_nodes(nodes)
+        try:
+            return await self._execute_nodes(nodes)
+        except SystemExit as e:
+            rc = e.code if isinstance(e.code, int) else 1
+            return "", "", rc
 
     def _check_operator(self, command_line: str, i: int) -> Optional[str]:
         """Check for chain operators at the current index."""
@@ -301,10 +315,8 @@ class ShellEmulator:
                     params, input_data=input_data
                 )
                 return cast(tuple[str, str, int], result)
-            except SystemExit as e:
-                # argparse or other logic requested exit. Return the code.
-                rc = e.code if isinstance(e.code, int) else 1
-                return "", "", rc
+            except SystemExit:
+                raise
             except Exception as e:
                 return "", f"Command execution error: {e}\n", 1
         else:

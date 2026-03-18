@@ -4,24 +4,26 @@ from .base import Command
 class FreeCommand(Command):
     # Function 234: Executes the 'free' command logic within the virtual filesystem.
     async def execute(self, args, input_data=""):
-        import random
+        import secrets
 
         is_mb = "-m" in args
         total = 8192 if is_mb else 8388608
 
-        used_percent = random.uniform(0.2, 0.6)
+        rng = secrets.SystemRandom()
+
+        used_percent = rng.uniform(0.2, 0.6)
         used = int(total * used_percent)
 
-        shared = random.randint(10, 100) if is_mb else random.randint(10240, 102400)
+        shared = rng.randint(10, 100) if is_mb else rng.randint(10240, 102400)
 
-        buff_cache_percent = random.uniform(0.1, 0.3)
+        buff_cache_percent = rng.uniform(0.1, 0.3)
         buff_cache = int(total * buff_cache_percent)
 
         free = total - used - buff_cache
         available = total - used - (shared // 2)
 
         swap_total = 2048 if is_mb else 2097152
-        swap_used = random.randint(0, 100) if is_mb else random.randint(0, 102400)
+        swap_used = rng.randint(0, 100) if is_mb else rng.randint(0, 102400)
         swap_free = swap_total - swap_used
 
         return (

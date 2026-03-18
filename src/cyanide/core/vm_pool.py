@@ -1,5 +1,5 @@
 import logging
-import random
+import secrets
 import time
 
 logger = logging.getLogger("cyanide.vm_pool")
@@ -68,7 +68,7 @@ class SimplePool:
                 )
             available_targets = self.targets
 
-        target = random.choice(available_targets)
+        target = secrets.choice(available_targets)
         if Lease is not None:
             lease = Lease(
                 host=target[0],

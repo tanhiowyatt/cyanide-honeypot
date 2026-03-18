@@ -5,7 +5,7 @@ Advanced SSH/Telnet Honeypot Server Implementation.
 import asyncio
 import json
 import logging
-import random
+import secrets
 import time
 import traceback
 import uuid
@@ -529,6 +529,47 @@ class CyanideServer:
         return int(limit)
 
     @staticmethod
+    async def _handle_shell_session(process, sess):
+        """Handle interactive shell session loop."""
+        if not sess.shell:
+            sess.shell_requested()
+
+        sess.session_started()
+        await process.stdout.drain()
+
+        async for data in process.stdin:
+            try:
+                sess.data_received(data, None)
+                await process.stdout.drain()
+            except (
+                asyncssh.TerminalSizeChanged,
+                asyncssh.BreakReceived,
+                asyncssh.SignalReceived,
+            ):
+                continue
+            except Exception as e:
+                print(f"DEBUG: CyanideProcess stdin loop error: {e}", flush=True)
+                break
+
+        sess.session_ended()
+
+    @staticmethod
+    async def _handle_exec_session(process, sess, factory, command):
+        """Handle non-interactive EXEC session."""
+        factory.honeypot.logger.log_event(
+            "conn_" + factory.conn_id,
+            EVENT_COMMAND_INPUT,
+            {
+                "protocol": "ssh",
+                "src_ip": factory.src_ip,
+                "username": factory.username,
+                "input": command,
+                "client_version": factory.client_version,
+            },
+        )
+        await sess._async_exec(command)
+
+    @staticmethod
     async def _cyanide_ssh_process_factory(process):
         """Expert AsyncSSH process factory handling shell and exec."""
         try:
@@ -540,7 +581,6 @@ class CyanideServer:
                 process.exit(1)
                 return
 
-            honeypot_ref = factory.honeypot
             sess = factory.sessions.get(factory.conn_id)
             if not sess:
                 sess = factory.session_requested()
@@ -553,44 +593,57 @@ class CyanideServer:
             sess.channel = process.channel
 
             if not command:
-                if not sess.shell:
-                    sess.shell_requested()
-
-                sess.session_started()
-                await process.stdout.drain()
-
-                async for data in process.stdin:
-                    try:
-                        sess.data_received(data, None)
-                        await process.stdout.drain()
-                    except (
-                        asyncssh.TerminalSizeChanged,
-                        asyncssh.BreakReceived,
-                        asyncssh.SignalReceived,
-                    ):
-                        continue
-                    except Exception as e:
-                        print(f"DEBUG: CyanideProcess stdin loop error: {e}", flush=True)
-                        break
-
-                sess.session_ended()
+                await CyanideServer._handle_shell_session(process, sess)
             else:
-                honeypot_ref.logger.log_event(
-                    "conn_" + factory.conn_id,
-                    EVENT_COMMAND_INPUT,
-                    {
-                        "protocol": "ssh",
-                        "src_ip": factory.src_ip,
-                        "username": factory.username,
-                        "input": command,
-                        "client_version": factory.client_version,
-                    },
-                )
-                await sess._async_exec(command)
+                await CyanideServer._handle_exec_session(process, sess, factory, command)
         except Exception as e:
             print(f"DEBUG: CyanideProcess EXCEPTION: {e}", flush=True)
             traceback.print_exc()
             process.exit(1)
+
+    def _get_ssh_options(self, ssh_conf, host_keys):
+        """Prepare SSH options for the server."""
+        chosen_version = ssh_conf.get("version") or self.profile.get("ssh_banner", "")
+        if chosen_version.startswith("SSH-2.0-"):
+            chosen_version = chosen_version[8:]
+
+        self.logger.log_event(
+            "system", "system_status", {"message": f"SSH Banner: {chosen_version}"}
+        )
+
+        ssh_opts = {
+            "server_host_keys": host_keys,
+            "server_factory": lambda: SSHServerFactory(self),
+            "reuse_address": True,
+            "server_version": chosen_version,
+            "process_factory": self._cyanide_ssh_process_factory,
+            "encoding": "utf-8",
+            "login_timeout": ssh_conf.get("login_timeout", 60),
+            "rekey_bytes": self._parse_ssh_rekey(ssh_conf.get("rekey_limit", "1G")),
+        }
+
+        if ssh_conf.get("sftp_enabled", True):
+            from cyanide.vfs.sftp import CyanideSFTPHandler
+
+            ssh_opts["sftp_factory"] = CyanideSFTPHandler
+
+        ssh_opts["allow_scp"] = True
+
+        algo_map = {
+            "kex_algs": "kex_algs",
+            "ciphers": "encryption_algs",
+            "macs": "mac_algs",
+            "compression": "compression_algs",
+            "public_key_algs": "signature_algs",
+        }
+        actual_algs = {}
+        for cfg_key, opt_key in algo_map.items():
+            val = ssh_conf.get(cfg_key)
+            if val:
+                ssh_opts[opt_key] = val
+                actual_algs[opt_key] = val
+
+        return ssh_opts, chosen_version, actual_algs
 
     async def _start_ssh_service(self, host_keys):
         ssh_conf = self.config.get("ssh", {})
@@ -602,46 +655,7 @@ class CyanideServer:
         backend_mode = ssh_conf.get("backend_mode", "emulated")
 
         if backend_mode == "emulated":
-            chosen_version = ssh_conf.get("version") or self.profile.get("ssh_banner", "")
-            if chosen_version.startswith("SSH-2.0-"):
-                chosen_version = chosen_version[8:]
-
-            self.logger.log_event(
-                "system", "system_status", {"message": f"SSH Banner: {chosen_version}"}
-            )
-
-            ssh_opts = {
-                "server_host_keys": host_keys,
-                "server_factory": lambda: SSHServerFactory(self),
-                "reuse_address": True,
-                "server_version": chosen_version,
-                "process_factory": self._cyanide_ssh_process_factory,
-                "encoding": "utf-8",
-                "login_timeout": ssh_conf.get("login_timeout", 60),
-                "rekey_bytes": self._parse_ssh_rekey(ssh_conf.get("rekey_limit", "1G")),
-            }
-
-            if ssh_conf.get("sftp_enabled", True):
-                from cyanide.vfs.sftp import CyanideSFTPHandler
-
-                ssh_opts["sftp_factory"] = CyanideSFTPHandler
-
-            ssh_opts["allow_scp"] = True
-
-            algo_map = {
-                "kex_algs": "kex_algs",
-                "ciphers": "encryption_algs",
-                "macs": "mac_algs",
-                "compression": "compression_algs",
-                "public_key_algs": "signature_algs",
-            }
-            actual_algs = {}
-            for cfg_key, opt_key in algo_map.items():
-                val = ssh_conf.get(cfg_key)
-                if val:
-                    ssh_opts[opt_key] = val
-                    actual_algs[opt_key] = val
-
+            ssh_opts, chosen_version, actual_algs = self._get_ssh_options(ssh_conf, host_keys)
             self.ssh_server = await asyncssh.listen("0.0.0.0", ssh_port, **ssh_opts)
             self.logger.log_event(
                 "system", "service_started", {"service": "ssh_emulated", "port": ssh_port}
@@ -1101,39 +1115,38 @@ class SSHServerFactory(asyncssh.SSHServer):
                     break
         return target_host, target_port, mode
 
+    async def _forward_stream(self, reader, writer, close_writer: bool = True):
+        """Generic stream forwarding from reader to writer."""
+        try:
+            while True:
+                data = await reader.read(4096)
+                if not data:
+                    break
+                writer.write(data)
+                await writer.drain()
+        except Exception:
+            pass
+        finally:
+            if close_writer:
+                writer.close()
+                try:
+                    await writer.wait_closed()
+                except Exception:
+                    pass
+            else:
+                try:
+                    writer.write_eof()
+                except Exception:
+                    pass
+
     async def _bridge_tcpip(self, chan, target_host, target_port):
         """Bridge the SSH channel and the target TCP connection."""
         target_reader, target_writer = await asyncio.open_connection(target_host, target_port)
 
-        async def chan_to_target():
-            while not chan.at_eof():
-                try:
-                    data = await chan.read()
-                    if not data:
-                        break
-                    target_writer.write(data)
-                    await target_writer.drain()
-                except Exception:
-                    break
-            target_writer.close()
-            try:
-                await target_writer.wait_closed()
-            except Exception:
-                pass
-
-        async def target_to_chan():
-            while True:
-                try:
-                    data = await target_reader.read(4096)
-                    if not data:
-                        break
-                    chan.write(data)
-                    await chan.drain()
-                except Exception:
-                    break
-            chan.write_eof()
-
-        await asyncio.gather(chan_to_target(), target_to_chan())
+        await asyncio.gather(
+            self._forward_stream(chan, target_writer, close_writer=True),
+            self._forward_stream(target_reader, chan, close_writer=False),
+        )
 
 
 class SSHSession(asyncssh.SSHServerSession):
@@ -1180,42 +1193,27 @@ class SSHSession(asyncssh.SSHServerSession):
         except Exception:
             pass
 
+    def _get_ssh_info(self, conn, key, internal_attr=None, decode=False):
+        """Helper to get SSH connection info with fallback."""
+        val = conn.get_extra_info(key)
+        if val is not None:
+            return val
+        if internal_attr:
+            val = getattr(conn, internal_attr, None)
+            if val is not None:
+                if decode and isinstance(val, bytes):
+                    return val.decode("utf-8", "ignore")
+                return val
+        return "unknown"
+
     def _log_ssh_details(self, conn):
         """Extract and log SSH fingerprint and negotiated algorithms."""
+        kex = self._get_ssh_info(conn, "kex")
+        key_algo = self._get_ssh_info(conn, "server_host_key")
 
-        def get_val(key, internal_attr=None, decode=False):
-            val = conn.get_extra_info(key)
-            if val is not None:
-                return val
-            if internal_attr:
-                val = getattr(conn, internal_attr, None)
-                if val is not None:
-                    if decode and isinstance(val, bytes):
-                        return val.decode("utf-8", "ignore")
-                    return val
-            return "unknown"
-
-        kex = get_val("kex")
-        key_algo = get_val("server_host_key")
-        if key_algo == "unknown":
-            hk = getattr(conn, "_server_host_key", None)
-            if hk and hasattr(hk, "algorithm"):
-                key_algo = (
-                    hk.algorithm.decode() if isinstance(hk.algorithm, bytes) else str(hk.algorithm)
-                )
-
-        cipher = get_val("cipher", "_enc_alg_cs", decode=True)
-        if cipher == "unknown":
-            mac_raw = getattr(conn, "_mac_alg_cs", None)
-            if mac_raw and b"chacha" in mac_raw:
-                cipher = mac_raw.decode()
-
-        mac = get_val("mac", "_mac_alg_cs", decode=True)
-        compression = get_val("compression", "_compress_alg_cs", decode=True)
-        if compression == "unknown":
-            compression = (
-                "zlib@openssh.com" if getattr(conn, "_compress_after_auth", False) else "none"
-            )
+        cipher = self._get_ssh_info(conn, "cipher", "_encryption_algo", True)
+        mac = self._get_ssh_info(conn, "mac", "_mac_algo", True)
+        compression = self._get_ssh_info(conn, "compression", "_compression_algo", True)
 
         fingerprint = {
             "kex": kex,
@@ -1403,9 +1401,8 @@ class SSHSession(asyncssh.SSHServerSession):
             now = time.time()
             self.keystrokes.append(now)
 
-            delay = (
-                random.uniform(0.5, 1.5) if random.random() < 0.1 else random.uniform(0.02, 0.15)
-            )
+            rng = secrets.SystemRandom()
+            delay = rng.uniform(0.5, 1.5) if rng.random() < 0.1 else rng.uniform(0.02, 0.15)
             await asyncio.sleep(delay)
 
             self.bytes_in += len(data)

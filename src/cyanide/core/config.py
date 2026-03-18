@@ -111,7 +111,7 @@ def _get_val(config_data, section, key, env_var, default, cast=str):
     return val
 
 
-def _parse_users(config_data: dict) -> list:
+def _get_users_from_env() -> tuple[list, bool]:
     users = []
     users_env = os.getenv("CYANIDE_AUTH__USERS") or os.getenv("CYANIDE_USERS")
     env_users_loaded = False
@@ -123,13 +123,24 @@ def _parse_users(config_data: dict) -> list:
                 env_users_loaded = True
         except json.JSONDecodeError:
             logger.error(f"Failed to parse users env var: {users_env}")
+    return users, env_users_loaded
+
+
+def _get_users_from_config(config_data: dict) -> list:
+    users = []
+    yaml_users = config_data.get("users", [])
+    if isinstance(yaml_users, list):
+        for user_obj in yaml_users:
+            if isinstance(user_obj, dict) and "user" in user_obj and "pass" in user_obj:
+                users.append(user_obj)
+    return users
+
+
+def _parse_users(config_data: dict) -> list:
+    users, env_users_loaded = _get_users_from_env()
 
     if not env_users_loaded:
-        yaml_users = config_data.get("users", [])
-        if isinstance(yaml_users, list):
-            for user_obj in yaml_users:
-                if isinstance(user_obj, dict) and "user" in user_obj and "pass" in user_obj:
-                    users.append(user_obj)
+        users.extend(_get_users_from_config(config_data))
 
     if not users:
         users = [{"user": "root", "pass": "admin"}, {"user": "admin", "pass": "admin"}]

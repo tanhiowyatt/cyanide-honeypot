@@ -29,6 +29,11 @@ class OutputPlugin(ABC):
         start_time = time.time()
         while not self.queue.empty() and time.time() - start_time < 5.0:
             time.sleep(0.1)
+        self.close()
+
+    def close(self):
+        """Optional cleanup hook for subclasses."""
+        pass
 
     def emit(self, event: Dict[str, Any]):
         """Enqueue an event for processing. Called by CyanideLogger."""

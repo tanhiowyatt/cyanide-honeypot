@@ -28,7 +28,7 @@ def _parse_val(v):
     if str(v).startswith("[") or str(v).startswith("{"):
         try:
             return json.loads(v)
-        except (json.JSONDecodeError, ValueError, TypeError):
+        except (ValueError, TypeError):
             pass
     return v
 

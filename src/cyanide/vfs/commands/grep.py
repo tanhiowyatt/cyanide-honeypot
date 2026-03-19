@@ -36,8 +36,27 @@ class GrepCommand(Command):
 
         try:
             parsed, unknown = parser.parse_known_args(args)
+
+            if unknown and self.emulator.logger:
+                self.emulator.logger.log_event(
+                    self.emulator.session_id,
+                    "grep_unknown_args",
+                    {
+                        "src_ip": self.emulator.src_ip,
+                        "pattern": parsed.pattern,
+                        "unknown_args": unknown,
+                        "full_cmd": " ".join(args),
+                    },
+                )
+
         except SystemExit:
-            raise
+            if self.emulator.logger:
+                self.emulator.logger.log_event(
+                    self.emulator.session_id,
+                    "grep_parse_fail",
+                    {"src_ip": self.emulator.src_ip, "full_cmd": " ".join(args)},
+                )
+            return argparse.Namespace(pattern=None, files=[]), False
 
         recursive = "-r" in args or "-R" in args
         return parsed, recursive

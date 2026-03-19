@@ -24,7 +24,7 @@ class Plugin(OutputPlugin):
 
         import re
 
-        if not re.match(r"^[a-zA-Z0-9_]+$", self.table):
+        if not re.match(r"^\w+$", self.table):
             raise ValueError(f"Invalid table name (must be alphanumeric/underscore): {self.table}")
 
         self.conn: Optional[mysql.connector.MySQLConnection] = None
@@ -79,4 +79,10 @@ class Plugin(OutputPlugin):
             cursor.close()
         except Exception as e:
             logging.error(f"[MySQL] Write failure: {e}")
+            self.conn = None
+
+    def close(self):
+        if self.conn and self.conn.is_connected():
+            self.conn.close()
+            logging.info("[MySQL] Database connection closed.")
             self.conn = None

@@ -24,7 +24,7 @@ class Plugin(OutputPlugin):
 
         import re
 
-        if not re.match(r"^[a-zA-Z0-9_]+$", self.table):
+        if not re.match(r"^\w+$", self.table):
             raise ValueError(f"Invalid table name (must be alphanumeric/underscore): {self.table}")
 
         self.conn: Optional[psycopg.Connection] = None
@@ -72,4 +72,10 @@ class Plugin(OutputPlugin):
             self.conn.commit()
         except Exception as e:
             logging.error(f"[PostgreSQL] Write failure: {e}")
+            self.conn = None
+
+    def close(self):
+        if self.conn and not self.conn.closed:
+            self.conn.close()
+            logging.info("[PostgreSQL] Database connection closed.")
             self.conn = None

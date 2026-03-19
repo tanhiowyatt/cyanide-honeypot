@@ -48,14 +48,33 @@ class AwkCommand(Command):
         parser.add_argument("files", nargs="*")
 
         try:
-            parsed, _ = parser.parse_known_args(args)
+            parsed, unknown = parser.parse_known_args(args)
+
+            if unknown and self.emulator.logger:
+                self.emulator.logger.log_event(
+                    self.emulator.session_id,
+                    "awk_unknown_args",
+                    {
+                        "src_ip": self.emulator.src_ip,
+                        "program": parsed.program,
+                        "unknown_args": unknown,
+                        "full_cmd": " ".join(args),
+                    },
+                )
+
             return parsed, 0
         except SystemExit:
-            raise
+            if self.emulator.logger:
+                self.emulator.logger.log_event(
+                    self.emulator.session_id,
+                    "awk_parse_fail",
+                    {"src_ip": self.emulator.src_ip, "full_cmd": " ".join(args)},
+                )
+            return None, 2
 
     def _get_fields_to_print(self, program: str) -> list[int]:
         """Parse the awk program to find which fields to print."""
-        print_match = re.search(r"\{print\s+(.*)\}", program)
+        print_match = re.search(r"\{print\s+([^}\s][^}]*)\}", program)
         if not print_match:
             return []
 

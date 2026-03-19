@@ -211,10 +211,7 @@ class ShellEmulator:
         if len(nodes) > self.max_chain_depth:
             return "", "shell: maximum command chain depth exceeded\n", 1
 
-        try:
-            return await self._execute_nodes(nodes)
-        except SystemExit:
-            raise
+        return await self._execute_nodes(nodes)
 
     def _check_operator(self, command_line: str, i: int) -> Optional[str]:
         """Check for chain operators at the current index."""
@@ -346,8 +343,6 @@ class ShellEmulator:
 
             result = await self.commands[cmd_name].auth_and_execute(params, input_data=input_data)
             return cast(tuple[str, str, int], result)
-        except SystemExit:
-            raise
         except Exception as e:
             return "", f"Command execution error: {e}\n", 1
 
@@ -407,11 +402,11 @@ class ShellEmulator:
             var_name = match.group(1)
             return self.env.get(var_name, "")
 
-        s = re.sub(r"\${([a-zA-Z_][a-zA-Z0-9_]*)}", replace_braced, s)
+        s = re.sub(r"\${([a-zA-Z_]\w*)}", replace_braced, s)
 
         def replace_simple(match):
             var_name = match.group(1)
             return self.env.get(var_name, "")
 
-        s = re.sub(r"\$([a-zA-Z_][a-zA-Z0-9_]*)", replace_simple, s)
+        s = re.sub(r"\$([a-zA-Z_]\w*)", replace_simple, s)
         return s

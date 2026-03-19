@@ -193,8 +193,6 @@ class LibvirtPool:
                 "system", "pool_provisioning", {"backend": "libvirt", "vm_id": vm_id}
             )
 
-
-
         self.vms[vm_id]["state"] = "ready"
         logger.info(f"VM {vm_id} provisioned and ready.")
 
@@ -226,7 +224,7 @@ class LibvirtPool:
         while True:
             await asyncio.sleep(60)
             async with self.lock:
-                for vm_id, v in list(self.vms.items()):
+                for vm_id, v in self.vms.items():
                     if v["state"] == "ready":
                         # Perform actual guest healthcheck (e.g. ping or SSH) here.
                         pass
@@ -237,7 +235,7 @@ class LibvirtPool:
             await asyncio.sleep(60)
             async with self.lock:
                 now = time.time()
-                for vm_id, v in list(self.vms.items()):
+                for vm_id, v in self.vms.items():
                     if v["state"] == "ready" and (now - v["last_used"] > self.vm_unused_timeout):
                         logger.info(f"Recycling unused VM {vm_id}")
                         self.vms[vm_id]["state"] = "rebuilding"

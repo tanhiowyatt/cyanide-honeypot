@@ -23,7 +23,7 @@ class CharacterLevelTokenizer:
         chars = "".join([chr(i) for i in range(32, 127)])
         self.vocab = ["<PAD>", "<UNK>"] + list(chars)
         self.char_map = {c: i for i, c in enumerate(self.vocab)}
-        self.index_map = {i: c for i, c in enumerate(self.vocab)}
+        self.index_map = dict(enumerate(self.vocab))
         self.vocab_size = len(self.vocab)
 
     # Function 142: Performs operations related to encode.

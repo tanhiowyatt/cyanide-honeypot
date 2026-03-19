@@ -30,6 +30,15 @@ class SimplePool:
                 elif len(pass_parts) == 1:
                     self.targets.append((pass_parts[0], 22))
 
+        if (
+            pool_conf.get("enabled", False)
+            and not self.targets
+            and pool_conf.get("mode") == "simple"
+        ):
+            logging.getLogger("cyanide.vm_pool").warning(
+                "SimplePool enabled but no targets configured in 'pool.targets'."
+            )
+
     def report_failure(self, host: str, port: int):
         """Mark a target as failed temporarily."""
         logger.warning(f"SimplePool: Reporting failure for {host}:{port}")
@@ -50,7 +59,7 @@ class SimplePool:
     async def reserve_target(self, session_id: str, protocol: str):
         await asyncio.sleep(0)
         if not self.targets:
-            logger.error("SimplePool: No targets configured in pool settings.")
+            # We already warned in __init__, so just return None here.
             return None
 
         now = time.time()
@@ -121,10 +130,12 @@ class VMPool:
                         self.logger.log_event(
                             "system", "pool_error", {"backend": "libvirt", "error": str(e)}
                         )
-                    logger.error(f"Failed to load LibvirtPool: {e}. Falling back to SimplePool.")
+                    logging.getLogger("cyanide.vm_pool").error(
+                        f"Failed to load LibvirtPool: {e}. Falling back to SimplePool."
+                    )
                     self.backend = SimplePool(config, logger=logger)
             else:
-                logger.error(
+                logging.getLogger("cyanide.vm_pool").error(
                     "Failed to load LibvirtPool: libvirt-python is required for libvirt pool mode. Falling back to SimplePool."
                 )
                 self.backend = SimplePool(config, logger=logger)

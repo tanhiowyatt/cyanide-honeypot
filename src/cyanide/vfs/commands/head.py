@@ -37,7 +37,7 @@ class HeadCommand(Command):
                     "head_parse_fail",
                     {"src_ip": self.emulator.src_ip, "full_cmd": " ".join(args)},
                 )
-            raise
+            return "", "head: argument error\n", 2
 
         count = parsed.lines
         files = parsed.files

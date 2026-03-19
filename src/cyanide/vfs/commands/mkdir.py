@@ -35,7 +35,7 @@ class MkdirCommand(Command):
                     "mkdir_parse_fail",
                     {"src_ip": self.emulator.src_ip, "full_cmd": " ".join(args)},
                 )
-            raise
+            return "", "mkdir: argument error\n", 2
 
         if not hasattr(parsed, "path") or not parsed.path:
             return "", "mkdir: missing operand\n", 1

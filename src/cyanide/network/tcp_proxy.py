@@ -104,7 +104,7 @@ class TCPProxy:
                 self.forward(target_reader, client_writer, "target_to_client")
             )
 
-            done, pending = await asyncio.wait(
+            _, pending = await asyncio.wait(
                 [client_to_target, target_to_client], return_when=asyncio.FIRST_COMPLETED
             )
 

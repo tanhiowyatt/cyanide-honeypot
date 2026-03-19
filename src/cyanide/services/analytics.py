@@ -68,7 +68,7 @@ class AnalyticsService:
                 self.ml_enabled = False
                 return
 
-        except (ImportError, ModuleNotFoundError) as e:
+        except ImportError as e:
             self.logger.log_event(
                 "system", "error", {"message": f"ML Module could not be loaded: {e}"}
             )

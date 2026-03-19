@@ -1,7 +1,10 @@
 import asyncio
+import logging
 import shlex
 import struct
 from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger("cyanide.vfs.rsync")
 
 
 class RsyncHandler:
@@ -59,13 +62,12 @@ class RsyncHandler:
                 self.bytes_read += len(data)
                 return bytes(data)
 
-        except asyncio.TimeoutError:  
+        except asyncio.TimeoutError:
             logger.debug("Read timeout after 10s - normal for honeypot")
             return b""
-        except Exception as e:        
+        except Exception as e:
             logger.error(f"Read error: {e}")
             return b""
-
 
     async def _read_int(self) -> int:
         """Read a 4-byte little-endian integer."""

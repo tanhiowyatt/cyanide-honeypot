@@ -7,7 +7,6 @@
   [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=tanhiowyatt_cyanide&metric=coverage)](https://sonarcloud.io/component_measures/metric/coverage/list?id=tanhiowyatt_cyanide)
   [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
   [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/)
-  ![version](https://img.shields.io/badge/version-0.0.1-blue)
 </p>
 
 <p align="center">

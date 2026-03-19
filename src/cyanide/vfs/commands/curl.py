@@ -23,6 +23,20 @@ class CurlCommand(Command):
             return "", "curl: try 'curl --help' for more information\n", 1
 
         is_valid, error, resolved_ip = self.validate_url(url)
+
+        # ML: C2/DGA intelligence
+        if self.emulator.logger:
+            self.emulator.logger.log_event(
+                self.emulator.session_id,
+                "curl_url_resolve",
+                {
+                    "src_ip": self.emulator.src_ip,
+                    "url": url,
+                    "resolved_ip": resolved_ip or "unresolved",
+                    "is_valid": is_valid,
+                },
+            )
+
         if not is_valid:
             return "", f"curl: (1) {error}\n", 1
 
@@ -72,7 +86,13 @@ class CurlCommand(Command):
         try:
             return parser.parse_known_args(args)
         except SystemExit:
-            raise
+            if self.emulator.logger:
+                self.emulator.logger.log_event(
+                    self.emulator.session_id,
+                    "curl_parse_fail",
+                    {"src_ip": self.emulator.src_ip, "full_cmd": " ".join(args)},
+                )
+            return None, []
 
     def _get_url(self, parsed, unknown):
         """Extract URL from parsed or unknown args."""

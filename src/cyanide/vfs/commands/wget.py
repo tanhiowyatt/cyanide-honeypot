@@ -43,7 +43,7 @@ class WgetCommand(Command):
                     "wget_parse_fail",
                     {"src_ip": self.emulator.src_ip, "full_cmd": " ".join(args)},
                 )
-            raise
+            return "", "wget: argument error\n", 2
 
         if not parsed.url:
             return "", "wget: missing URL\n", 1

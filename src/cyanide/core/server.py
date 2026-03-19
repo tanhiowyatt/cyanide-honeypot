@@ -569,9 +569,9 @@ class CyanideServer:
             process.exit(rc)
             return
 
-        if (
-            command.startswith("scp ") or command.startswith("/usr/bin/scp ")
-        ) and ssh_conf.get("scp_enabled", True):
+        if (command.startswith("scp ") or command.startswith("/usr/bin/scp ")) and ssh_conf.get(
+            "scp_enabled", True
+        ):
             scp = ScpHandler(sess, process)
             rc = await scp.handle(command)
             process.exit(rc)

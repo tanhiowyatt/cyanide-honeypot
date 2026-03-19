@@ -46,7 +46,7 @@ class SimplePool:
         # No background tasks or connections to clean up for SimplePool.
         pass
 
-    def reserve_target(self, session_id: str, protocol: str):  # ← убрал async
+    async def reserve_target(self, session_id: str, protocol: str):
         if not self.targets:
             logger.error("SimplePool: No targets configured in pool settings.")
             return None

@@ -343,6 +343,10 @@ class ShellEmulator:
 
             result = await self.commands[cmd_name].auth_and_execute(params, input_data=input_data)
             return cast(tuple[str, str, int], result)
+        except SystemExit as se:
+            # Handle argparse help or error exits gracefully without stopping the server.
+            exit_code = se.code if isinstance(se.code, int) else 0
+            return "", f"{cmd_name}: argument error\n", exit_code
         except Exception as e:
             return "", f"Command execution error: {e}\n", 1
 

@@ -3,7 +3,8 @@ import logging
 import secrets
 import time
 
-logger = logging.getLogger("cyanide.vm_pool")
+VM_POOL_LOGGER_NAME = "cyanide.vm_pool"
+logger = logging.getLogger(VM_POOL_LOGGER_NAME)
 
 try:
     from cyanide.core.libvirt_pool import Lease, LibvirtPool
@@ -35,7 +36,7 @@ class SimplePool:
             and not self.targets
             and pool_conf.get("mode") == "simple"
         ):
-            logging.getLogger("cyanide.vm_pool").warning(
+            logging.getLogger(VM_POOL_LOGGER_NAME).warning(
                 "SimplePool enabled but no targets configured in 'pool.targets'."
             )
 
@@ -130,12 +131,12 @@ class VMPool:
                         self.logger.log_event(
                             "system", "pool_error", {"backend": "libvirt", "error": str(e)}
                         )
-                    logging.getLogger("cyanide.vm_pool").error(
+                    logging.getLogger(VM_POOL_LOGGER_NAME).error(
                         f"Failed to load LibvirtPool: {e}. Falling back to SimplePool."
                     )
                     self.backend = SimplePool(config, logger=logger)
             else:
-                logging.getLogger("cyanide.vm_pool").error(
+                logging.getLogger(VM_POOL_LOGGER_NAME).error(
                     "Failed to load LibvirtPool: libvirt-python is required for libvirt pool mode. Falling back to SimplePool."
                 )
                 self.backend = SimplePool(config, logger=logger)

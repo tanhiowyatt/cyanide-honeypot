@@ -26,9 +26,9 @@ try:
                 obj = getattr(ncm, obj_name, None)
                 if obj and getattr(obj, "__module__", "") != "numpy.core.multiarray":
 
-                    def legacy_proxy(*args: Any, **kwargs: Any) -> Any:
-                        if obj is not None:
-                            return obj(*args, **kwargs)
+                    def legacy_proxy(*args: Any, _obj=obj, **kwargs: Any) -> Any:
+                        if _obj is not None:
+                            return _obj(*args, **kwargs)
                         return None
 
                     legacy_proxy.__module__ = "numpy.core.multiarray"

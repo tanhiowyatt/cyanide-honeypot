@@ -92,7 +92,7 @@ class CurlCommand(Command):
                     "curl_parse_fail",
                     {"src_ip": self.emulator.src_ip, "full_cmd": " ".join(args)},
                 )
-            return None, []
+            raise
 
     def _get_url(self, parsed, unknown):
         """Extract URL from parsed or unknown args."""

@@ -14,7 +14,7 @@ def advanced_config(tmp_path: Path) -> dict[str, Any]:
     log_dir = tmp_path / "logs"
     log_dir.mkdir()
     return {
-        "ssh": {"enabled": True, "port": 0, "backend_mode": "emulated"},
+        "ssh": {"enabled": True, "port": 0, "backend_mode": "emulated", "vfs_persistence": False},
         "telnet": {"enabled": False},
         "metrics": {"enabled": False},
         "logging": {"directory": str(log_dir)},

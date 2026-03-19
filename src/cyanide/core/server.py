@@ -185,6 +185,7 @@ class CyanideServer:
             self.profile = DEFAULT_METADATA.copy()
             self.resolved_profile_name = "ubuntu"
 
+        self.vfs_persistence = config.get("ssh", {}).get("vfs_persistence", True)
         self.vfs_cache: Dict[str, FakeFilesystem] = {}
 
     # Function 40: Performs operations related to analyze command.
@@ -254,7 +255,7 @@ class CyanideServer:
         def audit_hook(action, path):
             self._fs_audit_hook(action, path, session_id, src_ip)
 
-        if src_ip != "unknown" and src_ip in self.vfs_cache:
+        if self.vfs_persistence and src_ip != "unknown" and src_ip in self.vfs_cache:
             return self.vfs_cache[src_ip]
 
         try:

@@ -64,8 +64,8 @@ async def test_rsync_handshake_and_error(mock_session, mock_process):
     # Return 13 (EACCES) for realistic permission denied behavior
     assert rc == 13
 
-    # Should have sent binary version greeting
-    mock_process.channel.write.assert_any_call(struct.pack("<i", 31))
+    # Should have sent binary version greeting (decoded via latin-1 in handler)
+    mock_process.channel.write.assert_any_call(struct.pack("<i", 31).decode("latin-1"))
 
     # Should log operations
     mock_session.honeypot.logger.log_event.assert_called()

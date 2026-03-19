@@ -9,61 +9,49 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libffi-dev \
     libssl-dev \
     git \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --no-cache-dir --upgrade pip setuptools>=78.1.1
 
-# Upgrade pip and setuptools to fix vulnerabilities (e.g., CVE-2025-47273)
-RUN pip install --user --upgrade pip setuptools>=78.1.1
-
-# Install dependencies
 COPY pyproject.toml README.md ./
 RUN mkdir -p src/cyanide && touch src/cyanide/__init__.py
-RUN pip install --user --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
-    pip install --user --no-cache-dir .
 
-# Install source
-COPY src/ src/
-RUN pip install --user --no-cache-dir .
+# Install dependencies and clean in one layer
+RUN pip install --user --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu \
+    && pip install --user --no-cache-dir . \
+    && find /root/.local -name "*.pyc" -delete \
+    && find /root/.local -name "__pycache__" -type d -exec rm -rf {} + \
+    && rm -rf /root/.cache/pip
 
 # Runtime Stage
 FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install runtime libs (if any needed)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libffi-dev \
-    libssl-dev \
-    && rm -rf /var/lib/apt/lists/*
+# Copy only necessary Python packages
+COPY --from=builder /root/.local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /root/.local/bin /usr/local/bin
 
-# Create non-root user
-RUN groupadd -r cyanide && useradd -r -g cyanide cyanide
-
-# Copy installed python packages from builder
-COPY --from=builder /root/.local /home/cyanide/.local
-
-# Update PATH
-ENV PATH=/home/cyanide/.local/bin:$PATH
-ENV PYTHONPATH=/app/src:/app
-
-# Copy project files
-COPY . .
-
-# Copy healthcheck script
+# Copy source code
+COPY assets assets
+COPY configs configs
+COPY src/cyanide src/cyanide
 COPY deployments/docker/healthcheck.py /app/docker/healthcheck.py
 
-# Create necessary directories and set ownership
-RUN mkdir -p var/log/cyanide/tty var/quarantine var/lib/cyanide/run \
+# Create user and directories
+RUN groupadd -r cyanide && useradd -r -g cyanide cyanide \
+    && mkdir -p var/log/cyanide/tty var/quarantine var/lib/cyanide/run \
     && chown -R cyanide:cyanide /app/var /app/configs/profiles
 
-# Switch to non-root user
+ENV PYTHONPATH=/app \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
 USER cyanide
 
-# Expose ports
 EXPOSE 2222 2223 9090 2525
 
-# Healthcheck
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python3 /app/docker/healthcheck.py || exit 1
 
-# Run main.py
 CMD ["python3", "src/cyanide/main.py"]

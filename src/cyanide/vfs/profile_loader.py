@@ -72,38 +72,42 @@ def load(profile_name: str, profiles_dir: Path) -> Dict[str, Any]:
     base_file = profiles_dir / profile_name / "base.yaml"
     static_file = profiles_dir / profile_name / "static.yaml"
     compiled_file = profiles_dir / profile_name / COMPILED_FILE_NAME
-    
+
     target_hash = _compute_hash(base_file, static_file)
-    
+
     with _CACHE_LOCK:
         if profile_name in _MEMORY_CACHE:
             cached_data = _MEMORY_CACHE[profile_name]
-            if (cached_data.get("hash") == target_hash and 
-                cached_data.get("v") == CACHE_FORMAT_VERSION):
+            if (
+                cached_data.get("hash") == target_hash
+                and cached_data.get("v") == CACHE_FORMAT_VERSION
+            ):
                 logger.debug(f"Profile '{profile_name}' loaded from memory cache.")
                 return cached_data
-        
+
         if compiled_file.exists():
             try:
                 with open(compiled_file, "rb") as f:
                     disk_data = msgpack.unpack(f, raw=False)
-                    
-                    if (isinstance(disk_data, dict) and
-                        disk_data.get("hash") == target_hash and
-                        disk_data.get("v") == CACHE_FORMAT_VERSION):
-                        
+
+                    if (
+                        isinstance(disk_data, dict)
+                        and disk_data.get("hash") == target_hash
+                        and disk_data.get("v") == CACHE_FORMAT_VERSION
+                    ):
+
                         logger.debug(f"Profile '{profile_name}' loaded from disk cache.")
                         _MEMORY_CACHE[profile_name] = disk_data
                         return disk_data
-                        
+
             except Exception as e:
                 logger.warning(
                     f"Failed to load disk cache for '{profile_name}': {e}. Rebuilding..."
                 )
-        
+
         logger.info(f"Parsing YAML for profile '{profile_name}'...")
         parsed_data = _parse_yaml_profile(base_file, static_file)
-        
+
         cache_entry = {
             "v": CACHE_FORMAT_VERSION,
             "hash": target_hash,
@@ -112,9 +116,9 @@ def load(profile_name: str, profiles_dir: Path) -> Dict[str, Any]:
             "dynamic_files": parsed_data["dynamic_files"],
             "static": parsed_data["static"],
         }
-        
+
         _MEMORY_CACHE[profile_name] = cache_entry
-        
+
         try:
             compiled_file.parent.mkdir(parents=True, exist_ok=True)
             with open(compiled_file, "wb") as f:
@@ -122,7 +126,7 @@ def load(profile_name: str, profiles_dir: Path) -> Dict[str, Any]:
             logger.debug(f"Saved disk cache for profile '{profile_name}'.")
         except Exception as e:
             logger.error(f"Failed to write disk cache for '{profile_name}': {e}")
-        
+
         return cache_entry
 
 

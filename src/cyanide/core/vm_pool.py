@@ -54,8 +54,10 @@ class SimplePool:
         now = time.time()
         # Filter out targets that failed recently
         available_targets = [
-            t for t in self.targets
-            if t not in self.failed_targets or (now - self.failed_targets[t] > self.failure_threshold)
+            t
+            for t in self.targets
+            if t not in self.failed_targets
+            or (now - self.failed_targets[t] > self.failure_threshold)
         ]
 
         if not available_targets:
@@ -78,8 +80,14 @@ class SimplePool:
             )
             if self.logger:
                 self.logger.log_event(
-                    session_id, "pool_reserved",
-                    {"backend": "simple", "host": target[0], "port": target[1], "protocol": protocol}
+                    session_id,
+                    "pool_reserved",
+                    {
+                        "backend": "simple",
+                        "host": target[0],
+                        "port": target[1],
+                        "protocol": protocol,
+                    },
                 )
             return lease
         return target

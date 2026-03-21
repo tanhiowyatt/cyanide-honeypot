@@ -53,3 +53,12 @@ def test_load_config_no_file(tmp_path):
     with patch("cyanide.core.config.load_dotenv"):
         config = load_config(non_existent)
         assert config["hostname"] == "server01"  # default
+
+
+def test_user_config_alias():
+    from cyanide.core.config_schema import UserConfig
+
+    # Test that 'pass' field is correctly aliased to 'password'
+    u = UserConfig(**{"user": "admin", "pass": "secret"})
+    assert u.user == "admin"
+    assert u.password == "secret"

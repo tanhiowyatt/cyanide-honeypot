@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import mysql.connector
 
@@ -27,7 +27,7 @@ class Plugin(OutputPlugin):
         if not re.match(r"^\w+$", self.table):
             raise ValueError(f"Invalid table name (must be alphanumeric/underscore): {self.table}")
 
-        self.conn: Optional[mysql.connector.MySQLConnection] = None
+        self.conn: Any = None
         self._connect()
 
     def _connect(self):

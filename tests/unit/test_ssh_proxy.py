@@ -97,3 +97,34 @@ def test_proxy_client_channel_connection_lost():
     client_chan.connection_lost(None)
     assert client_chan.send_task.cancel.called
     assert peer_chan.close.called
+
+
+def test_proxy_server_session_signals(proxy_session):
+    proxy_session.backend_channel = MagicMock()
+    proxy_session.terminal_window_resized(80, 24, 0, 0)
+    proxy_session.backend_channel.change_terminal_size.assert_called_with(80, 24, 0, 0)
+
+    proxy_session.break_received(100)
+    proxy_session.backend_channel.send_break.assert_called_with(100)
+
+    proxy_session.signal_received("SIGINT")
+    proxy_session.backend_channel.send_signal.assert_called_with("SIGINT")
+
+    proxy_session.eof_received()
+    proxy_session.backend_channel.write_eof.assert_called_once()
+
+    proxy_session.data_received(b"test", None)
+    assert proxy_session.buffer == [b"test"]
+
+
+@pytest.mark.asyncio
+async def test_proxy_client_channel_methods():
+    chan = ProxyClientChannel("sess1", "127.0.0.1", MagicMock())
+    chan.connection_made(MagicMock())
+    assert chan.send_task is not None
+
+    chan.data_received(b"test", None)
+    assert chan.buffer == [b"test"]
+
+    chan.eof_received()
+    chan.peer_channel.write_eof.assert_called_once()

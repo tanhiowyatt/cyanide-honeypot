@@ -174,7 +174,7 @@ async def test_sftp_handler_realpath(sftp_handler):
 
 
 @pytest.mark.asyncio
-async def test_sftp_handler_missing_file_errors(sftp_handler):
+async def test_sftp_file_missing_file_errors(sftp_handler):
     """Test that appropriate errors are raised for missing files."""
     with pytest.raises(asyncssh.SFTPNoSuchFile):
         await sftp_handler.stat("/nonexistent")
@@ -184,3 +184,96 @@ async def test_sftp_handler_missing_file_errors(sftp_handler):
 
     with pytest.raises(asyncssh.SFTPNoSuchFile):
         await sftp_handler.open("/nonexistent", asyncssh.FXF_READ, asyncssh.SFTPAttrs())
+
+
+@pytest.mark.asyncio
+async def test_sftp_file_fstat_fsetstat(sftp_handler, mock_chan):
+    """Test fstat and fsetstat on CyanideSFTPFile."""
+    fs = mock_chan.get_connection().cyanide_factory.fs
+    fs.mkfile("/test.txt", content="data")
+    sftp_file = CyanideSFTPFile(sftp_handler, "/test.txt", bytearray(b"data"), is_write=False)
+
+    attrs = await sftp_file.fstat()
+    assert attrs.size == 4
+
+    await sftp_file.fsetstat(asyncssh.SFTPAttrs())
+    # Just check it logs or doesn't crash
+
+
+@pytest.mark.asyncio
+async def test_sftp_file_write_read_only(sftp_handler):
+    """Test write on a file opened for reading."""
+    sftp_file = CyanideSFTPFile(sftp_handler, "/test.txt", bytearray(b"data"), is_write=False)
+    with pytest.raises(asyncssh.SFTPPermissionDenied, match="File not open for writing"):
+        await sftp_file.write(0, b"more data")
+
+
+@pytest.mark.asyncio
+async def test_sftp_handler_rename_fail(sftp_handler, mock_chan):
+    """Test rename failure when move fails in VFS."""
+    fs = mock_chan.get_connection().cyanide_factory.fs
+    fs.move = MagicMock(return_value=False)
+    with pytest.raises(asyncssh.SFTPNoSuchFile):
+        await sftp_handler.rename("/old", "/new")
+
+
+@pytest.mark.asyncio
+async def test_sftp_handler_scandir_bytes(sftp_handler, mock_chan):
+    """Test scandir when path is passed as bytes."""
+    fs = mock_chan.get_connection().cyanide_factory.fs
+    fs.mkdir_p("/test_bytes")
+    fs.mkfile("/test_bytes/file.txt", content="test")
+
+    names = []
+    async for name in sftp_handler.scandir(b"/test_bytes"):
+        names.append(name.filename)
+    assert b"file.txt" in names
+
+
+@pytest.mark.asyncio
+async def test_sftp_handler_scandir_error(sftp_handler, mock_chan):
+    """Test scandir error handling."""
+    fs = mock_chan.get_connection().cyanide_factory.fs
+    fs.list_dir = MagicMock(side_effect=Exception("List error"))
+    with pytest.raises(asyncssh.SFTPNoSuchFile):
+        async for _ in sftp_handler.scandir("/any"):
+            pass
+
+
+@pytest.mark.asyncio
+async def test_sftp_handler_rmdir(sftp_handler, mock_chan):
+    """Test rmdir (delegates to remove)."""
+    fs = mock_chan.get_connection().cyanide_factory.fs
+    fs.mkdir_p("/dir_to_remove")
+    await sftp_handler.rmdir("/dir_to_remove")
+    assert not fs.exists("/dir_to_remove")
+
+
+@pytest.mark.asyncio
+async def test_sftp_handler_lstat(sftp_handler, mock_chan):
+    """Test lstat (delegates to stat)."""
+    fs = mock_chan.get_connection().cyanide_factory.fs
+    fs.mkfile("/lstat_test.txt", content="lstat")
+    attrs = await sftp_handler.lstat("/lstat_test.txt")
+    assert attrs.size == 5
+
+
+@pytest.mark.asyncio
+async def test_sftp_handler_setstat(sftp_handler):
+    """Test setstat logging."""
+    await sftp_handler.setstat("/path", asyncssh.SFTPAttrs())
+    # No crash
+
+
+@pytest.mark.asyncio
+async def test_sftp_parse_mode_dir(sftp_handler):
+    """Test directory mode parsing."""
+    # Mocking node for _get_attrs
+    node = MagicMock()
+    node.perm = "drwxr-xr-x"
+    node.owner = "root"
+    node.group = "root"
+    node.size = 4096
+
+    attrs = sftp_handler._get_attrs(node)
+    assert attrs.permissions & 0o40000  # S_IFDIR

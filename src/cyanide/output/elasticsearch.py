@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from elasticsearch import Elasticsearch
 
@@ -18,7 +18,7 @@ class Plugin(OutputPlugin):
         self.index = config.get("index", "cyanide-events")
         self.user = config.get("user", "")
         self.password = config.get("password", "")
-        self.client = None
+        self.client: Optional[Elasticsearch] = None
         self._connect()
 
     def _connect(self):

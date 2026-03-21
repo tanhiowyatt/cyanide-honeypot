@@ -69,7 +69,7 @@ class LibvirtPool:
 
     async def start(self):
         """Start background tasks for healthcheck and recycling"""
-        await self._sync_vms()
+        self._sync_vms()
         self._bg_tasks.append(asyncio.create_task(self._healthcheck_loop()))
         self._bg_tasks.append(asyncio.create_task(self._recycle_loop()))
         logger.info(f"Libvirt pool started. Max VMs: {self.max_vms}")

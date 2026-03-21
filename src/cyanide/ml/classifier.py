@@ -216,6 +216,9 @@ class KnowledgeBase:
         """Classify command and return MITRE context."""
         matches = self.search(command, top_k=3)
         if not matches:
+            fallback = self._fallback_classify(command)
+            if fallback:
+                return fallback
             return {"classified": False, "reason": "No similar commands found"}
 
         best_match = matches[0]

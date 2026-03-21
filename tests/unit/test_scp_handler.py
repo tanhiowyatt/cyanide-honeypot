@@ -77,3 +77,59 @@ async def test_scp_upload_invalid_header(mock_session, mock_process):
     assert rc == 0
     # Should have sent an ACK for the initial connection then ignore or ACK the invalid line
     assert mock_process.channel.write.call_count >= 1
+
+
+@pytest.mark.asyncio
+async def test_scp_handle_no_sink(mock_session, mock_process):
+    """Test handler when -t (sink mode) is not present."""
+    handler = ScpHandler(mock_session, process=mock_process)
+    rc = await handler.handle("scp -f /tmp/file")
+    assert rc == 0
+    mock_session.honeypot.logger.log_event.assert_called_with(
+        "conn_test_conn", "scp_exec_detected", ANY
+    )
+    # Check that direction was "download"
+    call_args = mock_session.honeypot.logger.log_event.call_args[0]
+    assert call_args[2]["direction"] == "download"
+
+
+@pytest.mark.asyncio
+async def test_scp_unsupported_command(mock_session, mock_process):
+    """Test handling of unsupported commands like T or D."""
+    handler = ScpHandler(mock_session, process=mock_process)
+    # Simulate T command followed by E
+    mock_process.stdin.read.side_effect = [b"T1234567 0 1234567 0\n", b"E\n", b""]
+
+    rc = await handler.handle("scp -t /tmp")
+    assert rc == 0
+    # Initial ACK + ACK for T + ACK for E
+    assert mock_process.channel.write.call_count >= 3
+
+
+@pytest.mark.asyncio
+async def test_scp_invalid_c_header(mock_session, mock_process):
+    """Test C header with invalid format."""
+    handler = ScpHandler(mock_session, process=mock_process)
+    # C header with wrong number of parts
+    mock_process.stdin.read.side_effect = [b"C0644 missing_size filename\n", b""]
+
+    rc = await handler.handle("scp -t /tmp")
+    assert rc == 1
+    # Check that error message was written
+    mock_process.channel.write.assert_any_call("\x01SCP Protocol Error: Invalid header\n")
+
+
+@pytest.mark.asyncio
+async def test_scp_save_to_vfs_error(mock_session, mock_process):
+    """Test exception handling during VFS save."""
+    handler = ScpHandler(mock_session, process=mock_process)
+    mock_session.fs.mkfile = MagicMock(side_effect=Exception("VFS Error"))
+
+    metadata = b"C0644 4 test.txt\n"
+    content = b"data"
+    mock_process.stdin.read.side_effect = [metadata, content, b"\0", b"E\n", b""]
+
+    rc = await handler.handle("scp -t /tmp")
+    assert rc == 0  # We still want to return 0 to the client usually in this honeypot
+    # Error should be logged to project logger (not event logger necessarily)
+    # But here we just check it didn't crash

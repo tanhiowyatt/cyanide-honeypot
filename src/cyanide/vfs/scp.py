@@ -2,7 +2,7 @@ import logging
 import os
 import re
 import shlex
-from typing import Any
+from typing import Any, List
 
 logger = logging.getLogger("cyanide.vfs.scp")
 
@@ -32,6 +32,7 @@ class ScpHandler:
             else getattr(session, "session_id", "unknown")
         )
         self.logger = self.honeypot.logger
+        self.dir_stack: List[str] = []
 
     async def _read(self, n: int) -> bytes:
         """Read n bytes from the appropriate input stream."""
@@ -137,6 +138,35 @@ class ScpHandler:
         await self._send_ack()
         return 0
 
+    async def _handle_dir_command(self, header_str: str, current_base: str) -> str:
+        """Handle the 'D' (Directory) protocol command."""
+        match = re.match(r"D(\d{4}) 0 (.+)", header_str)
+        if not match:
+            self._write(b"\x01SCP Protocol Error: Invalid directory header\n")
+            return current_base
+
+        mode_str, dirname = match.groups()
+        new_dir = os.path.join(current_base, dirname)
+
+        if self.fs:
+            try:
+                self.fs.mkdir_p(new_dir)
+            except Exception as e:
+                logger.error(f"Failed to create SCP directory in VFS: {e}")
+
+        self.logger.log_event(
+            self.session_id,
+            "scp_directory_created",
+            {"path": new_dir, "mode": mode_str},
+        )
+
+        await self._send_ack()
+        return new_dir
+
+    async def _handle_end_dir_command(self):
+        """Handle the 'E' (End of Directory) protocol command."""
+        await self._send_ack()
+
     async def handle(self, command: str) -> int:
         """
         Main SCP loop.
@@ -166,22 +196,31 @@ class ScpHandler:
         # Initial ACK to start the protocol
         await self._send_ack()
 
+        current_base = dest_dir
+        self.dir_stack = [dest_dir]
+
         while True:
             header_str = await self._read_header()
             if not header_str:
                 break
 
             if header_str.startswith("C"):
-                rc = await self._handle_copy_command(header_str, dest_dir)
+                rc = await self._handle_copy_command(header_str, current_base)
                 if rc != 0:
                     return rc
 
+            elif header_str.startswith("D"):
+                self.dir_stack.append(current_base)
+                current_base = await self._handle_dir_command(header_str, current_base)
+
             elif header_str.startswith("E"):
-                # End of directory/transfer
-                await self._send_ack()
-                break
+                if self.dir_stack:
+                    current_base = self.dir_stack.pop()
+                await self._handle_end_dir_command()
+                if not self.dir_stack:  # If we popped the initial dest_dir, we are done
+                    break
             else:
-                # Unsupported command (T, D, etc.) - Just ACK
+                # Unsupported command (T, etc.) - Just ACK
                 await self._send_ack()
 
         return 0

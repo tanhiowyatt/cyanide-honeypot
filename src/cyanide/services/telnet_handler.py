@@ -202,6 +202,11 @@ class TelnetHandler:
             session_id, "auth", {**log_common, "src_ip": src_ip, "password": password}
         )
 
+        if success:
+            auth_delay = self.config.get("telnet", {}).get("auth_delay", 1.0)
+            if auth_delay > 0:
+                await asyncio.sleep(auth_delay)
+
         if not success:
             resp = b"\r\nLogin incorrect\r\n"
             writer.write(resp)

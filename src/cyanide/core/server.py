@@ -1020,7 +1020,7 @@ class SSHServerFactory(asyncssh.SSHServer):
         return False
 
     # Function 61: Performs operations related to validate password.
-    def validate_password(self, username, password):
+    async def validate_password(self, username, password):
         self.username = username
         success = self.honeypot.is_valid_user(username, password)
         self.honeypot.stats.on_auth(username, password, success)
@@ -1035,6 +1035,13 @@ class SSHServerFactory(asyncssh.SSHServer):
                 "success": success,
             },
         )
+
+        if success:
+            ssh_conf = self.honeypot.config.get("ssh", {})
+            auth_delay = ssh_conf.get("auth_delay", 1.0)
+            if auth_delay > 0:
+                await asyncio.sleep(auth_delay)
+
         return success
 
     # Function 63: Performs operations related to session requested.

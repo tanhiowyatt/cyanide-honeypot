@@ -73,6 +73,7 @@ class SSHConfig(BaseModel):
     sftp_enabled: bool = True
     scp_enabled: bool = True
     rsync_enabled: bool = True
+    vfs_persistence: bool = True
     max_upload_size_mb: int = 50
     max_total_upload_mb_per_session: int = 200
     allow_download: bool = True

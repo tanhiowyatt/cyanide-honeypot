@@ -306,6 +306,7 @@ def load_config(path: Path = Path("configs/app.yaml")):
             "target_host": get_val("ssh", "target_host", "SSH_TARGET_HOST", "127.0.0.1"),
             "target_port": get_val("ssh", "target_port", "SSH_TARGET_PORT", 22222, int),
             "rsa_keying": get_val("ssh", "rsa_keying", "SSH_RSA_KEYING", True, bool),
+            "vfs_persistence": get_val("ssh", "vfs_persistence", "VFS_PERSISTENCE", True, bool),
             "version": get_val("ssh", "version", "SSH_VERSION", None),
             "ciphers": get_val(
                 "ssh",

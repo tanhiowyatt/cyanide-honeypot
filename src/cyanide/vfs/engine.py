@@ -322,6 +322,7 @@ class FakeFilesystem:
             "owner": owner,
             "group": group,
             "perm": perm,
+            "size": len(content) if isinstance(content, (str, bytes)) else 0,
             "mtime": datetime.datetime.now(),
         }
         if path in self.deleted_paths:

@@ -20,6 +20,7 @@ Telnet is unencrypted and plaintext. The `TelnetSession` initiates the connectio
 4. Server writes: `Password: ` (With local echo softly disabled to mimic real behavior, though clients often enforce their own echo loops).
 5. Attacker inputs password.
 6. Cyanide evaluates the credentials against `CYANIDE_USERS`.
+7. **Authentication Delay:** A configurable 1-second delay (default) is applied after credential entry but before the session is established to enhance realism.
 
 During this phase, Cyanide logs all failed and successful `telnet_auth` events to the core logger.
 

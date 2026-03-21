@@ -10,6 +10,7 @@ The `app.yaml` file controls the core behavior of the honeypot.
 - **`ssh.listen_port`**: Port to listen for SSH (default: 2222).
 - **`telnet.listen_port`**: Port to listen for Telnet (default: 2223).
 - **`ssh.backend_mode` / `telnet.backend_mode`**: Select `emulated` (simulated shell), `proxy` (forwarding to a real server), or `pool` (Libvirt VM orchestration).
+- **`ssh.auth_delay` / `telnet.auth_delay`**: Artificial delay (in seconds) after credential entry to simulate system load (default: 1.0).
 - **`server.max_sessions`**: Global limit for concurrent sessions (default: 100).
 - **`server.os_profile`**: Global OS masquerade choice (`ubuntu`, `debian`, `centos`, or `random`).
 

@@ -9,6 +9,7 @@ The `SSHServerFactory` class dictates how an incoming SSH connection is initiall
 ### Key Capabilities:
 - **Authentication Handlers:** Cyanide supports both `password` and `publickey` authentication.
   - Unlike naive honeypots that blindly accept any credential, Cyanide can optionally parse a `CYANIDE_USERS` list to only permit specific credentials. This weeds out simplistic bots and encourages advanced human attackers to proceed.
+  - **Authentication Delay:** To enhance realism and frustrate automated scanners, a configurable 1-second delay (default) is applied after credential entry but before the session is established.
   - If a public key is provided natively via the client, Cyanide records the key fingerprint and accepts the payload, allowing it to trace specific threat actors via their unique SSH keypairs across different servers.
 - **Connection Logging:** The initial `connection_made` event is trapped. Cyanide extracts the remote client version (e.g. `SSH-2.0-OpenSSH_9.0`) and logs it, identifying the attacker's toolkit before authentication even completes.
 
@@ -53,8 +54,9 @@ Cyanide implements a full SFTP subsystem that bridges directly to the Virtual Fi
 ### SCP Support
 Secure Copy (SCP) is supported via the standard RCP-based wire protocol.
 - **Interception:** Cyanide intercepts `scp` and `/usr/bin/scp` execution requests in the SSH session.
+- **Recursive Transfers (`-r`):** Full support for recursive directory uploads. Captured directory structures are realistically mirrored in the VFS.
 - **Realistic Sink Mode:** Implements the `sink` protocol (`-t`) to receive files. The honeypot performs the expected ACK-based handshake (`\0`) to realistically simulate a successful transfer.
-- **VFS Integration:** Captured files are automatically placed into the Virtual Filesystem (VFS) and forwarded to the quarantine service for analysis.
+- **VFS Integration:** Captured files and directories are automatically placed into the Virtual Filesystem (VFS) and forwarded to the quarantine service for analysis.
 
 ### rsync Monitoring & Intent Capture
 Cyanide provides a high-fidelity rsync "Server Mode" monitor that performs active protocol analysis of incoming synchronization requests.

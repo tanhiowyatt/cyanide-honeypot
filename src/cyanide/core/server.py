@@ -330,67 +330,64 @@ class CyanideServer:
         if direction != "OUT" and not hasattr(session_obj, "tty_log_path_json"):
             return
 
-        if hasattr(session_obj, "tty_log_path_json"):
-            try:
-                now = time.time()
-                if isinstance(data, bytes):
-                    readable_data = data.decode("utf-8", "ignore")
-                else:
-                    readable_data = data
+        self._log_tty_json(session_obj, direction, data)
+        self._log_tty_scriptreplay(session_obj, data)
 
-                # Create a rich entry similar to log_event in CyanideLogger
-                timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
-                session_id = getattr(session_obj, "session_id", "unknown")
-                src_ip = getattr(session_obj, "src_ip", "unknown")
-                protocol = "ssh" if hasattr(session_obj, "channel") else "telnet"
+    def _log_tty_json(self, session_obj, direction: str, data: str):
+        """Log TTY data to a structured JSONL file."""
+        if not hasattr(session_obj, "tty_log_path_json"):
+            return
 
-                entry = {
-                    "timestamp": timestamp,
-                    "session": session_id,
-                    "eventid": f"tty.{direction.lower()}",
+        try:
+            readable_data = data.decode("utf-8", "ignore") if isinstance(data, bytes) else data
+            timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            session_id = getattr(session_obj, "session_id", "unknown")
+            src_ip = getattr(session_obj, "src_ip", "unknown")
+            protocol = "ssh" if hasattr(session_obj, "channel") else "telnet"
+
+            entry = {
+                "timestamp": timestamp,
+                "session": session_id,
+                "eventid": f"tty.{direction.lower()}",
+                "src_ip": src_ip,
+                "protocol": protocol,
+                "direction": direction,
+                "data": readable_data,
+            }
+
+            self.async_logger.log(session_obj.tty_log_path_json, json.dumps(entry) + "\n")
+            self.logger.log_event(
+                session_id,
+                f"tty.{direction.lower()}",
+                {
                     "src_ip": src_ip,
                     "protocol": protocol,
                     "direction": direction,
                     "data": readable_data,
-                }
+                },
+            )
+        except Exception as e:
+            self.logger.log_event(
+                "system", "tty_error", {"message": f"Error saving JSONL TTY: {e}"}
+            )
 
-                # We log this detailed entry to the JSON file
-                self.async_logger.log(session_obj.tty_log_path_json, json.dumps(entry) + "\n")
+    def _log_tty_scriptreplay(self, session_obj, data: str):
+        """Log TTY data for scriptreplay (timing + raw session)."""
+        if not hasattr(session_obj, "tty_log_path") or not hasattr(session_obj, "tty_timing_path"):
+            return
 
-                # ALSO mirror it to the central cyanide-fs.json via log_event for completeness
-                # (This fulfills the "make it as full as central logger" requirement)
-                self.logger.log_event(
-                    session_id,
-                    f"tty.{direction.lower()}",
-                    {
-                        "src_ip": src_ip,
-                        "protocol": protocol,
-                        "direction": direction,
-                        "data": readable_data,
-                    },
-                )
+        try:
+            now = time.time()
+            elapsed = now - session_obj.last_log_time
+            session_obj.last_log_time = now
 
-            except Exception as e:
-                self.logger.log_event(
-                    "system", "tty_error", {"message": f"Error saving JSONL TTY: {e}"}
-                )
-
-        if hasattr(session_obj, "tty_log_path") and hasattr(session_obj, "tty_timing_path"):
-            try:
-                now = time.time()
-                elapsed = now - session_obj.last_log_time
-                session_obj.last_log_time = now
-
-                self.async_logger.log(session_obj.tty_timing_path, f"{elapsed:.6f} {len(data)}\n")
-
-                if isinstance(data, str):
-                    self.async_logger.log(session_obj.tty_log_path, data.encode(), mode="ab")
-                else:
-                    self.async_logger.log(session_obj.tty_log_path, data, mode="ab")
-            except Exception as e:
-                self.logger.log_event(
-                    "system", "tty_error", {"message": f"Error saving scriptreplay TTY: {e}"}
-                )
+            self.async_logger.log(session_obj.tty_timing_path, f"{elapsed:.6f} {len(data)}\n")
+            encoded_data = data.encode() if isinstance(data, str) else data
+            self.async_logger.log(session_obj.tty_log_path, encoded_data, mode="ab")
+        except Exception as e:
+            self.logger.log_event(
+                "system", "tty_error", {"message": f"Error saving scriptreplay TTY: {e}"}
+            )
 
     def _get_health_status(self) -> str:
         ssh_up = self.ssh_server is not None

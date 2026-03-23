@@ -31,6 +31,7 @@ class VFSBackend(ABC):
         pass
 
     def close(self):
+        """Optional cleanup for the backend."""
         pass
 
 
@@ -230,9 +231,9 @@ class FakeFilesystem:
         if (
             not (self.profile_path / "base.yaml").exists()
             and not (self.profile_path / ".compiled.db").exists()
+            and not self.profile_path.exists()
         ):
-            if not self.profile_path.exists():
-                self.profile_path = Path("configs/profiles") / self.os_profile
+            self.profile_path = Path("configs/profiles") / self.os_profile
 
         data = load_profile(self.os_profile, self.profile_path.parent)
 

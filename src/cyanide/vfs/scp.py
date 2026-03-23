@@ -2,7 +2,7 @@ import logging
 import os
 import re
 import shlex
-from typing import Any, List
+from typing import Any, List, Tuple
 
 logger = logging.getLogger("cyanide.vfs.scp")
 
@@ -62,7 +62,7 @@ class ScpHandler:
         except Exception as e:
             logger.error(f"SCP Write Error: {e}")
 
-    async def _send_ack(self):
+    def _send_ack(self):
         """Send SCP success acknowledgement (a null byte)."""
         self._write(b"\0")
 
@@ -113,7 +113,7 @@ class ScpHandler:
         size = int(size_str)
 
         # ACK metadata
-        await self._send_ack()
+        self._send_ack()
 
         # Read the actual file content
         content = await self._read_file_data(size)
@@ -135,7 +135,7 @@ class ScpHandler:
         )
 
         # Final ACK for the file
-        await self._send_ack()
+        self._send_ack()
         return 0
 
     async def _handle_dir_command(self, header_str: str, current_base: str) -> str:
@@ -160,20 +160,16 @@ class ScpHandler:
             {"path": new_dir, "mode": mode_str},
         )
 
-        await self._send_ack()
+        self._send_ack()
         return new_dir
 
     async def _handle_end_dir_command(self):
         """Handle the 'E' (End of Directory) protocol command."""
-        await self._send_ack()
+        self._send_ack()
 
-    async def handle(self, command: str) -> int:
-        """
-        Main SCP loop.
-        Expects a command like 'scp -t /path/to/target'
-        """
+    def _parse_scp_metadata(self, command: str) -> Tuple[bool, str]:
+        """Extract is_sink and dest_dir from SCP command."""
         is_sink = "-t" in command
-
         try:
             parts = shlex.split(command)
             dest_dir = parts[-1] if parts else "."
@@ -189,12 +185,26 @@ class ScpHandler:
                 "target_path": dest_dir,
             },
         )
+        return is_sink, dest_dir
 
+    async def _handle_end_dir(self, current_base: str) -> Tuple[str, bool]:
+        """Pop directory stack and check if protocol should end."""
+        if self.dir_stack:
+            current_base = self.dir_stack.pop()
+        await self._handle_end_dir_command()
+        return current_base, not self.dir_stack
+
+    async def handle(self, command: str) -> int:
+        """
+        Main SCP loop.
+        Expects a command like 'scp -t /path/to/target'
+        """
+        is_sink, dest_dir = self._parse_scp_metadata(command)
         if not is_sink:
             return 0
 
         # Initial ACK to start the protocol
-        await self._send_ack()
+        self._send_ack()
 
         current_base = dest_dir
         self.dir_stack = [dest_dir]
@@ -208,19 +218,14 @@ class ScpHandler:
                 rc = await self._handle_copy_command(header_str, current_base)
                 if rc != 0:
                     return rc
-
             elif header_str.startswith("D"):
                 self.dir_stack.append(current_base)
                 current_base = await self._handle_dir_command(header_str, current_base)
-
             elif header_str.startswith("E"):
-                if self.dir_stack:
-                    current_base = self.dir_stack.pop()
-                await self._handle_end_dir_command()
-                if not self.dir_stack:  # If we popped the initial dest_dir, we are done
+                current_base, should_break = await self._handle_end_dir(current_base)
+                if should_break:
                     break
             else:
-                # Unsupported command (T, etc.) - Just ACK
-                await self._send_ack()
+                self._send_ack()
 
         return 0

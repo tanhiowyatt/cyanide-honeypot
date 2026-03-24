@@ -84,7 +84,7 @@ class LsCommand(Command):
             if isinstance(mtime, str):
                 try:
                     # Handle common ISO formats or fallback
-                    from dateutil import parser
+                    from dateutil import parser  # type: ignore[import-untyped]
 
                     mtime = parser.parse(mtime)
                 except (ImportError, ValueError):

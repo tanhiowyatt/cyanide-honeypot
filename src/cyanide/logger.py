@@ -145,7 +145,7 @@ class CyanideLogger:
                     handler = logging.FileHandler(path)
             else:
                 handler = logging.FileHandler(path)
-        except (OSError, PermissionError) as e:
+        except OSError as e:
             import sys
 
             print(
@@ -190,91 +190,110 @@ class CyanideLogger:
             return self.stats_log, self.stats_log_path
         return self.server_log, self.server_log_path
 
-    # Function 103: Handles event logging and telemetry.
-    def log_event(self, session_id, event_type, data):
-        """Log a generic event in structured JSON, routed to proper file and mirrored to session log."""
-        if isinstance(data, dict):
-            payload = data.copy()
-            payload.pop("session", None)
-            payload.pop("eventid", None)
-            payload.pop("timestamp", None)
+    def _resolve_geoip(self, src_ip, caller_geoip):
+        """Determine GeoIP info based on cache, local stubs, or provided data."""
+        if src_ip and src_ip in self.geoip_cache:
+            return self.geoip_cache[src_ip]
 
-            # Resolve src_ip: from data first, then session cache
-            src_ip = payload.pop("src_ip", None)
-            if not src_ip and session_id in self.session_to_ip:
-                src_ip = self.session_to_ip[session_id]
-            if src_ip and session_id not in self.session_to_ip:
-                self.session_to_ip[session_id] = src_ip
-
-            # Pop geoip if caller provided it, we'll re-attach at the end
-            caller_geoip = payload.pop("geoip", None)
-
-            # Resolve geoip: cache > local stub > caller-provided
-            if src_ip and src_ip in self.geoip_cache:
-                resolved_geoip = self.geoip_cache[src_ip]
-            elif src_ip and (
-                src_ip in ("127.0.0.1", "localhost", "::1")
-                or src_ip.startswith("192.168.")
-                or src_ip.startswith("10.")
-            ):
-                resolved_geoip = {
-                    "country": "Local Network",
-                    "city": "Internal",
-                    "isp": "Private IP Space",
-                    "org": "Internal",
-                }
-            else:
-                resolved_geoip = caller_geoip
-
-            # Build entry with strict field order:
-            # timestamp → session → eventid → src_ip → [payload] → geoip
-            entry: dict[str, Any] = {
-                "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                "session": session_id,
-                "eventid": event_type,
+        # Handle local/private networks
+        if src_ip and (
+            src_ip in ("127.0.0.1", "localhost", "::1")
+            or src_ip.startswith("192.168.")
+            or src_ip.startswith("10.")
+        ):
+            return {
+                "country": "Local Network",
+                "city": "Internal",
+                "isp": "Private IP Space",
+                "org": "Internal",
             }
-            if src_ip:
-                entry["src_ip"] = src_ip
-            entry.update(payload)
-            if resolved_geoip:
-                entry["geoip"] = resolved_geoip
-        else:
-            entry = {
+        return caller_geoip
+
+    def _prepare_log_entry(self, session_id, event_type, data):
+        """Constructs the log entry with strict field ordering."""
+        # Baseline entry for non-dict data
+        if not isinstance(data, dict):
+            return {
                 "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 "session": session_id,
                 "eventid": event_type,
                 "data": data,
             }
 
+        # Dict data processing
+        payload = data.copy()
+        payload.pop("session", None)
+        payload.pop("eventid", None)
+        payload.pop("timestamp", None)
+
+        # Resolve src_ip and sync with session cache
+        src_ip = payload.pop("src_ip", None)
+        if not src_ip and session_id in self.session_to_ip:
+            src_ip = self.session_to_ip[session_id]
+        if src_ip and session_id not in self.session_to_ip:
+            self.session_to_ip[session_id] = src_ip
+
+        # Resolve geoip
+        caller_geoip = payload.pop("geoip", None)
+        resolved_geoip = self._resolve_geoip(src_ip, caller_geoip)
+
+        # Build entry with strict field order:
+        # timestamp → session → eventid → src_ip → [payload] → geoip
+        entry: dict[str, Any] = {
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "session": session_id,
+            "eventid": event_type,
+        }
+        if src_ip:
+            entry["src_ip"] = src_ip
+
+        entry.update(payload)
+
+        if resolved_geoip:
+            entry["geoip"] = resolved_geoip
+
+        return entry
+
+    def _mirror_to_session(self, session_id, event_type, line):
+        """Mirror event to session-specific log files if registered."""
+        if session_id not in self.session_logs:
+            return
+
+        paths = self.session_logs[session_id]
+        try:
+            # Audit Mirroring
+            if self.async_logger:
+                self.async_logger.log(paths["jsonl"], line)
+            else:
+                with open(paths["jsonl"], "a") as f:
+                    f.write(line)
+
+            # ML Mirroring
+            if event_type.startswith("ml_") or event_type == "ml_thought":
+                if self.async_logger:
+                    self.async_logger.log(paths["ml_json"], line)
+                else:
+                    with open(paths["ml_json"], "a") as f:
+                        f.write(line)
+        except Exception as e:
+            logging.error(f"Failed to mirror event to session log {session_id}: {e}")
+
+    # Function 103: Handles event logging and telemetry.
+    def log_event(self, session_id, event_type, data):
+        """Log a generic event in structured JSON, routed to proper file and mirrored."""
+        entry = self._prepare_log_entry(session_id, event_type, data)
         logger, log_path = self._get_target_logger_info(event_type)
         line = json.dumps(entry) + "\n"
 
+        # Global logging
         if self.async_logger:
             self.async_logger.log(log_path, line)
         else:
             logger.info(json.dumps(entry))
 
-        # Mirror to session-specific logs
-        if session_id in self.session_logs:
-            paths = self.session_logs[session_id]
+        # Session-specific mirroring
+        self._mirror_to_session(session_id, event_type, line)
 
-            # All events go to the detailed session audit log
-            try:
-                if self.async_logger:
-                    self.async_logger.log(paths["jsonl"], line)
-                else:
-                    with open(paths["jsonl"], "a") as f:
-                        f.write(line)
-
-                # ML analysis events also go to the specific .json analysis file
-                if event_type.startswith("ml_") or event_type == "ml_thought":
-                    if self.async_logger:
-                        self.async_logger.log(paths["ml_json"], line)
-                    else:
-                        with open(paths["ml_json"], "a") as f:
-                            f.write(line)
-            except Exception as e:
-                logging.error(f"Failed to mirror event to session log {session_id}: {e}")
-
+        # Output plugins
         for plugin in self.plugins:
             plugin.emit(entry.copy())

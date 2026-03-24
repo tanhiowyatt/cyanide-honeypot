@@ -2,6 +2,8 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+PORT_RANGE_ERROR = "Port must be between 1 and 65535"
+
 
 class SSHConfig(BaseModel):
     enabled: bool = True
@@ -17,7 +19,7 @@ class SSHConfig(BaseModel):
     @classmethod
     def validate_port(cls, v):
         if v is not None and not (1 <= v <= 65535):
-            raise ValueError("Port must be between 1 and 65535")
+            raise ValueError(PORT_RANGE_ERROR)
         return v
 
     ciphers: List[str] = Field(
@@ -116,7 +118,7 @@ class TelnetConfig(BaseModel):
     @classmethod
     def validate_port(cls, v):
         if v is not None and not (1 <= v <= 65535):
-            raise ValueError("Port must be between 1 and 65535")
+            raise ValueError(PORT_RANGE_ERROR)
         return v
 
 
@@ -128,7 +130,7 @@ class MetricsConfig(BaseModel):
     @classmethod
     def validate_port(cls, v):
         if not (1 <= v <= 65535):
-            raise ValueError("Port must be between 1 and 65535")
+            raise ValueError(PORT_RANGE_ERROR)
         return v
 
 
@@ -143,7 +145,7 @@ class SMTPConfig(BaseModel):
     @classmethod
     def validate_port(cls, v):
         if not (1 <= v <= 65535):
-            raise ValueError("Port must be between 1 and 65535")
+            raise ValueError(PORT_RANGE_ERROR)
         return v
 
 

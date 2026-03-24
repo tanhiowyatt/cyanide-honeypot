@@ -54,9 +54,7 @@ class TelnetHandler:
                 "connect",
                 {"protocol": "telnet", "src_ip": src_ip, "src_port": src_port},
             )
-            geoip_task = asyncio.create_task(
-                self.services.analytics.log_geoip(session_id, src_ip, "telnet")
-            )
+            geoip_task = asyncio.create_task(self.services.analytics.log_geoip(src_ip))
             self.stats.on_connect("telnet", src_ip)
 
             fs = self.server.get_filesystem(session_id, src_ip)

@@ -1,6 +1,6 @@
 # Cyanide Technical Architecture
 
-This document provides a deep dive into the internal mechanics of the Cyanide Honeypot.
+This document provides a deep dive into the internal mechanics of the Cyanide Honeypot. For recent improvements and stabilization details, see the **[Stabilization & Logging Notes](stabilization_notes.md)**.
 
 ## 🏛️ System Overview
 

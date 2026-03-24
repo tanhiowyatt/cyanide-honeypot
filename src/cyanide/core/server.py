@@ -3,6 +3,7 @@ Advanced SSH/Telnet Honeypot Server Implementation.
 """
 
 import asyncio
+import hashlib
 import json
 import logging
 import secrets
@@ -203,9 +204,9 @@ class CyanideServer:
             self.services.analytics.analyze_command(cmd, src_ip, session_id, is_bot=is_bot)
 
     # Function 41: Handles event logging and telemetry.
-    async def log_geoip(self, session_id, ip, protocol):
+    async def log_geoip(self, ip):
         """Delegated to AnalyticsService."""
-        await self.services.analytics.log_geoip(session_id, ip, protocol)
+        await self.services.analytics.log_geoip(ip)
 
     # Function 43: Checks condition: is valid user.
     def is_valid_user(self, username, password):
@@ -833,14 +834,14 @@ class CyanideServer:
         """Stop all services."""
         self.logger.log_event("system", "system_status", {"message": "Stopping CyanideServer..."})
 
-        for task in self.background_tasks:
-            task.cancel()
         if self.background_tasks:
+            for task in self.background_tasks:
+                task.cancel()
             try:
                 await asyncio.wait_for(
                     asyncio.gather(*self.background_tasks, return_exceptions=True), timeout=5.0
                 )
-            except asyncio.TimeoutError:
+            except Exception:
                 self.logger.log_event(
                     "system", "warning", {"message": "Background tasks shutdown timeout"}
                 )
@@ -849,41 +850,32 @@ class CyanideServer:
         if hasattr(self, "vm_pool") and self.vm_pool:
             await self.vm_pool.stop()
 
-        ssh_server = getattr(self, "ssh_server", None)
-        if ssh_server:
-            try:
-                ssh_server.close()
-                await asyncio.wait_for(ssh_server.wait_closed(), timeout=5.0)
-            except (asyncio.TimeoutError, Exception) as e:
-                self.logger.log_event("system", "error", {"message": f"SSH shutdown error: {e}"})
-            self.ssh_server = None
+        await self._close_server(getattr(self, "ssh_server", None), "SSH")
+        self.ssh_server = None
+        await self._close_server(getattr(self, "telnet_server", None), "Telnet")
+        self.telnet_server = None
+        await self._close_server(getattr(self, "smtp_server", None), "SMTP")
+        self.smtp_server = None
+        await self._close_server(getattr(self, "metrics_server", None), "Metrics")
+        self.metrics_server = None
 
-        telnet_server = getattr(self, "telnet_server", None)
-        if telnet_server:
-            try:
-                telnet_server.close()
-                await asyncio.wait_for(telnet_server.wait_closed(), timeout=5.0)
-            except (asyncio.TimeoutError, Exception) as e:
-                self.logger.log_event("system", "error", {"message": f"Telnet shutdown error: {e}"})
-            self.telnet_server = None
+        async_logger = getattr(self, "async_logger", None)
+        if async_logger:
+            await async_logger.stop()
 
-        smtp_server = getattr(self, "smtp_server", None)
-        if smtp_server:
-            try:
-                smtp_server.close()
-                await asyncio.wait_for(smtp_server.wait_closed(), timeout=5.0)
-            except (asyncio.TimeoutError, Exception) as e:
-                self.logger.log_event("system", "error", {"message": f"SMTP shutdown error: {e}"})
-            self.smtp_server = None
+        if hasattr(self, "_stop_event"):
+            self._stop_event.set()
 
-        metrics_server = getattr(self, "metrics_server", None)
-        if metrics_server:
-            metrics_server.close()
-            try:
-                await asyncio.wait_for(metrics_server.wait_closed(), timeout=5.0)
-            except (asyncio.TimeoutError, Exception):
-                pass
-            self.metrics_server = None
+    async def _close_server(self, server, name):
+        """Helper to close a network server gracefully."""
+        if not server:
+            return
+        try:
+            server.close()
+            await asyncio.wait_for(server.wait_closed(), timeout=5.0)
+        except Exception as e:
+            if name != "Metrics":  # Metrics usually closes fast, ignore its errors in stop
+                self.logger.log_event("system", "error", {"message": f"{name} shutdown error: {e}"})
 
         async_logger = getattr(self, "async_logger", None)
         if async_logger:
@@ -984,8 +976,24 @@ class SSHServerFactory(asyncssh.SSHServer):
         self.src_port = conn.get_extra_info("peername")[1]
         self._handshake_logged = False
 
-        # Monkey-patch set_extra_info to capture kex/host_key algorithm
-        # right before asyncssh zeroes out conn._kex after kex completes.
+        self._setup_handshake_capture(conn)
+
+        if not self._check_session_limits(conn):
+            return
+
+        session_id = "conn_" + self.conn_id
+        self.honeypot.services.session.register_session(self.src_ip, session_id=session_id)
+        self.fs = self.honeypot.get_filesystem(session_id=session_id, src_ip=self.src_ip)
+
+        self._init_session_logging(session_id)
+
+        # Trigger GeoIP lookup (background task)
+        self._background_tasks.add(
+            asyncio.create_task(self.honeypot.services.analytics.geoip.lookup(self.src_ip))
+        )
+
+    def _setup_handshake_capture(self, conn):
+        """Monkey-patch set_extra_info to capture kex/host_key algorithm."""
         try:
             original_set_extra = conn.set_extra_info.__func__
 
@@ -1011,15 +1019,8 @@ class SSHServerFactory(asyncssh.SSHServer):
         except AttributeError:
             pass  # Non-asyncssh connection (e.g. MagicMock in tests)
 
-        if not self._check_session_limits(conn):
-            return
-
-        session_id = "conn_" + self.conn_id
-        self.honeypot.services.session.register_session(self.src_ip, session_id=session_id)
-
-        self.fs = self.honeypot.get_filesystem(session_id=session_id, src_ip=self.src_ip)
-
-        # Initialize TTY and Mirroring early to capture handshake events
+    def _init_session_logging(self, session_id):
+        """Initialize TTY and Mirroring early to capture handshake events."""
         try:
             folder_name = f"ssh_{self.src_ip}_{session_id}"
             log_dir = Path(self.honeypot.logger.log_dir) / "tty" / folder_name
@@ -1034,13 +1035,7 @@ class SSHServerFactory(asyncssh.SSHServer):
             import sys
 
             print(f"ERROR: Failed to initialize session log directory: {e}", file=sys.stderr)
-
-        # Trigger GeoIP lookup (background task)
-        self._background_tasks.add(
-            asyncio.create_task(
-                self.honeypot.services.analytics.log_geoip(session_id, self.src_ip, "ssh")
-            )
-        )
+            asyncio.create_task(self.honeypot.services.analytics.log_geoip(self.src_ip))
 
     async def _log_connection_details(self, conn):
         """Log connection opening and algorithms."""
@@ -1069,10 +1064,10 @@ class SSHServerFactory(asyncssh.SSHServer):
         mac = conn.get_extra_info("send_mac")
         compression = conn.get_extra_info("send_compression")
 
-        import hashlib
-
         fp_str = ",".join([str(v or "") for v in [kex_alg, host_key_alg, cipher, mac, compression]])
-        fingerprint = hashlib.md5(fp_str.encode()).hexdigest()
+        # MD5 is used here for identification (fingerprinting), not for security.
+        # Adding usedforsecurity=False tells tools like Bandit/Semgrep it's non-cryptographic.
+        fingerprint = hashlib.md5(fp_str.encode(), usedforsecurity=False).hexdigest()
 
         # Log client fingerprint
         self.honeypot.logger.log_event(
@@ -1375,7 +1370,7 @@ class SSHSession(asyncssh.SSHServerSession):
 
         self.honeypot.stats.on_connect("ssh", self.src_ip)
 
-        task = asyncio.create_task(self.honeypot.log_geoip(self.session_id, self.src_ip, "ssh"))
+        task = asyncio.create_task(self.honeypot.log_geoip(self.src_ip))
         self._background_tasks.add(task)
         task.add_done_callback(self._background_tasks.discard)
 

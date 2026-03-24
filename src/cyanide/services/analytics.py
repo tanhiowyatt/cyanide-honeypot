@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Optional
 
 
 class AnalyticsService:
@@ -180,29 +180,48 @@ class AnalyticsService:
             self.logger.log_event(session_id, "error", {"message": f"ML File Analysis Error: {e}"})
 
     # Function 185: Handles event logging and telemetry.
-    async def log_geoip(self, session_id: str, ip: str, protocol: str):
+    def _identify_threats(self, ptr_data: Optional[str]) -> list[str]:
+        """Identify known scanners and bots from reverse DNS (PTR) records."""
+        if not ptr_data:
+            return []
+
+        threat_intel = []
+        low_ptr = ptr_data.lower()
+        # Dictionary mapping for common scanner signatures
+        signatures = {
+            "shodan": "Shodan Scanner",
+            "censys": "Censys Scanner",
+            "shadowserver": "Shadowserver Scanner",
+            "bolt": "Bot/Crawler",
+            "crawl": "Bot/Crawler",
+        }
+
+        for signature, label in signatures.items():
+            if signature in low_ptr and label not in threat_intel:
+                threat_intel.append(label)
+
+        return threat_intel
+
+    def _enrich_geoip_cache(
+        self, ip: str, geo_data: dict, ptr_data: Optional[str], threat_intel: list[str]
+    ):
+        """Updates the logger's GeoIP cache with enriched data including PTR and threats."""
+        if not hasattr(self.logger, "geoip_cache"):
+            return
+
+        enriched_geo = geo_data.copy()
+        enriched_geo["ptr"] = ptr_data
+        if threat_intel:
+            enriched_geo["threat_intel"] = threat_intel
+
+        self.logger.geoip_cache[ip] = enriched_geo
+
+    # Function 185: Handles event logging and telemetry.
+    async def log_geoip(self, ip: str):
         """Async GeoIP enrichment logging."""
         geo_data = await self.geoip.lookup(ip)
         ptr_data = await self.geoip.lookup_ptr(ip)
-
-        threat_intel = []
-        if ptr_data:
-            low_ptr = ptr_data.lower()
-            if "shodan" in low_ptr:
-                threat_intel.append("Shodan Scanner")
-            if "censys" in low_ptr:
-                threat_intel.append("Censys Scanner")
-            if "shadowserver" in low_ptr:
-                threat_intel.append("Shadowserver Scanner")
-            if "bolt" in low_ptr or "crawl" in low_ptr:
-                threat_intel.append("Bot/Crawler")
+        threat_intel = self._identify_threats(ptr_data)
 
         if geo_data:
-            # Populate logger cache for automatic enrichment of future events
-            if hasattr(self.logger, "geoip_cache"):
-                # Also include PTR and Threat Intel in the cache
-                enriched_geo = geo_data.copy()
-                enriched_geo["ptr"] = ptr_data
-                if threat_intel:
-                    enriched_geo["threat_intel"] = threat_intel
-                self.logger.geoip_cache[ip] = enriched_geo
+            self._enrich_geoip_cache(ip, geo_data, ptr_data, threat_intel)

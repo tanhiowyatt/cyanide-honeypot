@@ -234,6 +234,7 @@ class CyanideConfig(BaseModel):
     virustotal: VirusTotalConfig = Field(default_factory=lambda: VirusTotalConfig())
     rate_limit: RateLimitConfig = Field(default_factory=lambda: RateLimitConfig())
     allow_local_network: bool = False
+    honeytokens: List[str] = Field(default_factory=list)
 
     users: List[Dict[str, str]] = Field(default_factory=list)
 

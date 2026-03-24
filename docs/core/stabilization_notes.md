@@ -42,6 +42,9 @@ We refactored high-complexity functions (Complexity > 20) into smaller, testable
 - **Redundant Exceptions**: Removed redundant `except (Subclass, Parent)` blocks (S5713) to comply with modern Python 3.11+ exception hierarchy.
 - **Stale Parameters**: Cleaned up the `log_geoip` service API by removing unused `session_id` and `protocol` parameters.
 
+### Detection & Alerting:
+- **Configurable Honeytokens**: Replaced hardcoded alerting paths with a hierarchical lookup system (Global Config > OS Profile > Defaults). This allows distribution-specific alerts (e.g., `/etc/pacman.conf` for Arch Linux) without changing core code.
+
 ---
 
 ## 4. Developer Tools & CI/CD

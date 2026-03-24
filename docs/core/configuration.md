@@ -50,10 +50,36 @@ When `backend_mode` is set to `pool`, Cyanide can automatically manage backend V
 - **`threshold`**: The anomaly score above which a command is flagged as malicious.
 - **`model_path`**: Path to the pre-trained LSTM Autoencoder model.
 
-### Services
-- **`quarantine.enabled`**: Toggle automatic malware interception.
+- **`virustotal.enabled`**: Toggle automatic malware interception via API.
 - **`stats.enabled`**: Toggle Prometheus metrics export.
 - **`telemetry.enabled`**: Toggle Jaeger tracing.
+
+---
+
+## 🛡️ Honeytokens (Alerting)
+
+Honeytokens are specific filesystem paths that trigger a `CRITICAL_ALERT` event and specialized metrics if accessed (read, written, or deleted) by an attacker.
+
+### Configuration Hierarchy
+Cyanide resolves the active honeytoken list using the following priority:
+1. **Global Configuration**: `app.yaml` under the `honeytokens:` key (Overrides everything).
+2. **OS Profile**: Defined in `configs/profiles/<name>/base.yaml` under the `honeytokens:` key.
+3. **System Defaults**: Built-in fallback list (includes common paths like `/etc/shadow`, `/root/.ssh/id_rsa`, etc.)
+
+### Example (Profile-specific in `base.yaml`):
+```yaml
+honeytokens:
+  - "/etc/pacman.conf"
+  - "/etc/sudoers"
+  - "/root/.bash_history"
+```
+
+### Example (Global override in `app.yaml`):
+```yaml
+honeytokens:
+  - "/var/www/html/.env"
+  - "/home/admin/passwords.txt"
+```
 
 ---
 

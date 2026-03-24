@@ -157,6 +157,7 @@ class FakeFilesystem:
         self.backend: Optional[VFSBackend] = None
 
         self.memory_overlay: Dict[str, Dict[str, Any]] = {}
+        self.honeytokens: List[str] = []
         self.deleted_paths: Set[str] = set()
         self.processes: List[Dict[str, Any]] = [
             {"pid": 1, "tty": "?", "time": "00:00:15", "cmd": "/sbin/init", "user": "root"},
@@ -305,6 +306,7 @@ class FakeFilesystem:
 
         self.context = Context(**data.get("metadata", {}))
         self.dynamic_files = data.get("dynamic_files", {})
+        self.honeytokens = data.get("honeytokens", [])
 
         db_path = data.get("backend_path")
         if db_path:
@@ -432,7 +434,7 @@ class FakeFilesystem:
             return ""
 
         if self.audit_callback:
-            self.audit_callback("read", path)
+            self.audit_callback("read", path, self)
         if self.stats:
             self.stats.on_file_op("read", path)
         if self.session_mgr:
@@ -513,7 +515,7 @@ class FakeFilesystem:
             del self.memory_overlay[path]
 
         if self.audit_callback:
-            self.audit_callback("delete", path)
+            self.audit_callback("delete", path, self)
         if self.stats:
             self.stats.on_file_op("delete", path)
         if self.session_mgr:

@@ -35,6 +35,16 @@ from .telemetry import setup_telemetry
 from .vm_pool import VMPool
 from .vt_scanner import VTScanner
 
+DEFAULT_HONEYTOKENS = [
+    "/home/admin/secret.conf",
+    "/home/admin/flag.txt",
+    "/etc/shadow",
+    "/var/spool/cron/crontabs/root",
+    "/root/flag.txt",
+    "/root/secret.conf",
+    "/root/.ssh/id_rsa",
+]
+
 CONTENT_TYPE_PLAIN = "text/plain"
 EVENT_COMMAND_INPUT = "command.input"
 
@@ -217,21 +227,21 @@ class CyanideServer:
         return False
 
     # Function 44: Performs operations related to fs audit hook.
-    def _fs_audit_hook(self, action, path, session_id="unknown", src_ip="unknown"):
+    def _fs_audit_hook(self, action, path, fs=None, session_id="unknown", src_ip="unknown"):
         """Callback for filesystem auditing."""
         try:
-            HONEYTOKENS = [
-                "/home/admin/secret.conf",
-                "/home/admin/flag.txt",
-                "/etc/shadow",
-                "/var/spool/cron/crontabs/root",
-                "/root/flag.txt",
-                "/root/secret.conf",
-                "/root/.ssh/id_rsa",
-            ]
+            # Hierarchical honeytoken resolution
+            # 1. Main config (override)
+            # 2. Profile config (VFS specific)
+            # 3. System defaults
+            honeytokens = getattr(self.config, "honeytokens", [])
+            if not honeytokens and fs and hasattr(fs, "honeytokens"):
+                honeytokens = fs.honeytokens
+            if not honeytokens:
+                honeytokens = DEFAULT_HONEYTOKENS
 
             event_type = "fs_audit"
-            if str(path) in HONEYTOKENS:
+            if str(path) in honeytokens:
                 event_type = "CRITICAL_ALERT"
                 self.stats.on_honeytoken(str(path))
 
@@ -255,8 +265,8 @@ class CyanideServer:
         """Create a fresh filesystem instance for a new session."""
 
         # Function 46: Performs operations related to audit hook.
-        def audit_hook(action, path):
-            self._fs_audit_hook(action, path, session_id, src_ip)
+        def audit_hook(action, path, fs_instance=None):
+            self._fs_audit_hook(action, path, fs_instance, session_id, src_ip)
 
         if self.vfs_persistence and src_ip != "unknown" and src_ip in self.vfs_cache:
             return self.vfs_cache[src_ip]

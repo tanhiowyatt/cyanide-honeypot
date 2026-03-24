@@ -235,6 +235,7 @@ def _parse_yaml_profile(base_file: Path, static_file: Path) -> Dict[str, Any]:
 
     metadata = base_data.get("metadata", {})
     dynamic_files = base_data.get("dynamic_files", {})
+    honeytokens = base_data.get("honeytokens", [])
     static_manifest: Dict[str, Any] = {}
 
     # 1. Base tree folders
@@ -265,6 +266,7 @@ def _parse_yaml_profile(base_file: Path, static_file: Path) -> Dict[str, Any]:
     return {
         "metadata": metadata,
         "dynamic_files": dynamic_files,
+        "honeytokens": honeytokens,
         "static": static_manifest,
     }
 
@@ -307,6 +309,7 @@ def _check_disk_cache(
                         base_data = yaml.safe_load(f) or {}
                         metadata = base_data.get("metadata", {})
                         dynamic_files = base_data.get("dynamic_files", {})
+                        honeytokens = base_data.get("honeytokens", [])
 
                 return {
                     "v": CACHE_FORMAT_VERSION,
@@ -314,6 +317,7 @@ def _check_disk_cache(
                     "backend_path": str(compiled_db),
                     "metadata": metadata,
                     "dynamic_files": dynamic_files,
+                    "honeytokens": honeytokens,
                 }
         finally:
             conn.close()

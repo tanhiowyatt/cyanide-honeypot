@@ -8,6 +8,10 @@ metadata:
   version_id: "7"
   install_date: "2024-01-25T16:17:31Z"
 
+honeytokens:
+  - "/etc/passwd"
+  - "/etc/shadow"
+
 dynamic_files:
   /proc/uptime:
     type: generated

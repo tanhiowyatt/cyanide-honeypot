@@ -1,3 +1,10 @@
+honeytokens:
+  - "/etc/pacman.conf"
+  - "/etc/sudoers"
+  - "/root/.bash_history"
+  - "/etc/shadow"
+  - "/home/admin/.ssh/authorized_keys"
+
 metadata:
   os_name: "Arch Linux"
   os_id: "archlinux"

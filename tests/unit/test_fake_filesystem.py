@@ -1,4 +1,4 @@
-from unittest.mock import Mock
+from unittest.mock import ANY, Mock
 
 import pytest
 
@@ -127,11 +127,11 @@ def test_audit_callback():
 
     # Read triggers audit
     fs.get_content("/audit.txt")
-    mock_cb.assert_called_with("read", "/audit.txt")
+    mock_cb.assert_called_with("read", "/audit.txt", ANY)
 
     # Delete triggers audit
     fs.remove("/audit.txt")
-    mock_cb.assert_called_with("delete", "/audit.txt")
+    mock_cb.assert_called_with("delete", "/audit.txt", ANY)
 
 
 # Function 440: Runs unit tests for the permissions_storage functionality.

@@ -39,6 +39,7 @@ def test_config_validation():
         print(f"FAIL: Valid port rejected: {e}")
         assert False, f"Valid port rejected: {e}"
 
+
 if __name__ == "__main__":
     try:
         test_config_validation()

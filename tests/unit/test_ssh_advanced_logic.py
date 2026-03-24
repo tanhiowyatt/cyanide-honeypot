@@ -168,7 +168,10 @@ async def test_server_rekey_limit_parsing(tmp_path):
 
         mock_vm_pool_cls.return_value.start = MagicMock()
         server = CyanideServer(conf)
-        async def dummy_coro(*args, **kwargs): pass
+
+        async def dummy_coro(*args, **kwargs):
+            pass
+
         server.async_logger = MagicMock()
         server.async_logger.stop = MagicMock(side_effect=dummy_coro)
         server._start_vm_pool = MagicMock()
@@ -179,7 +182,10 @@ async def test_server_rekey_limit_parsing(tmp_path):
 
         mock_ssh_server = MagicMock()
         mock_ssh_server.close = MagicMock()
-        async def dummy_coro2(*args, **kwargs): pass
+
+        async def dummy_coro2(*args, **kwargs):
+            pass
+
         mock_ssh_server.wait_closed = MagicMock(side_effect=dummy_coro2)
 
         with patch("asyncssh.listen", new_callable=AsyncMock) as mock_listen:

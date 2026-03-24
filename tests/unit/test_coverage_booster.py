@@ -37,7 +37,9 @@ def test_all_output_plugins_instantiation():
             try:
                 # Import the plugin
                 module_path = f"cyanide.output.{plugin_name}"
-                module = importlib.import_module(module_path)  # nosemgrep: python.lang.security.audit.non-literal-import.non-literal-import
+                module = importlib.import_module(
+                    module_path
+                )  # nosemgrep: python.lang.security.audit.non-literal-import.non-literal-import
                 PluginClass = getattr(module, "Plugin")
 
                 # Instantiate with dummy config

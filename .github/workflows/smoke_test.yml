@@ -1,87 +1,81 @@
-name: Smoke Test
+name: Cyanide Smoke Tests
 
 on:
   push:
-    branches: [ main ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ main ]
-  workflow_dispatch:
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+    branches: [ "main" ]
 
 jobs:
   smoke-test:
-    name: Docker Smoke Test
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v6
+    - uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v4
 
-      - name: Build Docker Image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: Dockerfile
-          push: false
-          load: true
-          tags: cyanide:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+    - name: Build Docker Image
+      uses: docker/build-push-action@v6
+      with:
+        context: .
+        file: Dockerfile
+        push: false
+        load: true
+        tags: cyanide:latest
 
-      - name: Run Container
-        run: |
-          docker run -d \
-            -e CYANIDE_HONEYPOT_HOSTNAME=smoke-test \
-            -p 2222:2222 \
-            -p 2223:2223 \
-            -p 2525:2525 \
-            -p 9090:9090 \
-            --name cyanide \
-            cyanide:latest
+    - name: Run Container
+      run: |
+        docker run -d \
+          -e CYANIDE_HONEYPOT_HOSTNAME=server01 \
+          -e CYANIDE_SERVER_OS_PROFILE=ubuntu \
+          -e CYANIDE_SERVER_MAX_SESSIONS=100 \
+          -e CYANIDE_SERVER_MAX_SESSIONS_PER_IP=5 \
+          -e CYANIDE_SERVER_SESSION_TIMEOUT=300 \
+          -e CYANIDE_HONEYPOT_QUARANTINE_MAX_SIZE_MB=500 \
+          -e CYANIDE_SSH_ENABLED=true \
+          -e CYANIDE_SSH_PORT=2222 \
+          -e CYANIDE_SSH_BACKEND_MODE=emulated \
+          -e CYANIDE_SSH_SFTP_ENABLED=true \
+          -e CYANIDE_SSH_SCP_ENABLED=true \
+          -e CYANIDE_SSH_RSYNC_ENABLED=true \
+          -e CYANIDE_TELNET_ENABLED=true \
+          -e CYANIDE_TELNET_PORT=2223 \
+          -e CYANIDE_TELNET_BACKEND_MODE=emulated \
+          -e CYANIDE_SMTP_ENABLED=true \
+          -e CYANIDE_SMTP_PORT=2525 \
+          -e CYANIDE_ML_ENABLED=true \
+          -e CYANIDE_ML_RETRAINING_INTERVAL_DAYS=7 \
+          -e CYANIDE_METRICS_ENABLED=true \
+          -e CYANIDE_METRICS_PORT=9090 \
+          -e 'CYANIDE_USERS=[{"user": "root", "pass": "admin"}, {"user": "admin", "pass": "admin"}]' \
+          -p 2222:2222 \
+          -p 2223:2223 \
+          -p 2525:2525 \
+          -p 9090:9090 \
+          --name cyanide \
+          cyanide:latest
+        
+    - name: Wait for startup
+      run: sleep 10
 
-      - name: Wait for services (Health Check)
-        run: |
-          echo "[*] Waiting for services to initialize..."
-          for i in {1..20}; do
-            if docker logs cyanide 2>&1 | grep -q "Starting Cyanide Honeypot"; then
-              echo "[+] Honeypot is ready!"
-              break
-            fi
-            if [[ $i -eq 20 ]]; then
-              echo "[!] Timeout waiting for services"
-              docker logs cyanide
-              exit 1
-            fi
-            sleep 3
-          done
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
 
-      - name: Install Test Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install requests asyncssh telnetlib3
+    - name: Install dependencies
+      run: pip install requests asyncssh
 
-      - name: Run Smoke Test Script
-        run: |
-          python3 src/cyanide/tests/integration/smoke_test.py
+    - name: Run Smoke Test
+      env:
+        CYANIDE_SSH_PORT: 2222
+        CYANIDE_TELNET_PORT: 2223
+        CYANIDE_SMTP_PORT: 2525
+        CYANIDE_METRICS_PORT: 9090
+      run: python3 src/cyanide/tests/integration/smoke_test.py
 
-      - name: Capture logs on failure
-        if: failure()
-        run: |
-          docker logs cyanide > cyanide-docker-error.log
-
-      - name: Save Error Logs
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: cyanide-smoke-test-logs
-          path: cyanide-docker-error.log
-          retention-days: 7
-
-      - name: Clean up
-        if: always()
-        run: |
-          docker rm -f cyanide || true
+    - name: Check Container Logs (if failed)
+      if: failure()
+      run: docker logs cyanide

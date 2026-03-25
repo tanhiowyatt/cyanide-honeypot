@@ -2,50 +2,138 @@ name: CI
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ main ]
   pull_request:
-    branches: [ "main", "master" ]
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  docker-build-push:
-    name: Docker Build & Push (Multi-Arch)
-    runs-on: ${{ matrix.runner }}
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Linting Tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff black isort mypy types-PyYAML types-requests types-aiofiles
+
+      - name: Static Analysis
+        run: |
+          black --check src/
+          isort --check-only src/
+          ruff check src/
+          mypy src/
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks (Secret Detection)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Semgrep Scan
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/security-audit
+            p/secrets
+            p/python
+
+      - name: Dependency Audit (Safety)
+        run: |
+          pip install pip-audit
+          pip-audit
+
+  test:
+    name: Tests (Python ${{ matrix.python-version }})
+    needs: [lint]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
+      - name: Install Tox
+        run: |
+          python -m pip install --upgrade pip
+          pip install tox
+
+      - name: Create Tox Env Name
+        id: env
+        run: |
+          V_MAJOR=$(echo ${{ matrix.python-version }} | cut -d. -f1)
+          V_MINOR=$(echo ${{ matrix.python-version }} | cut -d. -f2)
+          echo "tox_env=py${V_MAJOR}${V_MINOR}" >> $GITHUB_OUTPUT
+
+      - name: Run Tests with Tox
+        run: |
+          tox -e ${{ steps.env.outputs.tox_env }}
+
+      - name: Save Coverage Artifact
+        if: matrix.python-version == '3.12'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
+
+  docker-ghcr:
+    name: Docker GHCR (Multi-Arch)
+    needs: [test]
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
     strategy:
       matrix:
-        include:
-          - platform: linux/amd64
-            arch: amd64
-            runner: ubuntu-latest
-          - platform: linux/arm64
-            arch: arm64
-            runner: ubuntu-24.04-arm
+        arch: [amd64, arm64]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Login to GitHub Container Registry
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v4
+      - name: Login to GHCR
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push (${{ matrix.platform }})
+      - name: Build and Push
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: Dockerfile
-          platforms: ${{ matrix.platform }}
+          platforms: linux/${{ matrix.arch }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
             ghcr.io/${{ github.repository }}:${{ matrix.arch }}-latest
@@ -53,59 +141,66 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  security-scan:
-    name: Security & Semgrep
-    runs-on: ubuntu-latest
-    if: (github.actor != 'dependabot[bot]')
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Semgrep Scan
-        uses: returntocorp/semgrep-action@v1
+      - name: Trivy (Image Vulnerability Scan)
+        uses: aquasecurity/trivy-action@master
         with:
-          config: auto
+          image-ref: 'ghcr.io/${{ github.repository }}:${{ matrix.arch }}-latest'
+          format: 'table'
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH'
 
-      - name: Dependency Audit
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: |
-          pip install pip-audit
-          pip-audit
-
-  test-lint:
-    name: Test, Lint & Coverage
+  sonar:
+    name: SonarQube
+    needs: [test]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
-          fetch-depth: 2
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+          fetch-depth: 0
+      - name: Download Coverage
+        uses: actions/download-artifact@v4
         with:
-          python-version: "3.12"
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: |
-          pip install .[dev]
-          pip install tox pytest-cov pytest
-
-      - name: Lint (Ruff/Black/Isort)
-        run: |
-          ruff check src/
-          black --check src/
-          isort --check-only src/
-
-      - name: Type Check
-        run: mypy src/
-
-      - name: Tests with Coverage
-        run: pytest --cov=src --cov-report=xml --cov-fail-under=80 src/cyanide/tests/
-
-      - name: SonarCloud Scan
-        uses: sonarsource/sonarcloud-github-action@ba3875ecf642b2129de2b589510c81a8b53dbf4e # master # nosemgrep: generic.secrets.security.detected-sonarqube-docs-api-key.detected-sonarqube-docs-api-key
+          name: coverage-report
+          path: .
+      - name: SonarScan
+        uses: SonarSource/sonarqube-scan-action@master
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  smoke-test:
+    name: Smoke Test
+    needs: [docker-ghcr]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Run Smoke Test
+        run: |
+          docker pull ghcr.io/${{ github.repository }}:latest
+          docker run -d --name smoke-test -p 2222:2222 ghcr.io/${{ github.repository }}:latest
+          sleep 5
+          docker logs smoke-test
+          docker rm -f smoke-test
+
+  test-pypi:
+    name: Publish to TestPyPI
+    needs: [smoke-test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: test-pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Build and Publish
+        run: |
+          pip install build twine
+          python -m build
+          twine upload --repository testpypi dist/* --non-interactive --skip-existing
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}

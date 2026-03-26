@@ -28,7 +28,7 @@ jobs:
           python -m build
 
       - name: Sign the distribution with Sigstore
-        uses: sigstore/gh-action-sigstore-python@v2.1.1
+        uses: sigstore/gh-action-sigstore-python@v3.3.0
         with:
           inputs: |
             ./dist/*.tar.gz

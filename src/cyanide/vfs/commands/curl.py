@@ -45,10 +45,10 @@ class CurlCommand(Command):
         try:
             async with aiohttp.ClientSession() as session:
                 if parsed.head:
-                    async with session.head(url, headers={}, timeout=10) as resp:
+                    async with session.head(url, headers={}, timeout=aiohttp.ClientTimeout(total=10)) as resp:
                         return self._handle_head_response(resp), "", 0
 
-                async with session.get(url, headers={}, timeout=10) as resp:
+                async with session.get(url, headers={}, timeout=aiohttp.ClientTimeout(total=10)) as resp:
                     if resp.status >= 400:
                         err_msg = (
                             ""

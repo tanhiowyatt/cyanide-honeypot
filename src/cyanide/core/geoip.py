@@ -46,7 +46,7 @@ class GeoIP:
         try:
             async with aiohttp.ClientSession() as session:
                 url = f"{self.base_url}/{ip}"
-                async with session.get(url, timeout=3) as resp:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=3)) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         if data.get("status") == "success":

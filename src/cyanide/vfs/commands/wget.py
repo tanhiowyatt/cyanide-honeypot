@@ -102,7 +102,7 @@ class WgetCommand(Command):
 
     async def _download_file(self, url):
         async with aiohttp.ClientSession() as session:
-            async with session.get(url, timeout=10) as resp:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
                 if resp.status != 200:
                     raise RuntimeError(f"HTTP {resp.status}")
                 return await resp.read()

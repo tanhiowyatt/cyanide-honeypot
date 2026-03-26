@@ -52,7 +52,7 @@
 git clone https://github.com/tanhiowyatt/cyanide.git
 
 2. Перейдите в папку с docker-compose
-cd cyanide/deployments/docker
+cd cyanide
 
 3. Запустите окружение
 docker-compose up -d

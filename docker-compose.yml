@@ -15,6 +15,52 @@ services:
       - ./var/quarantine:/app/var/quarantine
       - ./var/lib/cyanide:/app/var/lib/cyanide
     restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          cpus: '0.10'
+          memory: 128M
+    pids_limit: 50
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9090/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
     environment:
+      - PYTHONUNBUFFERED=1
       - LOG_LEVEL=INFO
       - OS_PROFILE=ubuntu
+      - CYANIDE_HONEYPOT_HOSTNAME=server01
+      - CYANIDE_SERVER_OS_PROFILE=archlinux
+      - CYANIDE_SERVER_MAX_SESSIONS=100
+      - CYANIDE_SERVER_MAX_SESSIONS_PER_IP=5
+      - CYANIDE_SERVER_SESSION_TIMEOUT=300
+      - CYANIDE_HONEYPOT_QUARANTINE_MAX_SIZE_MB=500
+      - CYANIDE_SSH_ENABLED=true
+      - CYANIDE_SSH_VFS_PERSISTENCE=true
+      - CYANIDE_SSH_LISTEN_PORT=2222
+      - CYANIDE_TELNET_ENABLED=true
+      - CYANIDE_TELNET_LISTEN_PORT=2323
+      - CYANIDE_ML_ENABLED=true
+      - CYANIDE_ML_RETRAINING_INTERVAL_DAYS=7
+      - CYANIDE_CLEANUP_ENABLED=true
+      - CYANIDE_CLEANUP_INTERVAL=3600
+      - CYANIDE_CLEANUP_RETENTION_DAYS=7
+      - CYANIDE_OTEL_ENABLED=false
+      - CYANIDE_METRICS_ENABLED=true
+      - CYANIDE_METRICS_PORT=9090
+      - CYANIDE_VIRUSTOTAL_ENABLED=false
+      - CYANIDE_SMTP_ENABLED=true
+      - CYANIDE_SMTP_PORT=2525
+      - 'CYANIDE_USERS=[{"user": "root", "pass": "admin"}, {"user": "admin", "pass": "admin"}]'

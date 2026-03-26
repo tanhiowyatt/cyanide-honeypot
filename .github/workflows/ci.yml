@@ -89,6 +89,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      security-events: write
     strategy:
       matrix:
         arch: [amd64, arm64]

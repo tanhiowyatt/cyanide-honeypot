@@ -121,15 +121,17 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Trivy (Image Vulnerability Scan)
-        uses: aquasecurity/trivy-action@master
-        env:
-          TRIVY_USERNAME: ${{ github.actor }}
-          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          image-ref: 'ghcr.io/${{ github.repository }}:${{ matrix.arch }}-latest'
-          format: 'table'
-          exit-code: '0'
-          severity: 'CRITICAL,HIGH'
+        run: |
+          export TRIVY_AUTH_URL=https://ghcr.io
+          export TRIVY_USERNAME=${{ github.actor }}
+          export TRIVY_PASSWORD=${{ secrets.GITHUB_TOKEN }}
+          docker run --rm \
+            -e TRIVY_USERNAME -e TRIVY_PASSWORD \
+            aquasec/trivy:latest image \
+            --platform linux/${{ matrix.arch }} \
+            --severity CRITICAL,HIGH \
+            --exit-code 0 \
+            ghcr.io/${{ github.repository }}:${{ matrix.arch }}-latest
 
   sonar:
     name: SonarQube

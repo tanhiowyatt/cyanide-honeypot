@@ -69,13 +69,18 @@ jobs:
       - name: Run Tests with Tox
         run: |
           tox -e ${{ steps.env.outputs.tox_env }}
+        env:
+          PIP_EXTRA_INDEX_URL: https://download.pytorch.org/whl/cpu
 
       - name: Save Coverage Artifact
-        if: matrix.python-version == '3.12'
+        if: matrix.python-version == '3.14'
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: coverage.xml
+          path: |
+            coverage.xml
+            .tox/py314/coverage.xml
+          if-no-files-found: warn
 
   docker-ghcr:
     name: Docker GHCR (Multi-Arch)
@@ -117,6 +122,9 @@ jobs:
 
       - name: Trivy (Image Vulnerability Scan)
         uses: aquasecurity/trivy-action@master
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         with:
           image-ref: 'ghcr.io/${{ github.repository }}:${{ matrix.arch }}-latest'
           format: 'table'
@@ -162,19 +170,22 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: test-pypi
+      url: https://test.pypi.org/p/cyanide
     permissions:
       id-token: write
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.14"
       - name: Build and Publish
         run: |
-          pip install build twine
+          pip install build
           python -m build
-          twine upload --repository testpypi dist/* --non-interactive --skip-existing
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/

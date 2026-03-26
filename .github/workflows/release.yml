@@ -16,18 +16,18 @@ jobs:
       id-token: write  
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.14"
       - name: Build and Publish
         run: |
-          pip install build twine
+          pip install build
           python -m build
-          twine upload dist/* --non-interactive
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
 
   docker-publish:
     name: Publish Docker Images (Hub)

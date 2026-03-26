@@ -30,6 +30,7 @@ wheels/
 venv/
 ENV/
 env/
+.tox/
 
 # Pytest / Coverage
 .pytest_cache/

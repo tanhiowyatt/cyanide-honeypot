@@ -120,18 +120,21 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Trivy (Image Vulnerability Scan)
-        run: |
-          export TRIVY_AUTH_URL=https://ghcr.io
-          export TRIVY_USERNAME=${{ github.actor }}
-          export TRIVY_PASSWORD=${{ secrets.GITHUB_TOKEN }}
-          docker run --rm \
-            -e TRIVY_USERNAME -e TRIVY_PASSWORD \
-            aquasecurity/trivy:0.60.0 image \
-            --platform linux/${{ matrix.arch }} \
-            --severity CRITICAL,HIGH \
-            --exit-code 0 \
-            ghcr.io/${{ github.repository }}:${{ matrix.arch }}-latest
+      - name: Trivy FS Scan (no docker)
+        uses: aquasecurity/trivy-action@v0.28.0
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0'
+
+      - name: Upload Trivy SARIF
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
 
   sonar:
     name: SonarQube

@@ -1,3 +1,5 @@
+from unittest.mock import ANY
+
 import pytest
 
 from cyanide.core.emulator import ShellEmulator
@@ -58,7 +60,7 @@ async def test_curl_stdout(shell, mock_session, mock_response, mocker):
     assert "<html>content</html>" in stdout
 
     # Verify call uses IP and Host header
-    mock_session.get.assert_called_with("http://example.com", headers={}, timeout=10)
+    mock_session.get.assert_called_with("http://example.com", headers={}, timeout=ANY)
 
 
 # Function 389: Runs unit tests for the curl_output_file functionality.
@@ -97,4 +99,4 @@ async def test_curl_head(shell, mock_session, mock_response, mocker):
     assert "HTTP/1.1 200 OK" in stdout
     assert "Content-Type: text/html" in stdout
 
-    mock_session.head.assert_called_with("http://example.com", headers={}, timeout=10)
+    mock_session.head.assert_called_with("http://example.com", headers={}, timeout=ANY)

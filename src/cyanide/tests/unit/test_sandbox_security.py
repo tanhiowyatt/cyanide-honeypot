@@ -24,9 +24,10 @@ def test_vfs_sandbox_isolation(emulator):
         "/Users"
     )  # Unless we are on Mac and it's there? No, emulated VFS.
 
-    # Check a definitively non-existent path in VFS that might exist on host
-    host_path = str(Path.home())
-    assert not emulator.fs.exists(host_path)
+    # Check a definitively non-existent path in VFS that might exist on host (e.g. /etc/hosts)
+    # but we want to make sure it doesn't accidentally pull from reality.
+    assert not emulator.fs.exists("/etc/hostname.real_host")
+    assert not emulator.fs.exists("/sbin/init.real_host")
 
 
 @pytest.mark.asyncio

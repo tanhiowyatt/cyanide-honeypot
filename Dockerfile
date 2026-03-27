@@ -39,9 +39,10 @@ RUN pip install --no-cache-dir /tmp/wheels/*.whl && rm -rf /tmp/wheels
 # Configuration and data setup
 COPY src/cyanide/configs/ configs/
 
-RUN mkdir -p var/log/cyanide/tty var/quarantine var/lib/cyanide \
+RUN mkdir -p var/log/cyanide/tty var/log/cyanide/keys var/quarantine var/lib/cyanide \
     && groupadd -r cyanide && useradd -r -g cyanide cyanide \
     && python -c "from cyanide.vfs.profile_loader import load; from pathlib import Path; [load(p.name, p.parent) for p in Path('configs/profiles').iterdir() if p.is_dir()]" \
+    && python -c "import asyncssh; from pathlib import Path; d=Path('var/log/cyanide/keys'); [asyncssh.generate_private_key(t).write_private_key(str(d/f'ssh_host_{t}_key')) for t in ['rsa', 'ed25519']]" \
     && chown -R cyanide:cyanide configs var/log/cyanide var/quarantine var/lib/cyanide
 
 USER cyanide

@@ -821,15 +821,22 @@ class CyanideServer:
         """Start all honeypot services and enter main event loop."""
         self.async_logger.start()
 
+        # Start metrics ASAP for health/readiness checks
+        self.background_tasks.append(asyncio.create_task(self.start_metrics_server()))
+
         host_keys = self._get_host_keys()
 
         self._start_vm_pool()
 
+        logging.info(f"[*] Starting SSH service on port {self.config.get('ssh', {}).get('port', 2222)}...")
         await self._start_ssh_service(host_keys)
+
+        logging.info(f"[*] Starting Telnet service on port {self.config.get('telnet', {}).get('port', 2323)}...")
         await self._start_telnet_service()
+
+        logging.info(f"[*] Starting SMTP service on port {self.config.get('smtp', {}).get('port', 2525)}...")
         await self._start_smtp_service()
 
-        self.background_tasks.append(asyncio.create_task(self.start_metrics_server()))
         self.background_tasks.append(asyncio.create_task(self._cleanup_loop()))
         self.background_tasks.append(asyncio.create_task(self._stats_logging_loop()))
 

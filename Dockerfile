@@ -41,7 +41,8 @@ COPY src/cyanide/configs/ configs/
 
 RUN mkdir -p var/log/cyanide/tty var/quarantine var/lib/cyanide \
     && groupadd -r cyanide && useradd -r -g cyanide cyanide \
-    && chown -R cyanide:cyanide var/log/cyanide var/quarantine var/lib/cyanide
+    && python -c "from cyanide.vfs.profile_loader import load; from pathlib import Path; [load(p.name, p.parent) for p in Path('configs/profiles').iterdir() if p.is_dir()]" \
+    && chown -R cyanide:cyanide configs var/log/cyanide var/quarantine var/lib/cyanide
 
 USER cyanide
 EXPOSE 2222 2323 2525 9090

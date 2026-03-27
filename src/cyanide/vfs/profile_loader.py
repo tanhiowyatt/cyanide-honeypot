@@ -89,9 +89,18 @@ def _scan_filesystem(rootfs_dir: Path) -> Dict[str, Any]:
 def _compile_to_sqlite(manifest: Dict[str, Any], db_path: Path, target_hash: str):
     """Compile a manifest into a SQLite database."""
     if db_path.exists():
-        db_path.unlink()
+        try:
+            db_path.unlink()
+        except OSError:
+            pass  # Read-only filesystem, handled below by fallback
 
-    conn = sqlite3.connect(db_path)
+    try:
+        conn = sqlite3.connect(db_path)
+    except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
+        logger.warning(f"Failed to open '{db_path}' for compilation (e.g. read-only/corrupt db): {e}. Falling back to in-memory db.")
+        # If we can't write to the filesystem, compile the profile strictly in-memory
+        conn = sqlite3.connect(":memory:")
+
     try:
         conn.execute("""
             CREATE TABLE vfs (
@@ -367,7 +376,26 @@ def load(profile_name: str, profiles_dir: Path) -> Dict[str, Any]:
         manifest = _build_manifest(profile_name, rootfs_dir, base_file, static_file, profiles_dir)
         _compile_to_sqlite(manifest, compiled_db, target_hash)
 
-        return load(profile_name, profiles_dir)
+        # Build return dictionary directly to avoid recursive load loop if compilation fell back to in-memory db
+        metadata, dynamic_files, honeytokens = {}, {}, []
+        if base_file.exists():
+            with open(base_file, "r") as f:
+                base_data = yaml.safe_load(f) or {}
+                metadata = base_data.get("metadata", {})
+                dynamic_files = base_data.get("dynamic_files", {})
+                honeytokens = base_data.get("honeytokens", [])
+
+        res = {
+            "v": CACHE_FORMAT_VERSION,
+            "hash": target_hash,
+            "backend_path": str(compiled_db) if compiled_db.exists() else ":memory:",
+            "metadata": metadata,
+            "dynamic_files": dynamic_files,
+            "honeytokens": honeytokens,
+            "static": manifest if not compiled_db.exists() else None, # pass manifest strictly if memory bound
+        }
+        _MEMORY_CACHE[profile_name] = res
+        return res
 
 
 # Function 315: Invalidates data or cache.

@@ -1,0 +1,90 @@
+static_files:
+  tree_folders: /bin /boot /dev /etc /home /lib /lib64 /media /mnt /opt /proc /root /run /srv /sys /tmp /usr /var /var/adm /var/spool/mail /var/empty/sshd /var/spool/postfix /etc/sysconfig/network-scripts /usr/sbin /usr/include /usr/share/man/man1 /var/cache/yum
+
+  nodes:
+    etc:
+      centos-release: "CentOS Linux release 7.9.2009 (Core)\n"
+      redhat-release: "CentOS Linux release 7.9.2009 (Core)\n"
+      system-release: "CentOS Linux release 7.9.2009 (Core)\n"
+      yum.conf: |
+        [main]
+        cachedir=/var/cache/yum/$basearch/$releasever
+        keepcache=0
+        debuglevel=2
+        logfile=/var/log/yum.log
+        exactarch=1
+        obsoletes=1
+        gpgcheck=1
+        plugins=1
+        installonly_limit=5
+      sysconfig:
+        network: "NETWORKING=yes\nHOSTNAME=centos-server\n"
+        selinux: "SELINUX=enforcing\nSELINUXTYPE=targeted\n"
+        network-scripts:
+          ifcfg-eth0: |
+            DEVICE=eth0
+            BOOTPROTO=dhcp
+            ONBOOT=yes
+            TYPE=Ethernet
+            USERCTL=no
+            PEERDNS=yes
+            IPV6INIT=no
+      security:
+        limits.conf: |
+          # /etc/security/limits.conf
+          *          soft    nproc     4096
+          *          hard    nproc     4096
+          root       soft    nproc     unlimited
+      passwd: |
+        root:x:0:0:root:/root:/bin/bash
+        bin:x:1:1:bin:/bin:/sbin/nologin
+        sshd:x:74:74:Privilege-separated SSH:/var/empty/sshd:/sbin/nologin
+        admin:x:1000:1000:admin:/home/admin:/bin/bash
+      fstab: |
+        # /etc/fstab
+        /dev/mapper/centos-root /                       xfs     defaults        0 0
+        UUID=a1b2c3d4-e5f6-7890-abcd-ef1234567890 /boot                   xfs     defaults        0 0
+        /dev/mapper/centos-swap swap                    swap    defaults        0 0
+      ssh:
+        ssh_host_rsa_key: ""
+        sshd_config: |
+          Port 22
+          Protocol 2
+          HostKey /etc/ssh/ssh_host_rsa_key
+          PermitRootLogin yes
+          PasswordAuthentication yes
+          Subsystem sftp /usr/libexec/openssh/sftp-server
+
+    bin: [ awk, bash, cat, cp, grep, ls, mkdir, mv, ping, ps, rm, sed, sh, tar, top ]
+    
+    usr/bin: [ yum, rpm, systemctl, journalctl, ip, ss, netstat, vi, vim, python, python3, curl, wget ]
+    
+    usr/sbin: [ ipables, route, ifconfig, tcpdump, lsof, netstat, ntpdate, chroot ]
+
+  generators:
+    - path: /usr/lib64
+      template: "libcommon_{i}.so.1"
+      count: 2000
+    - path: /usr/include
+      template: "header_{i}.h"
+      count: 1000
+      content: "/* Header file {i} */\n#define VAL_{i} {i}\n"
+    - path: /usr/share/man/man1
+      template: "tool_{i}.1.gz"
+      count: 1000
+    - path: /usr/share/doc/package_{i}
+      template: "README.txt"
+      count: 1500
+      content: "Documentation for package {i}\n"
+    - path: /var/cache/yum/x86_64/7/base
+      template: "cache_data_{i}.pkg"
+      count: 1000
+    - path: /var/lib/rpm
+      template: "Packages_{i}.db"
+      count: 1000
+    - path: /var/log/audit
+      template: "audit.log.{i}"
+      count: 1000
+    - path: /var/log
+      template: "messages.{i}"
+      count: 1000

@@ -1,0 +1,2 @@
+## Arch Linux repository mirrorlist
+Server = https://mirrors.kernel.org/archlinux/$repo/os/$arch

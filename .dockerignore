@@ -1,0 +1,17 @@
+.git
+.venv
+__pycache__
+*.pyc
+tests
+dist
+build
+.pytest_cache
+.coverage
+docs
+.github
+.agents
+*.env
+var/log
+var/quarantine
+var/lib/cyanide
+MagicMock

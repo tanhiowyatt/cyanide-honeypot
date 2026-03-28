@@ -1,0 +1,29 @@
+honeytokens:
+  - "/etc/pacman.conf"
+  - "/etc/sudoers"
+  - "/root/.bash_history"
+  - "/etc/shadow"
+  - "/home/admin/.ssh/authorized_keys"
+
+metadata:
+  os_name: "Arch Linux"
+  os_id: "archlinux"
+  kernel_version: "6.5.9-arch1-1"
+  arch: "x86_64"
+  hostname: "arch-box"
+  version_id: "rolling"
+  install_date: "2024-03-20T10:00:00Z"
+  ssh_banner: "SSH-2.0-OpenSSH_9.3p1"
+
+dynamic_files:
+  /proc/uptime:
+    type: generated
+    provider: uptime_provider
+  /proc/cpuinfo:
+    type: generated
+    provider: cpuinfo_provider
+  /proc/version:
+    content: "Linux version {{ kernel_version }} (archlinux@arch) (gcc version 13.2.1 20230801 (GCC) ) #1 SMP PREEMPT_DYNAMIC Wed, 25 Oct 2023 13:12:44 +0000"
+  /etc/motd:
+    type: generated
+    provider: motd_provider

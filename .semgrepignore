@@ -1,0 +1,8 @@
+# Ignore emulated OS profiles (mock linux systems)
+src/cyanide/configs/profiles/**
+
+# Ignore security-focused unit tests
+src/cyanide/tests/**
+
+# Project logo and assets (sometimes triggered by binary content)
+src/cyanide/assets/**

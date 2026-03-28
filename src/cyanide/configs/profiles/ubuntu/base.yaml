@@ -1,0 +1,26 @@
+metadata:
+  os_name: "Ubuntu"
+  kernel_version: "5.15.0-73-generic"
+  hostname: "honeypot-01"
+  arch: "x86_64"
+  ssh_banner: "SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.1"
+  os_id: "ubuntu"
+  version_id: "22.04"
+  install_date: "2023-05-15T10:00:00Z"
+
+honeytokens:
+  - "/etc/passwd"
+  - "/etc/shadow"
+
+dynamic_files:
+  /proc/uptime:
+    type: generated
+    provider: uptime_provider
+  /proc/cpuinfo:
+    type: generated
+    provider: cpuinfo_provider
+  /proc/version:
+    content: "Linux version {{ kernel_version }} (buildd@lcy02-amd64-011) (gcc (Ubuntu 11.3.0-1ubuntu1~22.04.1) 11.3.0) #80-Ubuntu SMP Mon May 15 15:18:26 UTC 2023"
+  /etc/motd:
+    type: generated
+    provider: motd_provider

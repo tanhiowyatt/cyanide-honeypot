@@ -1,0 +1,169 @@
+#!/usr/bin/env python3
+import os
+import sys
+
+# Silence all technical noise (deprecation warnings and debug logs) at the earliest stage
+os.environ['PYTHONWARNINGS'] = 'ignore'
+import logging
+import warnings
+
+warnings.filterwarnings("ignore")
+logging.basicConfig(level=logging.ERROR)
+logging.getLogger().setLevel(logging.ERROR)
+
+import argparse
+import json
+import re
+import signal
+import subprocess
+import time
+from pathlib import Path
+
+# --- Path Configuration ---
+# Get the directory where this script is located
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+# The project root is one level up from the scripts/ directory
+ROOT_DIR = os.path.dirname(os.path.dirname(SCRIPT_DIR))
+
+PID_FILE = os.path.join(ROOT_DIR, "var/lib/cyanide/run/cyanide.pid")
+STDOUT_LOG = os.path.join(ROOT_DIR, "var/log/cyanide/cyanide.out")
+STDERR_LOG = os.path.join(ROOT_DIR, "var/log/cyanide/cyanide.err")
+CONFIG_FILE = os.path.join(ROOT_DIR, "configs/app.yaml")
+SRC_DIR = os.path.join(ROOT_DIR, "src")
+
+# Ensure src is in path
+if SRC_DIR not in sys.path:
+    sys.path.insert(0, SRC_DIR)
+
+# --- Service Management ---
+
+# Function 316: Starts the main CyanideServer backend process.
+def start():
+    # Ensure dirs exist
+    os.makedirs(os.path.dirname(PID_FILE), exist_ok=True)
+    os.makedirs(os.path.dirname(STDOUT_LOG), exist_ok=True)
+
+    if os.path.exists(PID_FILE):
+        print("Cyanide already running (pid file exists).")
+        return
+
+    # Load and print configuration info
+    try:
+        from cyanide.core.aesthetics import print_startup_banner
+        from cyanide.core.config import load_config
+        config = load_config(Path(CONFIG_FILE))
+        print_startup_banner(config)
+    except Exception as e:
+        print(f"[!] Info: Could not load extra config info: {e}")
+
+    print("Starting Cyanide...")
+    env = os.environ.copy()
+    env["PYTHONPATH"] = SRC_DIR
+    
+    with open(STDOUT_LOG, "w") as out, open(STDERR_LOG, "w") as err:
+        p = subprocess.Popen(
+            [sys.executable, os.path.join(SRC_DIR, "cyanide/main.py")], 
+            cwd=ROOT_DIR,
+            env=env,
+            stdout=out, 
+            stderr=err
+        )
+    
+    with open(PID_FILE, "w") as f:
+        f.write(str(p.pid))
+    print(f"Cyanide started with PID {p.pid}")
+
+# Function 317: Stops the currently running CyanideServer instance.
+def stop():
+    if not os.path.exists(PID_FILE):
+        print("Cyanide not running.")
+        return
+        
+    with open(PID_FILE, "r") as f:
+        pid = int(f.read().strip())
+    
+    print(f"Stopping Cyanide (PID {pid})...")
+    try:
+        os.kill(pid, signal.SIGTERM)
+        time.sleep(1)
+    except ProcessLookupError:
+        print("Process not found.")
+    
+    if os.path.exists(PID_FILE):
+        os.remove(PID_FILE)
+    print("Stopped.")
+
+# Function 318: Restarts the CyanideServer service.
+def restart():
+    stop()
+    start()
+
+# Function 319: Retrieves and displays honeypot session statistics.
+def stats():
+    try:
+        import requests
+    except ImportError:
+        print("[!] Error: 'requests' library required for stats. Install with: pip install requests")
+        return
+
+    from datetime import timedelta
+    port = 9090 
+    try:
+        from cyanide.core.config import load_config
+        config = load_config(Path(CONFIG_FILE))
+        port = int(config.get("metrics", {}).get("port", 9090))
+    except Exception:
+        pass
+
+    try:
+        url = f"http://localhost:{port}/stats"
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+        
+        print("\n" + "\033[1;36m" + "="*50 + "\033[0m")
+        print("\033[1;36m CYANIDE STATISTICS\033[0m")
+        print("\033[1;36m" + "="*50 + "\033[0m")
+        uptime = data.get('uptime_seconds', 0)
+        print(f"[*] Uptime:          {timedelta(seconds=uptime)}")
+        print(f"[*] Active Sessions: \033[1;32m{data.get('active_sessions', 0)}\033[0m")
+        print(f"[*] Total Sessions:  {data.get('total_sessions', 0)}")
+        print(f"[*] Malware Scans:   {data.get('malware_scans', 0)} (Detected: \033[1;31m{data.get('malicious_detected', 0)}\033[0m)")
+        
+        if data.get('top_ips'):
+            print("\n\033[1;33m--- Top Attacker IPs ---\033[0m")
+            for ip, count in data['top_ips'].items():
+                print(f" {ip:<20} | {count} hits")
+        print("\033[1;36m" + "="*50 + "\033[0m\n")
+    except Exception as e:
+        print(f"\033[1;31m[!] Error fetching stats: {e}\033[0m")
+
+# --- Main CLI ---
+
+# Function 323: Main entry point for the management command-line interface.
+def main():
+    parser = argparse.ArgumentParser(description="Cyanide Honeypot Management Tool")
+    subparsers = parser.add_subparsers(dest="command", help="Command to execute")
+
+    # Service subcommands
+    subparsers.add_parser("start", help="Start the honeypot")
+    subparsers.add_parser("stop", help="Stop the honeypot")
+    subparsers.add_parser("restart", help="Restart the honeypot")
+    subparsers.add_parser("stats", help="Show statistics")
+
+    args = parser.parse_args()
+
+    # Handle subcommands
+    if args.command == "start":
+        start()
+    elif args.command == "stop":
+        stop()
+    elif args.command == "restart":
+        restart()
+    elif args.command == "stats":
+        stats()
+    else:
+        parser.print_help()
+
+if __name__ == "__main__":
+    main()

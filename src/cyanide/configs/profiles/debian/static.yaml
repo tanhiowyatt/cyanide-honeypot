@@ -1,0 +1,160 @@
+static_files:
+  tree_folders: /bin /boot /dev /etc /home /lib /lib64 /media /mnt /opt /proc /root /run /srv /sys /tmp /usr /var /media/cdrom0
+
+  nodes:
+    etc:
+      bash.bashrc: ""
+      debian_version: "11.7\n"
+      fstab: |
+        # /etc/fstab: static file system information.
+        #
+        # <file system> <mount point>   <type>  <options>       <dump>  <pass>
+        /dev/sda1       /               ext4    errors=remount-ro 0       1
+        /dev/sda2       none            swap    sw              0       0
+        /dev/sr0        /media/cdrom0   udf,iso9660 user,noauto     0       0
+      group: |
+        root:x:0:
+        daemon:x:1:
+        bin:x:2:
+        sys:x:3:
+        adm:x:4:
+        tty:x:5:
+        disk:x:6:
+        lp:x:7:
+        mail:x:8:
+        news:x:9:
+        uucp:x:10:
+        proxy:x:13:
+        www-data:x:33:
+        backup:x:34:
+        list:x:38:
+        irc:x:39:
+        gnats:x:41:
+        shadow:x:42:
+        utmp:x:43:
+        video:x:44:
+        sasl:x:45:
+        plugdev:x:46:
+        staff:x:50:
+        games:x:60:
+        users:x:100:
+        nogroup:x:65534:
+        systemd-journal:x:101:
+        systemd-network:x:102:
+        systemd-resolve:x:103:
+        systemd-timesync:x:104:
+        messagebus:x:105:
+        _apt:x:106:
+        sshd:x:107:
+        admin:x:1000:
+      hostname: "{{ hostname }}\n"
+      hosts: |
+        127.0.0.1 localhost
+        127.0.1.1 {{ hostname }}
+        # The following lines are desirable for IPv6 capable hosts
+        ::1     ip6-localhost ip6-loopback
+        fe00::0 ip6-localnet
+        ff00::0 ip6-mcastprefix
+        ff02::1 ip6-allnodes
+        ff02::2 ip6-allrouters
+      issue: "Debian GNU/Linux {{ version_id }} \\n \\l\n"
+      os-release: |
+        PRETTY_NAME="Debian GNU/Linux {{ version_id }} (bullseye)"
+        NAME="Debian GNU/Linux"
+        VERSION_ID="{{ version_id }}"
+        VERSION="{{ version_id }} (bullseye)"
+        ID={{ os_id }}
+        HOME_URL="https://www.debian.org/"
+        SUPPORT_URL="https://www.debian.org/support"
+        BUG_REPORT_URL="https://bugs.debian.org/"
+      passwd.txt: |
+        root:x:0:0:root:/root:/bin/bash
+        admin:x:1000:1000:admin:/home/admin:/bin/bash
+      profile: ""
+      resolv.conf: |
+        domain localdomain
+        search localdomain
+        nameserver 8.8.8.8
+        nameserver 1.1.1.1
+      shadow: |
+        root:*:19450:0:99999:7:::
+        daemon:*:19450:0:99999:7:::
+        bin:*:19450:0:99999:7:::
+        sys:*:19450:0:99999:7:::
+        sync:*:19450:0:99999:7:::
+        games:*:19450:0:99999:7:::
+        man:*:19450:0:99999:7:::
+        lp:*:19450:0:99999:7:::
+        mail:*:19450:0:99999:7:::
+        news:*:19450:0:99999:7:::
+        uucp:*:19450:0:99999:7:::
+        proxy:*:19450:0:99999:7:::
+        www-data:*:19450:0:99999:7:::
+        backup:*:19450:0:99999:7:::
+        list:*:19450:0:99999:7:::
+        irc:*:19450:0:99999:7:::
+        gnats:*:19450:0:99999:7:::
+        nobody:*:19450:0:99999:7:::
+        systemd-network:*:19450:0:99999:7:::
+        systemd-resolve:*:19450:0:99999:7:::
+        systemd-timesync:*:19450:0:99999:7:::
+        messagebus:*:19450:0:99999:7:::
+        _apt:*:19450:0:99999:7:::
+        sshd:*:19450:0:99999:7:::
+        admin:$6$v.CkqC7f$6T5S9X...:19450:0:99999:7:::
+      shells: |
+        # /etc/shells: valid login shells
+        /bin/sh
+        /bin/bash
+        /usr/bin/bash
+        /bin/rbash
+        /usr/bin/rbash
+        /bin/dash
+        /usr/bin/dash
+        /usr/bin/sh
+      ssh:
+        ssh_host_rsa_key: ""
+        sshd_config: |
+          # Package generated configuration file
+          # See the sshd_config(5) manpage for details
+          Port 22
+          Protocol 2
+          HostKey /etc/ssh/ssh_host_rsa_key
+          HostKey /etc/ssh/ssh_host_ecdsa_key
+          HostKey /etc/ssh/ssh_host_ed25519_key
+
+          UsePrivilegeSeparation yes
+          SyslogFacility AUTH
+          LogLevel INFO
+
+          LoginGraceTime 120
+          PermitRootLogin yes
+          StrictModes yes
+
+          IgnoreRhosts yes
+          PasswordAuthentication yes
+
+          Subsystem sftp /usr/lib/openssh/sftp-server
+          UsePAM yes
+          X11Forwarding yes
+          PrintMotd no
+
+    bin: [ awk, bash, cat, cp, grep, gzip, hostname, ls, mkdir, mv, rm, sed, sh, tar ]
+
+    usr/bin: [ apt, apt-get, dpkg, infocmp, python3, systemctl, vim ]
+
+    home/admin:
+      .bashrc: |
+        # ~/.bashrc: executed by bash(1) for non-login shells.
+        export PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w\$ '
+        alias ls='ls --color=auto'
+        alias ll='ls -alF'
+
+    root:
+      .bashrc: |
+        # ~/.bashrc: executed by bash(1) for non-login shells.
+        export PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w\$ '
+        alias ls='ls --color=auto'
+        alias ll='ls -alF'
+        alias la='ls -A'
+        alias l='ls -CF'

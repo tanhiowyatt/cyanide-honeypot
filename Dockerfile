@@ -1,0 +1,53 @@
+# Build stage
+FROM python:3.14-slim AS builder
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libffi-dev \
+    libssl-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+
+RUN pip install --no-cache-dir torch --extra-index-url https://download.pytorch.org/whl/cpu # nosemgrep: dockerfile.audit.dockerfile-pip-extra-index-url.dockerfile-pip-extra-index-url
+
+COPY pyproject.toml README.md ./
+COPY src/ src/
+# Use --extra-index-url for PyTorch (nosemgrep: dockerfile.audit.dockerfile-pip-extra-index-url.dockerfile-pip-extra-index-url)
+RUN pip wheel --no-cache-dir --wheel-dir /app/wheels --extra-index-url https://download.pytorch.org/whl/cpu . # nosemgrep: dockerfile.audit.dockerfile-pip-extra-index-url.dockerfile-pip-extra-index-url
+
+# Final stage
+FROM python:3.14-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libssl3 \
+    openssh-client \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Pre-install CPU-only torch
+RUN pip install --no-cache-dir torch --extra-index-url https://download.pytorch.org/whl/cpu
+
+# Copy wheels and install
+COPY --from=builder /app/wheels /tmp/wheels
+RUN pip install --no-cache-dir /tmp/wheels/*.whl && rm -rf /tmp/wheels
+
+# Configuration and data setup
+COPY src/cyanide/configs/ configs/
+
+RUN mkdir -p var/log/cyanide/tty var/log/cyanide/keys var/quarantine var/lib/cyanide \
+    && groupadd -r cyanide && useradd -r -g cyanide cyanide \
+    && python -c "from cyanide.vfs.profile_loader import load; from pathlib import Path; [load(p.name, p.parent) for p in Path('configs/profiles').iterdir() if p.is_dir()]" \
+    && ssh-keygen -t rsa -N "" -f var/log/cyanide/keys/ssh_host_rsa_key \
+    && ssh-keygen -t ed25519 -N "" -f var/log/cyanide/keys/ssh_host_ed25519_key \
+    && chown -R cyanide:cyanide configs var/log/cyanide var/quarantine var/lib/cyanide
+
+USER cyanide
+EXPOSE 2222 2323 2525 9090
+
+ENTRYPOINT ["cyanide"]

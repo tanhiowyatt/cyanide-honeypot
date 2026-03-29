@@ -170,10 +170,15 @@ class ScpHandler:
 
     def _parse_scp_metadata(self, command: str) -> Tuple[bool, bool, str]:
         """Extract is_sink, is_source and dest_dir from SCP command."""
-        is_sink = "-t" in command
-        is_source = "-f" in command
         try:
             parts = shlex.split(command)
+            # Protocol hardening: SCP requires either -t (sink) or -f (source)
+            is_sink = "-t" in parts
+            is_source = "-f" in parts
+            
+            if not is_sink and not is_source:
+                 return False, False, "."
+
             # Find the path (usually the last argument that isn't a flag)
             path = "."
             for part in reversed(parts):
@@ -181,7 +186,7 @@ class ScpHandler:
                     path = part
                     break
         except Exception:
-            path = "."
+            return False, False, "."
 
         self.logger.log_event(
             self.session_id,
@@ -274,6 +279,7 @@ class ScpHandler:
         # Some clients send an ACK here, some don't. 
         # We'll use a short timeout to try reading it without blocking forever.
         try:
+             import asyncio
              logger.debug("SCP _send_file: Waiting for final ACK (0.1s timeout)...")
              final_ack = await asyncio.wait_for(self._read(1), timeout=0.1)
              logger.debug(f"SCP _send_file: Final ACK received: {final_ack!r}")
@@ -325,7 +331,9 @@ class ScpHandler:
              return await self._handle_source_mode(path)
              
         if not is_sink:
-            return 0
+            # Send standard SCP usage error for malformed/non-protocol commands
+            self._write(b"\x01usage: scp [-f | -t] [-d] [-p] [-r] [-v] [path]\n")
+            return 1
 
         # Initial ACK to start the protocol
         self._send_ack()

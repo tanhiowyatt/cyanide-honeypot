@@ -79,7 +79,7 @@ class TelnetHandler:
                     fs,
                     username,
                     quarantine_callback=lambda f, c: self.services.quarantine.save_file(
-                        f, c, session_id, src_ip
+                        f, c, session_id, src_ip, sub_dir=f"telnet_{src_ip}_{session_id}"
                     ),
                     config=self.config,
                     logger=self.logger,

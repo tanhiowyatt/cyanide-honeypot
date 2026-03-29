@@ -48,18 +48,30 @@ class AnalyticsService:
 
             from cyanide.ml import CyanideML
 
-            config_path = self.config.get("ml", {}).get(
-                "model_path", "src/cyanide/ml/cyanideML.pkl"
-            )
-            model_path = Path(config_path).parent
+            from cyanide.core.paths import get_package_root
+            pkg_root = get_package_root()
 
-            if (model_path / "cyanideML.pkl").exists():
+            possible_paths = [
+                Path(self.config.get("ml", {}).get("model_path", "")),
+                pkg_root / "assets" / "models" / "cyanideML.pkl",
+                Path("src/cyanide/assets/models/cyanideML.pkl"),
+                Path("assets/models/cyanideML.pkl"),
+                pkg_root / "ml" / "cyanideML.pkl",
+            ]
+
+            final_model_path: Optional[Path] = None
+            for p in possible_paths:
+                if p and p.exists():
+                    final_model_path = p
+                    break
+
+            if final_model_path:
                 self.logger.log_event(
                     "system",
                     "system_status",
-                    {"message": f"Loading CyanideML pipeline from {model_path}..."},
+                    {"message": f"Loading CyanideML pipeline from {final_model_path}..."},
                 )
-                self.ml_pipeline = CyanideML(str(model_path))
+                self.ml_pipeline = CyanideML(str(final_model_path.parent))
             else:
                 self.logger.log_event(
                     "system",

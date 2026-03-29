@@ -30,16 +30,19 @@ class QuarantineService:
 
     # Function 188: Performs operations related to save file.
     async def save_file(
-        self, filename: str, content: bytes, session_id: str = "unknown", src_ip: str = "unknown"
+        self,
+        filename: str,
+        content: bytes,
+        session_id: str = "unknown",
+        src_ip: str = "unknown",
+        sub_dir: Optional[str] = None,
     ) -> Optional[str]:
         """
         Save a file to quarantine if quota allows.
         Returns the path to the saved file or None.
         """
         try:
-            current_size = sum(
-                f.stat().st_size for f in self.quarantine_path.glob("*") if f.is_file()
-            )
+            current_size = sum(f.stat().st_size for f in self.quarantine_path.glob("*") if f.is_file())
             content_size = len(content)
 
             if (current_size + content_size) > (self.quarantine_max_mb * 1024 * 1024):
@@ -52,12 +55,30 @@ class QuarantineService:
                 )
                 return None
 
-            timestamp = int(time.time())
-            safe_name = f"{timestamp}_{Path(filename).name}"
-            target_path = self.quarantine_path / safe_name
+            # Format: filename_sessionid
+            safe_name = f"{Path(filename).name}_{session_id}"
+            target_path_main = self.quarantine_path / safe_name
 
-            async with aiofiles.open(target_path, "wb") as f:
+            # Always save to the main quarantine folder
+            async with aiofiles.open(target_path_main, "wb") as f:
                 await f.write(content)
+
+            # Also save to the session-specific quarantine folder if sub_dir is provided
+            if sub_dir:
+                log_base = Path("var/log/cyanide/tty") / sub_dir
+                target_base_session = log_base / "quarantine"
+                target_base_session.mkdir(parents=True, exist_ok=True)
+
+                # Initialize missing log files if they don't exist (consistency for forenics)
+                for log_file in ["transcript.log", "timing.time", "ml_analysis.json"]:
+                    p = log_base / log_file
+                    if not p.exists():
+                        p.touch()
+
+                target_path_sess = target_base_session / safe_name
+                
+                async with aiofiles.open(target_path_sess, "wb") as f:
+                    await f.write(content)
 
             if self.vt_scanner and self.vt_scanner.enabled:
                 task = asyncio.create_task(
@@ -68,7 +89,7 @@ class QuarantineService:
 
             if hasattr(self.logger, "services") and hasattr(self.logger.services, "analytics"):
                 self.logger.services.analytics.analyze_file(filename, content, session_id, src_ip)
-            return str(target_path)
+            return str(target_path_main)
         except Exception as e:
             self.logger.log_event(
                 session_id, "error", {"message": f"Error saving quarantine file: {e}"}

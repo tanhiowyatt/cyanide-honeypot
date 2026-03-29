@@ -73,4 +73,4 @@ services:
       - CYANIDE_VIRUSTOTAL_ENABLED=false
       - CYANIDE_SMTP_ENABLED=true
       - CYANIDE_SMTP_PORT=2525
-      - 'CYANIDE_USERS=[{"user": "root", "pass": "admin"}, {"user": "admin", "pass": "admin"}]'
+      - 'CYANIDE_USERS=[{"user": "root", "pass": "admin"}, {"user": "admin", "pass": "admin"}, {"user": "user", "pass": "123456"}]'

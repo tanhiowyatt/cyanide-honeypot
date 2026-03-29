@@ -1,5 +1,4 @@
-# Build stage
-FROM python:3.14-slim AS builder
+FROM python:3.14-slim-bookworm AS builder
 
 WORKDIR /app
 
@@ -10,17 +9,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel
-
-RUN pip install --no-cache-dir torch --extra-index-url https://download.pytorch.org/whl/cpu # nosemgrep: dockerfile.audit.dockerfile-pip-extra-index-url.dockerfile-pip-extra-index-url
-
 COPY pyproject.toml README.md ./
-COPY src/ src/
-# Use --extra-index-url for PyTorch (nosemgrep: dockerfile.audit.dockerfile-pip-extra-index-url.dockerfile-pip-extra-index-url)
-RUN pip wheel --no-cache-dir --wheel-dir /app/wheels --extra-index-url https://download.pytorch.org/whl/cpu . # nosemgrep: dockerfile.audit.dockerfile-pip-extra-index-url.dockerfile-pip-extra-index-url
 
-# Final stage
-FROM python:3.14-slim
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel \
+    && pip install --no-cache-dir torch --extra-index-url https://download.pytorch.org/whl/cpu
+
+COPY src/ src/
+RUN pip install --no-cache-dir .
+
+RUN find /opt/venv -type d -name "__pycache__" -exec rm -rf {} + \
+    && find /opt/venv -name "*.pyc" -delete \
+    && find /opt/venv -name "*.so" -exec strip --strip-unneeded {} + 2>/dev/null || true
+
+FROM python:3.14-slim-bookworm
 
 WORKDIR /app
 
@@ -30,18 +34,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Pre-install CPU-only torch
-RUN pip install --no-cache-dir torch --extra-index-url https://download.pytorch.org/whl/cpu
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
-# Copy wheels and install
-COPY --from=builder /app/wheels /tmp/wheels
-RUN pip install --no-cache-dir /tmp/wheels/*.whl && rm -rf /tmp/wheels
-
-# Configuration and data setup
 COPY src/cyanide/configs/ configs/
+COPY src/cyanide/assets assets/
 
 RUN mkdir -p var/log/cyanide/tty var/log/cyanide/keys var/quarantine var/lib/cyanide \
-    && groupadd -r cyanide && useradd -r -g cyanide cyanide \
+    && groupadd -r cyanide -g 1000 && useradd -r -u 1000 -g cyanide cyanide \
     && python -c "from cyanide.vfs.profile_loader import load; from pathlib import Path; [load(p.name, p.parent) for p in Path('configs/profiles').iterdir() if p.is_dir()]" \
     && ssh-keygen -t rsa -N "" -f var/log/cyanide/keys/ssh_host_rsa_key \
     && ssh-keygen -t ed25519 -N "" -f var/log/cyanide/keys/ssh_host_ed25519_key \

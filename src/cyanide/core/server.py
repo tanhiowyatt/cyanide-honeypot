@@ -335,14 +335,20 @@ class CyanideServer:
 
     # Function 48: Performs operations related to save quarantine file.
     def save_quarantine_file(
-        self, filename: str, content: bytes, session_id="unknown", src_ip="unknown"
+        self, filename: str, content: bytes, session_id="unknown", src_ip="unknown", protocol="ssh"
     ):
         """Delegated to QuarantineService."""
         try:
             if not hasattr(self, "_quarantine_tasks"):
                 self._quarantine_tasks = set()
+            
+            # Match the exact folder format used in _init_session_logging
+            folder_name = f"{protocol}_{src_ip}_{session_id}"
+            
             task = asyncio.create_task(
-                self.services.quarantine.save_file(filename, content, session_id, src_ip)
+                self.services.quarantine.save_file(
+                    filename, content, session_id, src_ip, sub_dir=folder_name
+                )
             )
             self._quarantine_tasks.add(task)
             task.add_done_callback(self._quarantine_tasks.discard)

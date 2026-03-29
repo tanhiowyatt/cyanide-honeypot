@@ -96,7 +96,7 @@ class VirtualFile(File):
 
     # Function 284: Performs operations related to content.
     @property
-    def content(self) -> str:
+    def content(self) -> Union[str, bytes]:
         return self.fs.get_content(self.path)
 
 
@@ -443,7 +443,7 @@ class FakeFilesystem:
             self.session_mgr.record_file_op(self.session_id)
 
         if path in self.memory_overlay:
-            return str(self.memory_overlay[path].get("content", ""))
+            return self.memory_overlay[path].get("content", "")
 
         if path in self.dynamic_files:
             config = self.dynamic_files[path]
@@ -463,7 +463,14 @@ class FakeFilesystem:
         return ""
 
     # Function 298: Performs operations related to mkfile.
-    def mkfile(self, path: str, content="", owner="root", group="root", perm="-rw-r--r--"):
+    def mkfile(
+        self,
+        path: str,
+        content: Union[str, bytes] = "",
+        owner="root",
+        group="root",
+        perm="-rw-r--r--",
+    ):
         path = self.resolve(path)
         parent_path = posixpath.dirname(path)
         if parent_path != path:
@@ -574,17 +581,12 @@ class FakeFilesystem:
         return False
 
     # Function 304: Performs operations related to render.
-    def _render(self, content: Any) -> str:
+    def _render(self, content: Any) -> Union[str, bytes]:
         if not content:
             return ""
 
-        # If content is bytes, try to decode it for rendering
         if isinstance(content, bytes):
-            try:
-                content = content.decode("utf-8")
-            except UnicodeDecodeError:
-                # If it's binary, we can't render it with Jinja2, just return as is (but as string representation or handle it elsewhere)
-                return str(content)
+            return content  # Skip rendering for binary data
 
         if not self.context or not isinstance(content, str):
             return str(content)

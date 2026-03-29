@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from pydantic import ValidationError
 
 from .config_schema import CyanideConfig
-from .paths import get_default_config_path
+from .paths import get_default_config_path, get_package_root
 
 logger = logging.getLogger("cyanide.config")
 
@@ -446,7 +446,12 @@ def load_config(path: Any = None):
     config["ml"] = {
         "enabled": get_val("ml", "enabled", "ML_ENABLED", False, bool),
         "ml_log": get_val("ml", "ml_log", "ML_LOG", f"{DEFAULT_LOG_PATH}/ml.json"),
-        "model_path": get_val("ml", "model_path", "ML_MODEL_PATH", "assets/models/cyanideML.pkl"),
+        "model_path": get_val(
+            "ml",
+            "model_path",
+            "ML_MODEL_PATH",
+            str(get_package_root() / "assets" / "models" / "cyanideML.pkl"),
+        ),
         "online_learning": get_val("ml", "online_learning", "ONLINE_LEARNING", False, bool),
         "retraining_interval_days": get_val(
             "ml", "retraining_interval_days", "ML_RETRAINING_INTERVAL_DAYS", 7, int

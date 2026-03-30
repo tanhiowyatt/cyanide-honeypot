@@ -17,7 +17,7 @@ def test_logger_plain_handlers(temp_log_dir):
     """Test standard plain logging instantiation yields basic FileHandlers."""
     config = {"logtype": "plain"}
 
-    CyanideLogger(temp_log_dir, logging_config=config)
+    CyanideLogger({"logging": {"directory": temp_log_dir, **config}})
 
     server_logger = logging.getLogger("cyanide_server")
     assert len(server_logger.handlers) == 1
@@ -33,7 +33,7 @@ def test_logger_time_rotating_handlers(temp_log_dir):
         "rotation": {"strategy": "time", "when": "midnight", "interval": 1, "backup_count": 7},
     }
 
-    CyanideLogger(temp_log_dir, logging_config=config)
+    CyanideLogger({"logging": {"directory": temp_log_dir, **config}})
 
     server_logger = logging.getLogger("cyanide_server")
     assert len(server_logger.handlers) == 1
@@ -51,7 +51,7 @@ def test_logger_size_rotating_handlers(temp_log_dir):
         "rotation": {"strategy": "size", "max_bytes": 1024, "backup_count": 3},
     }
 
-    CyanideLogger(temp_log_dir, logging_config=config)
+    CyanideLogger({"logging": {"directory": temp_log_dir, **config}})
 
     server_logger = logging.getLogger("cyanide_server")
     assert len(server_logger.handlers) == 1
@@ -67,20 +67,20 @@ def test_logger_handler_deduplication(temp_log_dir):
     config = {"logtype": "plain"}
 
     # Init 1
-    CyanideLogger(temp_log_dir, logging_config=config)
+    CyanideLogger({"logging": {"directory": temp_log_dir, **config}})
     server_logger = logging.getLogger("cyanide_server")
+    # Note: Our logic should remove old handlers before adding new ones
     assert len(server_logger.handlers) == 1
 
     # Init 2
-    CyanideLogger(temp_log_dir, logging_config=config)
-    # The logger logic should remove the previous handler and add the new one
+    CyanideLogger({"logging": {"directory": temp_log_dir, **config}})
     assert len(server_logger.handlers) == 1
 
 
 def test_get_target_logger(temp_log_dir):
     """Test routing of event types to proper loggers."""
     config = {"logtype": "plain"}
-    logger = CyanideLogger(temp_log_dir, logging_config=config)
+    logger = CyanideLogger({"logging": {"directory": temp_log_dir, **config}})
 
     # FS log events
     assert logger._get_target_logger_info("command.input")[0] == logger.fs_log

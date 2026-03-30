@@ -1,96 +1,19 @@
 import asyncio
+import logging
 import os
+import posixpath
 from typing import Any, AsyncIterator, Dict, Optional, Union
 
 import asyncssh
 
-
-class CyanideSFTPFile:
-    """
-    SFTP file object implementing the asyncssh SFTP file protocol.
-    """
-
-    def __init__(self, handler: "CyanideSFTPHandler", path: str, buffer: bytearray, is_write: bool):
-        self.handler = handler
-        self.path = path
-        self.buffer = buffer
-        self.is_write = is_write
-        self.pos = 0
-
-    def read(self, size: int) -> bytes:
-        if self.pos >= len(self.buffer):
-            return b""
-        end = min(self.pos + size, len(self.buffer))
-        data = bytes(self.buffer[self.pos:end])
-        self.pos = end
-        return data
-
-    def write(self, data: bytes) -> int:
-        try:
-            if not self.is_write:
-                raise asyncssh.SFTPPermissionDenied("File not open for writing")
-
-            ssh_conf = self.handler.honeypot.config.get("ssh", {})
-            session_limit = ssh_conf.get("max_total_upload_mb_per_session", 200) * 1024 * 1024
-            if len(self.buffer) + len(data) > session_limit:
-                raise asyncssh.SFTPPermissionDenied("Session upload limit exceeded")
-
-            end = self.pos + len(data)
-            if end > len(self.buffer):
-                self.buffer.extend(b"\0" * (end - len(self.buffer)))
-
-            # If data is somehow a string, convert it
-            if isinstance(data, str):
-                data = data.encode("utf-8", "ignore")
-
-            self.buffer[self.pos:end] = data
-            self.pos = end
-            return len(data)
-        except Exception as e:
-            self.handler._log_op("write_error", self.path, success=False, extra={"error": str(e), "type": str(type(e))})
-            raise
-
-    def seek(self, offset: int, whence: int = 0):
-        if whence == 0:
-            self.pos = offset
-        elif whence == 1:
-            self.pos += offset
-        elif whence == 2:
-            self.pos = len(self.buffer) + offset
-        else:
-            raise asyncssh.SFTPBadMessage("Invalid seek whence")
-
-    def tell(self) -> int:
-        return self.pos
-
-    def fstat(self) -> asyncssh.SFTPAttrs:
-        node = self.handler.fs.get_node(self.path)
-        return self.handler._get_attrs(node) if node else asyncssh.SFTPAttrs()
-
-    def fsetstat(self, attrs: asyncssh.SFTPAttrs) -> None:
-        self.handler._log_op("fsetstat", self.path, extra={"attrs": str(attrs)})
-        return None
-
-    def close(self):
-        if self.is_write:
-            content = bytes(self.buffer)
-            # Save raw bytes to VFS
-            self.handler.fs.mkfile(self.path, content=content)
-
-            # Save to quarantine
-            self.handler.honeypot.save_quarantine_file(
-                os.path.basename(self.path), content, self.handler.session_id, self.handler.src_ip
-            )
-
-            self.handler._log_op("upload_complete", self.path, extra={"size": len(content)})
-        else:
-            self.handler._log_op("close", self.path)
+logger = logging.getLogger("cyanide.vfs.sftp")
 
 
 class CyanideSFTPHandler(asyncssh.SFTPServer):
     """
     SFTP server implementation for Cyanide honeypot.
     Bridges asyncssh SFTP requests to the FakeFilesystem (VFS).
+    Uses direct handle management in the handler to avoid object-lifecycle issues.
     """
 
     ERR_NO_SUCH_FILE = "No such file"
@@ -117,6 +40,8 @@ class CyanideSFTPHandler(asyncssh.SFTPServer):
 
         self.username = self.conn.get_extra_info("username") or "root"
         self.cyanide_logger = self.honeypot.logger
+        self.file_handles: Dict[bytes, Dict] = {}
+        self.next_handle_id = 0
 
     def _decode_path(self, path: Union[str, bytes]) -> str:
         if isinstance(path, bytes):
@@ -137,7 +62,7 @@ class CyanideSFTPHandler(asyncssh.SFTPServer):
 
         self.cyanide_logger.log_event(self.session_id, "sftp_op", log_data)
 
-    def realpath(self, path: Union[str, bytes]) -> Union[str, bytes]:
+    def realpath(self, path: Union[str, bytes]) -> Any:
         p = self._decode_path(path)
         if not p or p == ".":
             p = "/"
@@ -167,7 +92,7 @@ class CyanideSFTPHandler(asyncssh.SFTPServer):
             self._log_op("scandir", p, success=False, extra={"error": str(e)})
             raise asyncssh.SFTPNoSuchFile(str(e))
 
-    async def stat(self, path: Union[str, bytes]) -> asyncssh.SFTPAttrs:
+    async def stat(self, path: Any) -> asyncssh.SFTPAttrs:
         await asyncio.sleep(0)
         p = self._decode_path(path)
         node = self.fs.get_node(p)
@@ -178,24 +103,15 @@ class CyanideSFTPHandler(asyncssh.SFTPServer):
         self._log_op("stat", p)
         return self._get_attrs(node)
 
-    async def lstat(self, path: Union[str, bytes]) -> asyncssh.SFTPAttrs:
+    async def lstat(self, path: Any) -> asyncssh.SFTPAttrs:
         return await self.stat(path)
 
-    async def setstat(self, path: Union[str, bytes], attrs: asyncssh.SFTPAttrs):
+    async def setstat(self, path: Any, attrs: asyncssh.SFTPAttrs):
         await asyncio.sleep(0)
         p = self._decode_path(path)
         self._log_op("setstat", p, extra={"attrs": str(attrs)})
 
-    def fstat(self, file_obj: object) -> asyncssh.SFTPAttrs:
-        return file_obj.fstat()
-
-    def fsetstat(self, file_obj: object, attrs: asyncssh.SFTPAttrs) -> None:
-        file_obj.fsetstat(attrs)
-        return None
-
-    async def open(
-        self, path: Union[str, bytes], flags: int, attrs: asyncssh.SFTPAttrs
-    ) -> CyanideSFTPFile:
+    async def open(self, path: Any, flags: int, attrs: asyncssh.SFTPAttrs) -> bytes:
         p = self._decode_path(path)
         self._log_op("open", p, extra={"flags": flags})
 
@@ -205,16 +121,93 @@ class CyanideSFTPHandler(asyncssh.SFTPServer):
         if is_write and self.fs.is_dir(p):
             raise asyncssh.SFTPPermissionDenied("Is a directory")
 
+        content = b""
         if is_write:
-            content = b""
             if not (flags & asyncssh.FXF_TRUNC) and self.fs.exists(p):
                 content = self._get_node_content(p)
-            return CyanideSFTPFile(self, p, bytearray(content), True)
+        else:
+            if not self.fs.exists(p):
+                raise asyncssh.SFTPNoSuchFile(self.ERR_NO_SUCH_FILE)
+            content = self._get_node_content(p)
 
-        if not self.fs.exists(p):
-            raise asyncssh.SFTPNoSuchFile(self.ERR_NO_SUCH_FILE)
+        handle_id = self.next_handle_id
+        self.next_handle_id += 1
+        handle = f"h{handle_id}".encode("utf-8")
 
-        return CyanideSFTPFile(self, p, bytearray(self._get_node_content(p)), False)
+        self.file_handles[handle] = {
+            "path": p,
+            "buffer": bytearray(content),
+            "is_write": is_write,
+            "pos": 0,
+        }
+        return handle
+
+    async def read(self, handle: Any, offset: int, size: int) -> bytes:
+        if handle not in self.file_handles:
+            raise asyncssh.SFTPBadMessage("Invalid handle")
+
+        fh = self.file_handles[handle]
+        buffer = fh["buffer"]
+        if offset >= len(buffer):
+            return b""
+        end = min(offset + size, len(buffer))
+        return bytes(buffer[offset:end])
+
+    async def write(self, handle: Any, offset: int, data: bytes) -> int:
+        if handle not in self.file_handles:
+            raise asyncssh.SFTPBadMessage("Invalid handle")
+
+        fh = self.file_handles[handle]
+        if not fh["is_write"]:
+            raise asyncssh.SFTPPermissionDenied("File not open for writing")
+
+        buffer = fh["buffer"]
+        try:
+            ssh_conf = self.honeypot.config.get("ssh", {})
+            session_limit = ssh_conf.get("max_total_upload_mb_per_session", 200) * 1024 * 1024
+            if len(buffer) + len(data) > session_limit:
+                raise asyncssh.SFTPPermissionDenied("Session upload limit exceeded")
+
+            end = offset + len(data)
+            if end > len(buffer):
+                buffer.extend(b"\0" * (end - len(buffer)))
+
+            buffer[offset:end] = data
+            return len(data)
+        except Exception as e:
+            logger.exception(f"SFTP write error for handle {handle!r} ({fh['path']}): {e}")
+            raise
+
+    async def close(self, handle: Any):
+        if handle not in self.file_handles:
+            return
+
+        fh = self.file_handles.pop(handle)
+        if fh["is_write"]:
+            content = bytes(fh["buffer"])
+            path = fh["path"]
+            # Save to VFS
+            self.fs.mkfile(path, content=content)
+            # Save to Quarantine
+            self.honeypot.save_quarantine_file(
+                os.path.basename(path), content, self.session_id, self.src_ip
+            )
+            self._log_op("upload_complete", path, extra={"size": len(content)})
+        else:
+            self._log_op("close", fh["path"])
+
+    async def fstat(self, handle: Any) -> asyncssh.SFTPAttrs:
+        if handle not in self.file_handles:
+            raise asyncssh.SFTPBadMessage("Invalid handle")
+        path = self.file_handles[handle]["path"]
+        node = self.fs.get_node(path)
+        return self._get_attrs(node) if node else asyncssh.SFTPAttrs()
+
+    async def fsetstat(self, handle: Any, attrs: asyncssh.SFTPAttrs):
+        if handle not in self.file_handles:
+            raise asyncssh.SFTPBadMessage("Invalid handle")
+        path = self.file_handles[handle]["path"]
+        self._log_op("fsetstat", path, extra={"attrs": str(attrs)})
 
     def _check_sftp_permissions(self, is_write: bool) -> None:
         """Check if SFTP operation is allowed by configuration."""

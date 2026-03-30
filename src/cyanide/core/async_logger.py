@@ -63,6 +63,18 @@ class AsyncLogger:
     async def _write_log_item(self, filepath: Path, content: Union[str, bytes], mode: str):
         """Helper to safely perform file I/O and mark task completion."""
         try:
+            # Ensure parent directories exist (fixes race condition in session-specific logging)
+            try:
+                filepath.parent.mkdir(parents=True, exist_ok=True)
+            except Exception as e:
+                import sys
+
+                print(
+                    f"ERROR: AsyncLogger failed to create directory {filepath.parent}: {e}",
+                    file=sys.stderr,
+                )
+                raise
+
             async with aiofiles.open(filepath, mode) as f:  # type: ignore[call-overload]
                 await f.write(content)
         except Exception as e:

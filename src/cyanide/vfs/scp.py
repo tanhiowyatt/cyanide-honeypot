@@ -102,8 +102,9 @@ class ScpHandler:
             )
         except Exception as e:
             logger.error(f"Failed to save SCP file to VFS: {e}")
+            raise
 
-    async def _handle_copy_command(self, header_str: str, dest_dir: str) -> int:
+    async def _handle_copy_command(self, header_str: str, dest_base: str) -> int:
         """Handle the 'C' (Copy) protocol command."""
         match = re.match(r"C(\d{4}) (\d+) (.+)", header_str)
         if not match:
@@ -119,25 +120,36 @@ class ScpHandler:
         # Read the actual file content
         content = await self._read_file_data(size)
 
-        # Consume the trailing null byte from the client
+        # In sink mode, common SCP clients send a null byte after file data.
+        # This is essentially an EOF marker for the file transfer.
         await self._read(1)
 
-        # Save to Virtual Filesystem
-        target_path = os.path.join(dest_dir, filename)
-        self._save_to_vfs(target_path, content)
+        # Determine target path
+        if self.fs and self.fs.is_dir(dest_base):
+            target_path = os.path.join(dest_base, filename)
+        else:
+            target_path = dest_base
 
-        # Save to Quarantine and Log
-        self.honeypot.save_quarantine_file(filename, content, self.session_id, self.src_ip)
+        try:
+            # Save to Virtual Filesystem
+            self._save_to_vfs(target_path, content)
 
-        self.logger.log_event(
-            self.session_id,
-            "scp_upload_complete",
-            {"filename": filename, "path": target_path, "size": size, "mode": mode_str},
-        )
+            # Save to Quarantine and Log
+            self.honeypot.save_quarantine_file(filename, content, self.session_id, self.src_ip)
 
-        # Final ACK for the file
-        self._send_ack()
-        return 0
+            self.logger.log_event(
+                self.session_id,
+                "scp_upload_complete",
+                {"filename": filename, "path": target_path, "size": size, "mode": mode_str},
+            )
+
+            # Final ACK for the file
+            self._send_ack()
+            return 0
+        except Exception as e:
+            logger.error(f"SCP Upload Error for {filename}: {e}")
+            self._write(f"\x01SCP: Internal error saving file {filename}: {e}\n".encode("utf-8"))
+            return 1
 
     async def _handle_dir_command(self, header_str: str, current_base: str) -> str:
         """Handle the 'D' (Directory) protocol command."""
@@ -175,9 +187,9 @@ class ScpHandler:
             # Protocol hardening: SCP requires either -t (sink) or -f (source)
             is_sink = "-t" in parts
             is_source = "-f" in parts
-            
+
             if not is_sink and not is_source:
-                 return False, False, "."
+                return False, False, "."
 
             # Find the path (usually the last argument that isn't a flag)
             path = "."
@@ -219,7 +231,7 @@ class ScpHandler:
         self.logger.log_event(
             self.session_id,
             "scp_download_started",
-            {"path": path, "type": "dir" if node.is_dir() else "file"},
+            {"path": path, "type": "dir" if node.is_dir() else "file", "direction": "download"},
         )
         logger.debug(f"SCP Source Mode: Waiting for initial ACK for {path}...")
 
@@ -227,7 +239,9 @@ class ScpHandler:
         initial_ack = await self._read(1)
         logger.debug(f"SCP Source Mode: Initial ACK received: {initial_ack!r}")
         if initial_ack != b"\0":
-            self.logger.log_event(self.session_id, "scp_protocol_error", {"msg": "Missing initial ACK"})
+            self.logger.log_event(
+                self.session_id, "scp_protocol_error", {"msg": "Missing initial ACK"}
+            )
             return 1
 
         if node.is_dir():
@@ -235,6 +249,8 @@ class ScpHandler:
         else:
             await self._send_file(path, node)
 
+        # Final ACK after all files are sent (optional but often expected)
+        # However, for ScpSource, it's usually the client that ACKs E or C.
         return 0
 
     def _perm_to_mode(self, perm: str) -> int:
@@ -258,34 +274,37 @@ class ScpHandler:
 
         if isinstance(content, str):
             content = content.encode("utf-8")
-        
+
         size = len(content)
         mode = self._perm_to_mode(getattr(node, "perm", "-rw-r--r--"))
         header = f"C{mode:04o} {size} {filename}\n".encode("utf-8")
-        
+
         logger.debug(f"SCP _send_file: Sending header: {header!r}")
         self._write(header)
-        
+
         ack = await self._read(1)
         logger.debug(f"SCP _send_file: Received header ACK: {ack!r}")
         if ack != b"\0":
-            self.logger.log_event(self.session_id, "scp_protocol_error", {"msg": f"Missing header ACK, got {ack!r}"})
+            self.logger.log_event(
+                self.session_id, "scp_protocol_error", {"msg": f"Missing header ACK, got {ack!r}"}
+            )
             return
 
         logger.debug(f"SCP _send_file: Sending content ({size} bytes)...")
         self._write(content)
-        self._write(b"\0") # End of file marker (null byte)
-        
-        # Some clients send an ACK here, some don't. 
+        self._write(b"\0")  # End of file marker (null byte)
+
+        # Some clients send an ACK here, some don't.
         # We'll use a short timeout to try reading it without blocking forever.
         try:
-             import asyncio
-             logger.debug("SCP _send_file: Waiting for final ACK (0.1s timeout)...")
-             final_ack = await asyncio.wait_for(self._read(1), timeout=0.1)
-             logger.debug(f"SCP _send_file: Final ACK received: {final_ack!r}")
+            import asyncio
+
+            logger.debug("SCP _send_file: Waiting for final ACK (0.1s timeout)...")
+            final_ack = await asyncio.wait_for(self._read(1), timeout=0.1)
+            logger.debug(f"SCP _send_file: Final ACK received: {final_ack!r}")
         except Exception as e:
-             logger.debug(f"SCP _send_file: Final ACK wait error/timeout: {e}")
-             pass
+            logger.debug(f"SCP _send_file: Final ACK wait error/timeout: {e}")
+            pass
 
         self.logger.log_event(
             self.session_id,
@@ -298,13 +317,15 @@ class ScpHandler:
         dirname = os.path.basename(path)
         mode = self._perm_to_mode(getattr(node, "perm", "drwxr-xr-x"))
         header = f"D{mode:04o} 0 {dirname}\n".encode("utf-8")
-        
+
         self._write(header)
         if await self._read(1) != b"\0":
             return
 
         # Send contents
         try:
+            if self.fs is None:
+                return
             for item in self.fs.list_dir(path):
                 child_path = os.path.join(path, item)
                 child_node = self.fs.get_node(child_path)
@@ -326,10 +347,10 @@ class ScpHandler:
         Handles both sink mode (-t) and source mode (-f).
         """
         is_sink, is_source, path = self._parse_scp_metadata(command)
-        
+
         if is_source:
-             return await self._handle_source_mode(path)
-             
+            return await self._handle_source_mode(path)
+
         if not is_sink:
             # Send standard SCP usage error for malformed/non-protocol commands
             self._write(b"\x01usage: scp [-f | -t] [-d] [-p] [-r] [-v] [path]\n")
@@ -357,7 +378,12 @@ class ScpHandler:
                 current_base, should_break = await self._handle_end_dir(current_base)
                 if should_break:
                     break
-            else:
+            elif header_str.startswith("T"):
+                # Protocol hardening (T is for timestamps, ignore it with an ACK)
                 self._send_ack()
+            else:
+                # Unknown command: send a NACK
+                self._write(f"\x01SCP: Unknown protocol command: {header_str}\n".encode("utf-8"))
+                return 1
 
         return 0

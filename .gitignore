@@ -55,3 +55,5 @@ example_prod_log.json
 
 # Spurious test artifact dirs
 MagicMock/
+
+src/cyanide/configs/profiles/*/.compiled.db

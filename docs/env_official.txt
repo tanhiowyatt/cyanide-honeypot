@@ -1,0 +1,160 @@
+# =============================================================================
+# CYANIDE HONEYPOT - OFFICIAL ENVIRONMENT VARIABLES REFERENCE (STRICT MODE)
+# =============================================================================
+# This file lists EVERY configuration setting natively supported via the 
+# strict 'CYANIDE_SECTION_KEY' naming convention.
+# Aliases and legacy overrides (like HOSTNAME, SSH_PORT) are NOT supported.
+#
+# To use these variables, add them to the `environment:` section 
+# of your docker-compose.yml.
+# =============================================================================
+
+    environment:
+      # --- System / General ---
+      - PYTHONUNBUFFERED=1
+
+      # -----------------------------------------------------------------------
+      # 1. CORE & HONEYPOT SETTINGS
+      # -----------------------------------------------------------------------
+      - CYANIDE_HONEYPOT_HOSTNAME=server01
+      - CYANIDE_HONEYPOT_QUARANTINE_PATH=var/quarantine
+      - CYANIDE_HONEYPOT_QUARANTINE_MAX_SIZE_MB=500
+      - CYANIDE_HONEYPOT_DNS_CACHE_TTL=60
+      - CYANIDE_HONEYPOT_ALLOW_LOCAL_NETWORK=false
+      - CYANIDE_HONEYPOT_FS_YAML=configs/vfs/ubuntu_1804.yaml
+
+      # -----------------------------------------------------------------------
+      # 2. SERVER & SESSIONS
+      # -----------------------------------------------------------------------
+      - CYANIDE_SERVER_HOST=0.0.0.0
+      - CYANIDE_SERVER_OS_PROFILE=ubuntu
+      - CYANIDE_SERVER_VFS_ROOT=var/vfs
+      - CYANIDE_SERVER_MAX_SESSIONS=100
+      - CYANIDE_SERVER_MAX_SESSIONS_PER_IP=5
+      - CYANIDE_SERVER_SESSION_TIMEOUT=300
+
+      # -----------------------------------------------------------------------
+      # 3. LOGGING & ROTATION
+      # -----------------------------------------------------------------------
+      - CYANIDE_LOGGING_DIRECTORY=var/log/cyanide
+      - CYANIDE_LOGGING_LOGTYPE=plain
+      - CYANIDE_LOGGING_ROTATION_STRATEGY=time
+      - CYANIDE_LOGGING_ROTATION_WHEN=midnight
+      - CYANIDE_LOGGING_ROTATION_INTERVAL=1
+      - CYANIDE_LOGGING_ROTATION_BACKUP_COUNT=14
+      - CYANIDE_LOGGING_ROTATION_MAX_BYTES=10485760
+
+      # -----------------------------------------------------------------------
+      # 4. SSH SERVICE
+      # -----------------------------------------------------------------------
+      - CYANIDE_SSH_ENABLED=true
+      - CYANIDE_SSH_PORT=2222
+      - CYANIDE_SSH_BACKEND_MODE=emulated
+      - CYANIDE_SSH_TARGET_HOST=127.0.0.1
+      - CYANIDE_SSH_TARGET_PORT=22222
+      - CYANIDE_SSH_VERSION=SSH-2.0-OpenSSH_8.2p1
+      - CYANIDE_SSH_DATA_PATH=var/lib/cyanide/keys
+      - CYANIDE_SSH_AUTH_TRIES=3
+      - CYANIDE_SSH_LOGIN_TIMEOUT=60
+      - CYANIDE_SSH_IDLE_TIMEOUT=3600
+      - CYANIDE_SSH_REKEY_LIMIT=1G
+      - CYANIDE_SSH_RSA_KEYING=true
+      - CYANIDE_SSH_VFS_PERSISTENCE=true
+      - CYANIDE_SSH_LOG_PASSWORDS=false
+
+      # SSH Security Algorithms (JSON Lists)
+      - CYANIDE_SSH_CIPHERS=["aes256-gcm@openssh.com", "aes128-gcm@openssh.com"]
+      - CYANIDE_SSH_MACS=["hmac-sha2-512-etm@openssh.com", "hmac-sha2-256-etm@openssh.com"]
+      - CYANIDE_SSH_KEX_ALGS=["curve25519-sha256"]
+      - CYANIDE_SSH_HOST_KEY_ALGS=["ssh-ed25519", "rsa-sha2-512"]
+      - CYANIDE_SSH_PUBLIC_KEY_ALGS=["ssh-ed25519", "rsa-sha2-512"]
+
+      # SSH Port Forwarding & Tunnels
+      - CYANIDE_SSH_FORWARDING_ENABLED=false
+      - CYANIDE_SSH_FORWARDING_STRICT_MODE=true
+      - CYANIDE_SSH_FORWARD_REDIRECT_ENABLED=false
+      - 'CYANIDE_SSH_FORWARD_REDIRECT_RULES={"80": "127.0.0.1:8080"}'
+      - CYANIDE_SSH_FORWARD_TUNNEL_ENABLED=false
+      - 'CYANIDE_SSH_FORWARD_TUNNEL_RULES={"3306": "db:3306"}'
+
+      # -----------------------------------------------------------------------
+      # 5. TELNET SERVICE
+      # -----------------------------------------------------------------------
+      - CYANIDE_TELNET_ENABLED=false
+      - CYANIDE_TELNET_PORT=2323
+      - CYANIDE_TELNET_BACKEND_MODE=emulated
+      - CYANIDE_TELNET_TARGET_HOST=127.0.0.1
+      - CYANIDE_TELNET_TARGET_PORT=23
+      - CYANIDE_TELNET_LOG_PASSWORDS=false
+      - CYANIDE_TELNET_BANNER="Welcome to Telnet Server"
+
+      # -----------------------------------------------------------------------
+      # 6. METRICS & OBSERVABILITY
+      # -----------------------------------------------------------------------
+      - CYANIDE_METRICS_ENABLED=true
+      - CYANIDE_METRICS_HOST=127.0.0.1
+      - CYANIDE_METRICS_PORT=9090
+      - CYANIDE_METRICS_TOKEN=none
+      - CYANIDE_METRICS_ALLOW_REMOTE=false
+
+      - CYANIDE_OTEL_ENABLED=false
+      - CYANIDE_OTEL_EXPORTER=otlp
+      - CYANIDE_OTEL_ENDPOINT=http://localhost:4318/v1/traces
+
+      # -----------------------------------------------------------------------
+      # 7. MACHINE LEARNING (CyanideML)
+      # -----------------------------------------------------------------------
+      - CYANIDE_ML_ENABLED=true
+      - CYANIDE_ML_ML_LOG=var/log/cyanide/cyanide-ml.json
+      - CYANIDE_ML_MODEL_PATH=assets/models/cyanideML.pkl
+      - CYANIDE_ML_ONLINE_LEARNING=false
+      - CYANIDE_ML_RETRAINING_INTERVAL_DAYS=7
+
+      # -----------------------------------------------------------------------
+      # 8. SMTP PROXY
+      # -----------------------------------------------------------------------
+      - CYANIDE_SMTP_ENABLED=false
+      - CYANIDE_SMTP_PORT=2525
+      - CYANIDE_SMTP_BACKEND_MODE=emulated
+      - CYANIDE_SMTP_TARGET_HOST=127.0.0.1
+      - CYANIDE_SMTP_TARGET_PORT=25255
+
+      # -----------------------------------------------------------------------
+      # 9. VM POOL (LIBVIRT)
+      # -----------------------------------------------------------------------
+      - CYANIDE_POOL_ENABLED=false
+      - CYANIDE_POOL_MODE=libvirt
+      - CYANIDE_POOL_MAX_VMS=5
+      - CYANIDE_POOL_RECYCLE_PERIOD=1500
+      - CYANIDE_POOL_VM_UNUSED_TIMEOUT=600
+      - CYANIDE_POOL_SHARE_GUESTS=true
+      - CYANIDE_POOL_LIBVIRT_URI=qemu:///system
+      - CYANIDE_POOL_GUEST_CONFIG=configs/pool/default_guest.xml
+      - CYANIDE_POOL_GUEST_TAG=ubuntu18.04
+      - CYANIDE_POOL_GUEST_SSH_PORT=22
+      - CYANIDE_POOL_GUEST_TELNET_PORT=23
+      - CYANIDE_POOL_USE_NAT=true
+      - CYANIDE_POOL_NAT_PUBLIC_IP=192.168.1.40
+      - CYANIDE_POOL_SAVE_SNAPSHOTS=false
+      - CYANIDE_POOL_SNAPSHOT_PATH=var/lib/cyanide/snapshots
+      - CYANIDE_POOL_TARGETS=""
+
+      # -----------------------------------------------------------------------
+      # 10. MAINTENANCE & SECURITY
+      # -----------------------------------------------------------------------
+      - CYANIDE_CLEANUP_ENABLED=true
+      - CYANIDE_CLEANUP_INTERVAL=3600
+      - CYANIDE_CLEANUP_RETENTION_DAYS=7
+      - CYANIDE_CLEANUP_PATHS=["var/log/cyanide", "var/quarantine"]
+
+      - CYANIDE_RATE_LIMIT_MAX_CONNECTIONS_PER_MINUTE=60
+      - CYANIDE_RATE_LIMIT_BAN_DURATION=3600
+
+      - CYANIDE_VIRUSTOTAL_ENABLED=false
+      - CYANIDE_VIRUSTOTAL_API_KEY=none
+
+      # -----------------------------------------------------------------------
+      # 11. AUTHENTICATION (USERS)
+      # -----------------------------------------------------------------------
+      # Passed as a JSON encoded string
+      - 'CYANIDE_AUTH_USERS=[{"user": "root", "pass": "admin"}]'

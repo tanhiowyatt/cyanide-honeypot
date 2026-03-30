@@ -50,7 +50,7 @@ async def test_quarantine_save_file_success(quarantine_service, mock_logger):
 
     assert path is not None
     assert Path(path).exists()
-    assert Path(path).name.endswith(filename)
+    assert Path(path).name.startswith(filename)
     assert open(path, "rb").read() == content
 
     # Verify analytics call
@@ -106,7 +106,7 @@ async def test_quarantine_vt_scanner_integration(quarantine_service, mock_logger
     mock_scanner.scan.assert_called_once()
     mock_logger.log_event.assert_any_call(
         "sess_vt",
-        "malware_scan",
+        "ml_malware_scan",
         {
             "src_ip": "3.3.3.3",
             "filename": filename,
@@ -143,6 +143,9 @@ async def test_quarantine_scan_error_log(quarantine_service, mock_logger):
     # We call _scan_and_log directly for easier testing of the background logic
     await quarantine_service._scan_and_log("test.sh", b"data", "sess_scan_err", "4.4.4.4")
 
+    # Corrected: restored missing session_id argument
     mock_logger.log_event.assert_any_call(
-        "sess_scan_err", "scan_error", {"src_ip": "4.4.4.4", "message": "Scan Error: VT API Down"}
+        "sess_scan_err",
+        "ml_malware_scan_error",
+        {"src_ip": "4.4.4.4", "message": "Scan Error: VT API Down"},
     )

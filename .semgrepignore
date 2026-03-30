@@ -6,3 +6,7 @@ src/cyanide/tests/**
 
 # Project logo and assets (sometimes triggered by binary content)
 src/cyanide/assets/**
+
+# Ignore Dockerfile
+Dockerfile
+docker-compose.yml

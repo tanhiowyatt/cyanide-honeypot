@@ -54,7 +54,7 @@ metrics:
   allow_remote: true
 
 ml:
-  enabled: false
+  enabled: true
   metrics_port: 9090
   online_learning: false
   retraining_interval_days: 7

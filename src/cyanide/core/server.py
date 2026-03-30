@@ -76,12 +76,8 @@ class CyanideServer:
         self.async_logger = AsyncLogger()
 
         try:
-            log_dir = config.get("logging", {}).get("directory", "var/log/cyanide")
-            logging_config = config.get("logging", {})
             self.logger = CyanideLogger(
-                log_dir,
-                config.get("output", {}),
-                logging_config=logging_config,
+                config,
                 async_logger=self.async_logger,
             )
             self.logger.log_event(
@@ -302,37 +298,6 @@ class CyanideServer:
             traceback.print_exc()
             return FakeFilesystem(audit_callback=audit_hook, stats=self.stats)
 
-    # Function 47: Handles event logging and telemetry.
-    async def _scan_and_log(
-        self, filename: str, content: bytes, session_id="unknown", src_ip="unknown"
-    ):
-        """Background task to scan file and log results."""
-        try:
-            result = await self.vt_scanner.scan(content, filename)
-            if result:
-                self.logger.log_event(
-                    session_id,
-                    "malware_scan",
-                    {
-                        "src_ip": src_ip,
-                        "filename": filename,
-                        "sha256": result.get("sha256"),
-                        "malicious": result.get("malicious"),
-                        "label": result.get("label"),
-                        "vt_link": result.get("link"),
-                    },
-                )
-                self.stats.on_malware(filename, result.get("malicious", False))
-        except Exception as e:
-            self.logger.log_event(
-                session_id,
-                "scan_error",
-                {
-                    "src_ip": src_ip,
-                    "message": f"Scan Error: {e}",
-                },
-            )
-
     # Function 48: Performs operations related to save quarantine file.
     def save_quarantine_file(
         self, filename: str, content: bytes, session_id="unknown", src_ip="unknown", protocol="ssh"
@@ -341,10 +306,10 @@ class CyanideServer:
         try:
             if not hasattr(self, "_quarantine_tasks"):
                 self._quarantine_tasks = set()
-            
+
             # Match the exact folder format used in _init_session_logging
             folder_name = f"{protocol}_{src_ip}_{session_id}"
-            
+
             task = asyncio.create_task(
                 self.services.quarantine.save_file(
                     filename, content, session_id, src_ip, sub_dir=folder_name
@@ -1028,7 +993,6 @@ class SSHServerFactory(asyncssh.SSHServer):
         self.src_ip = "unknown"
         self.src_port = 0
         self.fs = None
-        self.conn_id = str(uuid.uuid4())[:8]
         ssh_conf = self.honeypot.config.get("ssh", {})
         self._max_auth_tries = ssh_conf.get("auth_tries", 3)
         self.sessions: dict[str, Any] = {}
@@ -1037,10 +1001,12 @@ class SSHServerFactory(asyncssh.SSHServer):
         self.client_version = "unknown"
         self._captured_kex_alg: Optional[str] = None
         self._captured_host_key_alg: Optional[str] = None
+        self.conn_id = str(uuid.uuid4())[:8]  # Initialize with random ID
 
     # Function 58: Performs operations related to connection made.
     def connection_made(self, conn):
         self.conn = conn
+        self.conn_id = str(uuid.uuid4())[:8]
         conn.cyanide_factory = self
         self.src_ip = conn.get_extra_info("peername")[0]
         self.src_port = conn.get_extra_info("peername")[1]

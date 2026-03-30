@@ -25,7 +25,7 @@ def test_apply_env_overrides():
 def test_get_val():
     config_data = {"server": {"host": "1.2.3.4"}}
     # env var take precedence
-    with patch.dict(os.environ, {"CYANIDE_SERVER__HOST": "5.6.7.8"}):
+    with patch.dict(os.environ, {"CYANIDE_SERVER_HOST": "5.6.7.8"}):
         val = _get_val(config_data, "server", "host", "HOST", "0.0.0.0")
         assert val == "5.6.7.8"
 
@@ -34,7 +34,7 @@ def test_get_val():
     assert val == "1.2.3.4"
 
     # default
-    val = _get_val(config_data, "nonexistent", "key", "ENV", "default")
+    val = _get_val(config_data, "nonexistent", "key", "default")
     assert val == "default"
 
 

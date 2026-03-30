@@ -52,7 +52,8 @@ def test_logger_plugin_broadcast(tmp_path):
 
         output_config = {"mock_plugin": {"enabled": True, "some_setting": "val"}}
 
-        logger = CyanideLogger(log_dir, output_config)
+        # Updated signature: config dict containing output and logging
+        logger = CyanideLogger({"logging": {"directory": str(log_dir)}, "output": output_config})
 
         assert len(logger.plugins) == 1
         assert isinstance(logger.plugins[0], MockPlugin)
@@ -125,7 +126,10 @@ def test_plugin_resiliency_on_failure(tmp_path):
         mock_module.Plugin = FailingPlugin
         mock_import.return_value = mock_module
 
-        logger = CyanideLogger(log_dir, {"failer": {"enabled": True}})
+        # Updated signature
+        logger = CyanideLogger(
+            {"logging": {"directory": str(log_dir)}, "output": {"failer": {"enabled": True}}}
+        )
 
         # This shouldn't raise even though the plugin's background thread will fail
         logger.log_event("s", "e", "d")

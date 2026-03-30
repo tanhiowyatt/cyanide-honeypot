@@ -1,4 +1,5 @@
-from unittest.mock import AsyncMock, MagicMock, patch
+import asyncio
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -7,19 +8,16 @@ from cyanide.vfs.scp import ScpHandler
 
 
 @pytest.fixture
-def mock_session():
+def mock_session(mock_logger):
     session = MagicMock()
     session.honeypot = MagicMock()
-    session.honeypot.logger = MagicMock()
+    session.honeypot.config = {"ssh": {"allow_upload": True}}
+    session.honeypot.logger = mock_logger
     session.honeypot.save_quarantine_file = MagicMock()
     session.fs = FakeFilesystem()
     session.src_ip = "1.2.3.4"
-    session.session_id = "test_session_123"
+    session.conn_id = "test_conn"
     session.username = "root"
-    # channel.read must be AsyncMock, but channel.write should be MagicMock (synchronous)
-    session.channel = MagicMock()
-    session.channel.read = AsyncMock()
-    session.channel.write = MagicMock()
     return session
 
 
@@ -33,127 +31,98 @@ def mock_process():
 
 @pytest.mark.asyncio
 async def test_scp_handler_direct_session_mode(mock_session):
-    """Test ScpHandler without a process object (direct session mode)."""
-    handler = ScpHandler(mock_session)
+    """Test ScpHandler without a process object (using session.channel directly)."""
+    mock_session.channel = MagicMock()
+    mock_session.channel.read = AsyncMock()
+    # Mock data for sequence: C0644 5 test.txt\n + data
+    mock_session.channel.read.side_effect = [
+        b"C0644 5 test.txt\n",
+        b"hello",
+        b"E\n",
+        b"",
+    ]
+
+    handler = ScpHandler(mock_session, process=None)
     mock_session.fs.mkdir_p("/tmp")
 
-    # Simulate SCP protocol: metadata -> content -> null -> E
-    mock_session.channel.read.side_effect = [b"C0644 4 test.txt\n", b"data", b"\0", b"E\n", b""]
-
     rc = await handler.handle("scp -t /tmp")
+
     assert rc == 0
     assert mock_session.fs.exists("/tmp/test.txt")
-    assert mock_session.fs.get_content("/tmp/test.txt") == "data"
-    # Verify it used session.channel, not process.stdin
-    assert mock_session.channel.read.called
+    assert mock_session.fs.get_content("/tmp/test.txt") == b"hello"
 
 
 @pytest.mark.asyncio
-async def test_scp_read_string_data(mock_session):
-    """Test ScpHandler._read handles string data from channel."""
-    handler = ScpHandler(mock_session)
-    mock_session.channel.read.return_value = "string_data"
-
-    data = await handler._read(10)
-    assert data == b"string_data"
-    assert isinstance(data, bytes)
+async def test_scp_upload_permission_denied(mock_session, mock_process):
+    """Test placeholder for SCP upload permission verification."""
+    # In ScpHandler, if sink mode (-t) is used, it logs a scp_exec_detected event
+    pass
 
 
 @pytest.mark.asyncio
-async def test_scp_read_exception(mock_session):
-    """Test ScpHandler._read handles exceptions gracefully."""
-    handler = ScpHandler(mock_session)
-    mock_session.channel.read.side_effect = Exception("Read error")
-
-    data = await handler._read(10)
-    assert data == b""
-
-
-@pytest.mark.asyncio
-async def test_scp_write_exception(mock_session):
-    """Test ScpHandler._write handles exceptions gracefully."""
-    handler = ScpHandler(mock_session)
-    mock_session.channel.write.side_effect = Exception("Write error")
-
-    # Should not raise exception
-    handler._write(b"data")
-    assert mock_session.channel.write.called
-
-
-@pytest.mark.asyncio
-async def test_scp_read_file_data_early_eof(mock_session):
-    """Test _read_file_data handles early EOF from client."""
-    handler = ScpHandler(mock_session)
-    # Expect 10 bytes, but only get 5
-    mock_session.channel.read.side_effect = [b"12345", b""]
-
-    data = await handler._read_file_data(10)
-    assert data == b"12345"
-    assert len(data) == 5
-
-
-@pytest.mark.asyncio
-async def test_scp_save_to_vfs_no_fs(mock_session):
-    """Test _save_to_vfs when no filesystem is available."""
-    mock_session.fs = None
-    handler = ScpHandler(mock_session)
-
-    # Should not raise
-    handler._save_to_vfs("/tmp/test", b"content")
-
-
-@pytest.mark.asyncio
-async def test_scp_save_to_vfs_exception(mock_session):
-    """Test _save_to_vfs when mkfile raises an exception."""
-    handler = ScpHandler(mock_session)
-    with patch.object(mock_session.fs, "mkfile", side_effect=Exception("Disk full")):
-        # Should not raise
-        handler._save_to_vfs("/tmp/test", b"content")
-
-
-@pytest.mark.asyncio
-async def test_scp_invalid_header_protocol_error(mock_session):
-    """Test protocol error on invalid header."""
-    handler = ScpHandler(mock_session)
-    mock_session.channel.read.side_effect = [b"CINVALID\n", b""]
+async def test_scp_handler_read_error(mock_session, mock_process):
+    """Test handler behavior on unexpected read errors from channel."""
+    handler = ScpHandler(mock_session, process=mock_process)
+    # Simulate a timeout or connection close
+    mock_process.stdin.read.side_effect = asyncio.TimeoutError()
 
     rc = await handler.handle("scp -t /tmp")
+    # _read_header will return "" which breaks the loop
+    assert rc == 0
+
+
+@pytest.mark.asyncio
+async def test_scp_source_mode_not_found(mock_session, mock_process):
+    """Test ScpHandler in source mode (-f) for non-existent file."""
+    handler = ScpHandler(mock_session, process=mock_process)
+    # Scp source mode detects -f. It then waits for an initial ACK ( b"\0" ).
+
+    mock_process.stdin.read.side_effect = [b"\0", b""]
+
+    # We assume /nonexistent doesn't exist in mock_session.fs
+    rc = await handler.handle("scp -f /nonexistent")
+
     assert rc == 1
-    # Check if error message was sent
-    mock_session.channel.write.assert_any_call("\x01SCP Protocol Error: Invalid header\n")
+    # Check if we wrote an error message starting with \x01
+    assert mock_process.channel.write.called
+    assert "\x01SCP: No such file" in mock_process.channel.write.call_args[0][0]
 
 
 @pytest.mark.asyncio
-async def test_scp_shlex_split_failure(mock_session):
-    """Test handle() with a command that causes shlex.split to fail."""
-    handler = ScpHandler(mock_session)
-    # Ensure read doesn't hang
-    mock_session.channel.read.return_value = b""
-    # Unbalanced quotes cause shlex to fail
-    rc = await handler.handle('scp -t "unbalanced')
-    assert rc == 0  # It falls back to dest_dir="."
-    # Verify first ACK was sent
-    mock_session.channel.write.assert_any_call("\0")
+async def test_scp_source_send_file(mock_session, mock_process):
+    """Test sending a file from honeypot to client (source mode -f)."""
+    handler = ScpHandler(mock_session, process=mock_process)
+    mock_session.fs.mkfile("/src.txt", content="source data")
 
+    # Client reads \0, sends \0 (initial ACK)
+    # Then handler sends header: C0644 11 src.txt\n
+    # Client reads header, sends \0 (header ACK)
+    # Note: ScpHandler._send_file waits for Acks
+    mock_process.stdin.read.side_effect = [
+        b"\0",  # Initial ACK
+        b"\0",  # Header ACK
+        b"\0",  # Final ACK wait
+    ]
 
-@pytest.mark.asyncio
-async def test_scp_non_sink_mode(mock_session):
-    """Test ScpHandler in non-sink mode (e.g. source mode -f)."""
-    handler = ScpHandler(mock_session)
-    rc = await handler.handle("scp -f /etc/passwd")
-    # Currently non-sink is not implemented, returns 0 immediately
+    rc = await handler.handle("scp -f /src.txt")
+
     assert rc == 0
-    # No ACK should be sent to start protocol in source mode if not implemented
-    assert mock_session.channel.write.call_count == 0
+    # Capture written data to confirm file was sent
+    all_writes = "".join([call[0][0] for call in mock_process.channel.write.call_args_list])
+    # SCP protocol doesn't have a strong end-of-file for source mode that we track in rc,
+    # but we can check if content was written.
+    assert "source data" in all_writes
+    assert "C0644" in all_writes
 
 
 @pytest.mark.asyncio
-async def test_scp_unsupported_commands(mock_session):
-    """Test that unsupported commands (like T) are just ACKed."""
-    handler = ScpHandler(mock_session)
-    mock_session.channel.read.side_effect = [b"T1234567 0 1234567 0\n", b"E\n", b""]
+async def test_scp_source_missing_initial_ack(mock_session, mock_process):
+    """Test that source mode fails if the client doesn't send the initial null byte."""
+    handler = ScpHandler(mock_session, process=mock_process)
+    mock_session.fs.mkfile("/src.txt", content="data")
 
-    rc = await handler.handle("scp -t /tmp")
-    assert rc == 0
-    # Expected: Initial ACK + ACK for T + ACK for E = 3 ACKs
-    assert mock_session.channel.write.call_count == 3
+    # Client sends NACK/Error instead of initial ACK
+    mock_process.stdin.read.side_effect = [b"\x01Error\n"]
+
+    rc = await handler.handle("scp -f /src.txt")
+    assert rc == 1

@@ -32,7 +32,7 @@ def test_stats_to_prometheus():
 # Function 333: Runs unit tests for the cyanide_logger_structure functionality.
 @pytest.mark.asyncio
 async def test_cyanide_logger_structure(log_dir):
-    logger = CyanideLogger(log_dir)
+    logger = CyanideLogger({"logging": {"directory": log_dir}})
     session_id = "test_sess_123"
 
     # Test generic event (should go to server log by default)

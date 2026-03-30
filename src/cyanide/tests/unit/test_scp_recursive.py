@@ -36,13 +36,14 @@ async def test_scp_directory_recursive(mock_session, mock_process):
     # Sequence for:
     # 1. D0755 0 dir1
     # 2. C0644 4 file1 (data)
-    # 3. E
-    # 4. E (End of transfer - initial dest_dir)
+    # 3. NULL (EOF for file1)
+    # 4. E (End of dir1)
+    # 5. E (End of transfer - initial dest_dir)
     mock_process.stdin.read.side_effect = [
         b"D0755 0 dir1\n",
         b"C0644 4 file1\n",
         b"data",
-        b"\0",
+        b"\0",  # Added NULL EOF marker
         b"E\n",
         b"E\n",
         b"",
@@ -52,7 +53,7 @@ async def test_scp_directory_recursive(mock_session, mock_process):
     assert rc == 0
     assert mock_session.fs.exists("/tmp/dir1")
     assert mock_session.fs.exists("/tmp/dir1/file1")
-    assert mock_session.fs.get_content("/tmp/dir1/file1") == "data"
+    assert mock_session.fs.get_content("/tmp/dir1/file1") == b"data"
 
 
 @pytest.mark.asyncio
@@ -60,13 +61,13 @@ async def test_scp_nested_directories(mock_session, mock_process):
     handler = ScpHandler(mock_session, process=mock_process)
     mock_session.fs.mkdir_p("/tmp")
 
-    # D dir_a -> D dir_b -> C file -> E (b) -> E (a) -> E (final)
+    # D dir_a -> D dir_b -> C file -> NULL (EOF) -> E (b) -> E (a) -> E (final)
     mock_process.stdin.read.side_effect = [
         b"D0755 0 dir_a\n",
         b"D0755 0 dir_b\n",
         b"C0644 4 file\n",
         b"data",
-        b"\0",
+        b"\0",  # Added NULL EOF marker
         b"E\n",
         b"E\n",
         b"E\n",
@@ -76,7 +77,7 @@ async def test_scp_nested_directories(mock_session, mock_process):
     rc = await handler.handle("scp -r -t /tmp")
     assert rc == 0
     assert mock_session.fs.exists("/tmp/dir_a/dir_b/file")
-    assert mock_session.fs.get_content("/tmp/dir_a/dir_b/file") == "data"
+    assert mock_session.fs.get_content("/tmp/dir_a/dir_b/file") == b"data"
 
 
 @pytest.mark.asyncio

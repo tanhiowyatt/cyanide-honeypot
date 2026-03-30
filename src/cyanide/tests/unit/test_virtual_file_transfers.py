@@ -78,16 +78,15 @@ async def test_sftp_upload_via_handler(mock_session):
 
     import asyncssh
 
-    file_obj = await handler.open(
+    # Simulate SFTP upload
+    handle = await handler.open(
         "/tmp/test.txt", asyncssh.FXF_WRITE | asyncssh.FXF_CREAT, asyncssh.SFTPAttrs()
     )
+    await handler.write(handle, 0, b"hello sftp/scp")
+    await handler.close(handle)
 
-    await file_obj.write(0, b"hello sftp/scp")
-    await file_obj.close()
-
-    # Check if file was created in VFS
     assert mock_session.fs.exists("/tmp/test.txt")
-    assert mock_session.fs.get_content("/tmp/test.txt") == "hello sftp/scp"
+    assert mock_session.fs.get_content("/tmp/test.txt") == b"hello sftp/scp"
 
     # Check quarantine called
     mock_session.honeypot.save_quarantine_file.assert_called_with(

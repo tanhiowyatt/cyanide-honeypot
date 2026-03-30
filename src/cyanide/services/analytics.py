@@ -46,9 +46,9 @@ class AnalyticsService:
         try:
             from pathlib import Path
 
+            from cyanide.core.paths import get_package_root
             from cyanide.ml import CyanideML
 
-            from cyanide.core.paths import get_package_root
             pkg_root = get_package_root()
 
             possible_paths = [

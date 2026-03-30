@@ -430,7 +430,7 @@ class FakeFilesystem:
         return sorted([c for c in contents if posixpath.join(path, c) not in self.deleted_paths])
 
     # Function 297: Retrieves content data.
-    def get_content(self, path: str, args: Optional[Dict[str, Any]] = None) -> str:
+    def get_content(self, path: str, args: Optional[Dict[str, Any]] = None) -> Union[str, bytes]:
         path = self.resolve(path)
         if path in self.deleted_paths:
             return ""
@@ -443,7 +443,10 @@ class FakeFilesystem:
             self.session_mgr.record_file_op(self.session_id)
 
         if path in self.memory_overlay:
-            return self.memory_overlay[path].get("content", "")
+            content = self.memory_overlay[path].get("content", "")
+            if isinstance(content, (str, bytes)):
+                return content
+            return str(content)
 
         if path in self.dynamic_files:
             config = self.dynamic_files[path]
@@ -452,13 +455,15 @@ class FakeFilesystem:
                 combined_args = {**config.get("args", {}), **(args or {})}
                 return provider(self.context, combined_args)
             if "content" in config:
-                return self._render(config["content"])
+                res = self._render(config["content"])
+                return res
             return ""
 
         if self.backend:
             config = self.backend.get_config(path)
             if config:
-                return self._render(config.get("content", ""))
+                res = self._render(config.get("content", ""))
+                return res
 
         return ""
 
@@ -532,6 +537,12 @@ class FakeFilesystem:
         return True
 
     # Function 301: Performs operations related to resolve.
+    def get_owner(self, path: str) -> str:
+        """Get the owner of a file or directory."""
+        node = self.get_node(path)
+        res = getattr(node, "owner", "root")
+        return str(res)
+
     def resolve(self, path: str) -> str:
         if not path:
             return "/"

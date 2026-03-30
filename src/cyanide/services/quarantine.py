@@ -1,5 +1,4 @@
 import asyncio
-import time
 from pathlib import Path
 from typing import Dict, Optional, Set
 
@@ -42,7 +41,9 @@ class QuarantineService:
         Returns the path to the saved file or None.
         """
         try:
-            current_size = sum(f.stat().st_size for f in self.quarantine_path.glob("*") if f.is_file())
+            current_size = sum(
+                f.stat().st_size for f in self.quarantine_path.glob("*") if f.is_file()
+            )
             content_size = len(content)
 
             if (current_size + content_size) > (self.quarantine_max_mb * 1024 * 1024):
@@ -65,7 +66,8 @@ class QuarantineService:
 
             # Also save to the session-specific quarantine folder if sub_dir is provided
             if sub_dir:
-                log_base = Path("var/log/cyanide/tty") / sub_dir
+                log_dir_conf = self.config.get("logging", {}).get("directory", "var/log/cyanide")
+                log_base = Path(log_dir_conf) / "tty" / sub_dir
                 target_base_session = log_base / "quarantine"
                 target_base_session.mkdir(parents=True, exist_ok=True)
 
@@ -76,7 +78,7 @@ class QuarantineService:
                         p.touch()
 
                 target_path_sess = target_base_session / safe_name
-                
+
                 async with aiofiles.open(target_path_sess, "wb") as f:
                     await f.write(content)
 
@@ -106,7 +108,7 @@ class QuarantineService:
             if result:
                 self.logger.log_event(
                     session_id,
-                    "malware_scan",
+                    "ml_malware_scan",
                     {
                         "src_ip": src_ip,
                         "filename": filename,
@@ -119,7 +121,7 @@ class QuarantineService:
         except Exception as e:
             self.logger.log_event(
                 session_id,
-                "scan_error",
+                "ml_malware_scan_error",
                 {
                     "src_ip": src_ip,
                     "message": f"Scan Error: {e}",

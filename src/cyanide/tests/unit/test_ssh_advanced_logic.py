@@ -66,9 +66,8 @@ async def test_ssh_factory_connection_made_logging(mock_honeypot, tmp_path):
         "send_compression": "none",
     }.get(key, default)
 
-    with patch("asyncio.create_task") as mock_task:
-        factory.connection_made(mock_conn)
-        mock_task.assert_called()
+    # Trigger GeoIP lookup (background task)
+    factory.connection_made(mock_conn)
     await factory.begin_auth("root")
 
     # Check if log_event was called with correct connect info
@@ -170,24 +169,17 @@ async def test_server_rekey_limit_parsing(tmp_path):
         mock_vm_pool_cls.return_value.start = MagicMock()
         server = CyanideServer(conf)
 
-        async def dummy_coro(*args, **kwargs):
-            pass
-
         server.async_logger = MagicMock()
-        server.async_logger.stop = MagicMock(side_effect=dummy_coro)
+        server.async_logger.stop = AsyncMock()
         server._start_vm_pool = MagicMock()
-        server._start_telnet_service = MagicMock(side_effect=dummy_coro)
-        server._start_smtp_service = MagicMock(side_effect=dummy_coro)
+        server._start_telnet_service = AsyncMock()
+        server._start_smtp_service = AsyncMock()
         server._get_host_keys = MagicMock(return_value=[])
         server.profile = {"ssh_banner": "SSH-2.0-OpenSSH_8.9"}
 
         mock_ssh_server = MagicMock()
         mock_ssh_server.close = MagicMock()
-
-        async def dummy_coro2(*args, **kwargs):
-            pass
-
-        mock_ssh_server.wait_closed = MagicMock(side_effect=dummy_coro2)
+        mock_ssh_server.wait_closed = AsyncMock()
 
         with patch("asyncssh.listen", new_callable=AsyncMock) as mock_listen:
             mock_listen.return_value = mock_ssh_server

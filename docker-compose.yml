@@ -46,8 +46,6 @@ services:
       start_period: 10s
     environment:
       - PYTHONUNBUFFERED=1
-      - LOG_LEVEL=INFO
-      - OS_PROFILE=ubuntu
       - CYANIDE_HONEYPOT_HOSTNAME=server01
       - CYANIDE_SERVER_OS_PROFILE=archlinux
       - CYANIDE_SERVER_MAX_SESSIONS=100
@@ -56,9 +54,9 @@ services:
       - CYANIDE_HONEYPOT_QUARANTINE_MAX_SIZE_MB=500
       - CYANIDE_SSH_ENABLED=true
       - CYANIDE_SSH_VFS_PERSISTENCE=true
-      - CYANIDE_SSH_LISTEN_PORT=2222
+      - CYANIDE_SSH_PORT=2222
       - CYANIDE_TELNET_ENABLED=true
-      - CYANIDE_TELNET_LISTEN_PORT=2323
+      - CYANIDE_TELNET_PORT=2323
       - CYANIDE_ML_ENABLED=true
       - CYANIDE_ML_RETRAINING_INTERVAL_DAYS=7
       - CYANIDE_CLEANUP_ENABLED=true
@@ -70,7 +68,8 @@ services:
       - CYANIDE_METRICS_ALLOW_REMOTE=true
       - CYANIDE_METRICS_TOKEN=change_me_to_a_secure_token
       - CYANIDE_SSH_FORWARDING_STRICT_MODE=true
-      - CYANIDE_VIRUSTOTAL_ENABLED=false
       - CYANIDE_SMTP_ENABLED=true
       - CYANIDE_SMTP_PORT=2525
-      - 'CYANIDE_USERS=[{"user": "root", "pass": "admin"}, {"user": "admin", "pass": "admin"}, {"user": "user", "pass": "123456"}]'
+      - CYANIDE_VIRUSTOTAL_ENABLED=true
+      - CYANIDE_VIRUSTOTAL_API_KEY=
+      - 'CYANIDE_AUTH_USERS=[{"user": "root", "pass": "admin"}, {"user": "admin", "pass": "admin"}, {"user": "user", "pass": "123456"}]'

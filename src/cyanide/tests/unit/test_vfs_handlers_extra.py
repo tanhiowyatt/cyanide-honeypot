@@ -4,7 +4,7 @@ from unittest.mock import ANY, AsyncMock, MagicMock, patch
 import pytest
 
 from cyanide.vfs.rsync import RsyncHandler
-from cyanide.vfs.sftp import CyanideSFTPFile, CyanideSFTPHandler
+from cyanide.vfs.sftp import CyanideSFTPHandler
 
 
 @pytest.fixture
@@ -112,13 +112,28 @@ async def test_sftp_init_fallback(mock_session):
 
 
 @pytest.mark.asyncio
-async def test_sftp_file_close_readonly(mock_session):
-    handler = MagicMock()
+async def test_sftp_handler_close_readonly(mock_session):
+    mock_chan = MagicMock()
+    mock_chan.get_connection.return_value = MagicMock()
+    setattr(
+        mock_chan.get_connection.return_value,
+        "cyanide_factory",
+        MagicMock(honeypot=mock_session.honeypot),
+    )
+    handler = CyanideSFTPHandler(mock_chan)
     handler.fs = mock_session.fs
+    handler._log_op = MagicMock()
 
-    f = CyanideSFTPFile(handler, "/test.txt", bytearray(b"data"), is_write=False)
-    await f.close()
+    # Manually register a handle to test close
+    handle = b"h_readonly"
+    handler.file_handles[handle] = {
+        "path": "/test.txt",
+        "buffer": bytearray(b"data"),
+        "is_write": False,
+        "pos": 0,
+    }
 
+    await handler.close(handle)
     handler._log_op.assert_called_with("close", "/test.txt")
 
 

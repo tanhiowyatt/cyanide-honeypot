@@ -1,4 +1,5 @@
 import json
+import time
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -7,6 +8,19 @@ import pytest
 from cyanide.logger import CyanideLogger
 from cyanide.services.analytics import AnalyticsService
 from cyanide.services.quarantine import QuarantineService
+
+
+# Function to wait for log content to be written
+def wait_for_log_line(path, timeout=1.0):
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        if path.exists():
+            with open(path, "r") as f:
+                lines = f.readlines()
+                if lines:
+                    return lines
+        time.sleep(0.1)
+    return []
 
 
 # Function 446: Handles event logging and telemetry.
@@ -20,8 +34,8 @@ def temp_log_dir(tmp_path):
 # Function 447: Handles event logging and telemetry.
 @pytest.fixture
 def mock_logger(temp_log_dir):
-    # Use real logger for integration testing to verify file writes
-    logger = CyanideLogger(str(temp_log_dir))
+    # Updated signature: pass a config dictionary
+    logger = CyanideLogger({"logging": {"directory": str(temp_log_dir)}})
     return logger
 
 
@@ -55,24 +69,18 @@ def test_ml_command_logging(analytics_svc):
     analytics_svc.analyze_command("ls -la", "1.1.1.1", "sess1")
 
     # Check if log file contains the entry
-    # Note: AnalyticsService now uses self.logger which writes to cyanide-ml.json
     log_path = Path(analytics_svc.logger.log_dir) / "cyanide-ml.json"
-    assert log_path.exists()
 
-    # Small delay to ensure I/O completion
-    import time
+    # Use helper for reliable I/O
+    lines = wait_for_log_line(log_path)
+    if not lines:
+        pytest.fail("Log file is empty after event")
 
-    time.sleep(0.1)
-
-    with open(log_path, "r") as f:
-        line = f.readline()
-        if not line:
-            pytest.fail("Log file is empty after event")
-        data = json.loads(line)
-        # Standardized structure: fields are flattened
-        assert data["eventid"] == "ml_thought"
-        assert data["command"] == "ls -la"
-        assert data["verdict"] == "anomaly"
+    data = json.loads(lines[0])
+    # Standardized structure: fields are flattened
+    assert data["eventid"] == "ml_thought"
+    assert data["command"] == "ls -la"
+    assert data["verdict"] == "anomaly"
 
 
 # Function 451: Runs unit tests for the ml_file_analysis_logging functionality.
@@ -92,26 +100,24 @@ def test_ml_file_analysis_logging(analytics_svc):
 
     # Check log file
     log_path = Path(analytics_svc.logger.log_dir) / "cyanide-ml.json"
-    # Small delay to ensure I/O completion
-    import time
 
-    time.sleep(0.1)
+    # Use helper for reliable I/O
+    lines = wait_for_log_line(log_path)
+    if not lines:
+        pytest.fail("Log file is empty after analysis")
 
-    with open(log_path, "r") as f:
-        lines = f.readlines()
-        if not lines:
-            pytest.fail("Log file is empty after analysis")
-        # Find the ml_file_anomaly event
-        data = json.loads(lines[-1])
-        assert data["eventid"] == "ml_file_anomaly"
-        assert data["filename"] == "malware.sh"
-        assert data["score"] == 0.9
+    # Find the ml_file_anomaly event (last lines)
+    data = json.loads(lines[-1])
+    assert data["eventid"] == "ml_file_anomaly"
+    assert data["filename"] == "malware.sh"
+    assert data["score"] == 0.9
 
-        # Check the thought event (second to last)
-        thought_data = json.loads(lines[-2])
-        assert thought_data["eventid"] == "ml_thought"
-        assert thought_data["file"] == "malware.sh"
-        assert thought_data["verdict"] == "anomaly"
+    # Check the thought event (second to last)
+    # Note: wait_for_log_line might return lines in order they were written
+    thought_data = json.loads(lines[-2])
+    assert thought_data["eventid"] == "ml_thought"
+    assert thought_data["file"] == "malware.sh"
+    assert thought_data["verdict"] == "anomaly"
 
 
 # Function 452: Runs unit tests for the quarantine_triggers_ml functionality.

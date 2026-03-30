@@ -7,8 +7,11 @@ from typing import Any, Optional
 
 class CyanideLogger:
     # Function 100: Initializes the class instance and its attributes.
-    def __init__(self, log_dir, output_config=None, logging_config=None, async_logger=None):
-        self.log_dir = Path(log_dir)
+    def __init__(self, config, async_logger=None):
+        self.config = config or {}
+        self.log_dir = Path(
+            self.config.get("logging", {}).get("directory", "var/log/cyanide")
+        ).resolve()
         try:
             if not self.log_dir.exists():
                 self.log_dir.mkdir(parents=True, exist_ok=True)
@@ -17,32 +20,38 @@ class CyanideLogger:
 
             print(f"WARNING: Could not create log directory {self.log_dir}: {e}", file=sys.stderr)
 
-        self.output_config = output_config or {}
-        self.logging_config = logging_config or {
-            "logtype": "plain",
-            "rotation": {
-                "strategy": "time",
-                "when": "midnight",
-                "interval": 1,
-                "backup_count": 14,
-                "max_bytes": 10485760,
-            },
-        }
+        self.output_config = self.config.get("output", {})
+        self.logging_config = self.config.get("logging", {})
         self.async_logger = async_logger
         self.plugins = self._load_plugins()
         self.geoip_cache: dict[str, dict[str, Any]] = {}
         self.session_to_ip: dict[str, str] = {}
 
-        self.server_log_path = self.log_dir / "cyanide-server.json"
+        # Log paths are now consistently derived from unified config or defaults
+        self.server_log_path = (self.log_dir / "cyanide-server.json").resolve()
         self.server_log = self._setup_logger("cyanide_server", self.server_log_path)
 
-        self.fs_log_path = self.log_dir / "cyanide-fs.json"
+        self.fs_log_path = (self.log_dir / "cyanide-fs.json").resolve()
         self.fs_log = self._setup_logger("cyanide_fs", self.fs_log_path)
 
-        self.ml_log_path = self.log_dir / "cyanide-ml.json"
+        # ML log path from config if present, otherwise default
+        ml_cfg = self.config.get("ml", {})
+        ml_log_str = ml_cfg.get("ml_log", str(self.log_dir / "cyanide-ml.json"))
+        self.ml_log_path = Path(ml_log_str).resolve()
+
+        # Ensure directory exists and file is touchable
+        try:
+            self.ml_log_path.parent.mkdir(parents=True, exist_ok=True)
+            if not self.ml_log_path.exists():
+                self.ml_log_path.touch()
+        except Exception as e:
+            import sys
+
+            print(f"ERROR: Failed to prepare ML log at {self.ml_log_path}: {e}", file=sys.stderr)
+
         self.ml_log = self._setup_logger("cyanide_ml", self.ml_log_path)
 
-        self.stats_log_path = self.log_dir / "cyanide-stats.json"
+        self.stats_log_path = (self.log_dir / "cyanide-stats.json").resolve()
         self.stats_log = self._setup_logger("cyanide_stats", self.stats_log_path)
         self.session_logs: dict[str, dict[str, Path]] = {}
 
@@ -279,17 +288,39 @@ class CyanideLogger:
             logging.error(f"Failed to mirror event to session log {session_id}: {e}")
 
     # Function 103: Handles event logging and telemetry.
+    def _sanitize_log_entry(self, entry: Any) -> Any:
+        """Deeply convert entry values to JSON-serializable types."""
+        if isinstance(entry, dict):
+            return {k: self._sanitize_log_entry(v) for k, v in entry.items()}
+        if isinstance(entry, list):
+            return [self._sanitize_log_entry(v) for v in entry]
+        if isinstance(entry, Path):
+            return str(entry)
+        if hasattr(entry, "item"):  # Handles most numpy types (score, error)
+            return entry.item()
+        return entry
+
     def log_event(self, session_id, event_type, data):
         """Log a generic event in structured JSON, routed to proper file and mirrored."""
         entry = self._prepare_log_entry(session_id, event_type, data)
+        entry = self._sanitize_log_entry(entry)
         logger, log_path = self._get_target_logger_info(event_type)
-        line = json.dumps(entry) + "\n"
+
+        try:
+            line = json.dumps(entry) + "\n"
+        except (TypeError, ValueError) as e:
+            import sys
+
+            print(
+                f"ERROR: CyanideLogger failed to serialize event {event_type}: {e}", file=sys.stderr
+            )
+            return
 
         # Global logging
         if self.async_logger:
             self.async_logger.log(log_path, line)
         else:
-            logger.info(json.dumps(entry))
+            logger.info(line.strip())
             for h in logger.handlers:
                 h.flush()
 

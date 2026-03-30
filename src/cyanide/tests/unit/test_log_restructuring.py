@@ -1,8 +1,22 @@
 import json
+import time
 
 import pytest
 
 from cyanide.logger import CyanideLogger
+
+
+# Helper to wait for log file content to appear
+def wait_for_log_line(path, timeout=1.0):
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        if path.exists():
+            with open(path, "r") as f:
+                line = f.readline()
+                if line:
+                    return line
+        time.sleep(0.1)
+    return ""
 
 
 # Function 441: Handles event logging and telemetry.
@@ -16,7 +30,7 @@ def temp_log_dir(tmp_path):
 # Function 442: Runs unit tests for the log_file_creation functionality.
 def test_log_file_creation(temp_log_dir):
     # Instantiate logger to trigger file creation
-    CyanideLogger(str(temp_log_dir))
+    CyanideLogger({"logging": {"directory": str(temp_log_dir)}})
 
     # Check if all four files are created as loggers are initialized (handlers open files)
     assert (temp_log_dir / "cyanide-server.json").exists()
@@ -27,7 +41,7 @@ def test_log_file_creation(temp_log_dir):
 
 # Function 443: Runs unit tests for the event_routing functionality.
 def test_event_routing(temp_log_dir):
-    logger = CyanideLogger(str(temp_log_dir))
+    logger = CyanideLogger({"logging": {"directory": str(temp_log_dir)}})
 
     # 1. Server event
     logger.log_event("system", "service_started", {"service": "test"})
@@ -38,45 +52,51 @@ def test_event_routing(temp_log_dir):
     # 4. Stats event
     logger.log_event("system", "stats", {"uptime": 100})
 
-    # Verify content in respective files
-    with open(temp_log_dir / "cyanide-server.json", "r") as f:
-        data = json.loads(f.read())
-        assert data["eventid"] == "service_started"
+    # Verify content in respective files using helper for reliable I/O
+    line = wait_for_log_line(temp_log_dir / "cyanide-server.json")
+    assert line, "Server log line empty"
+    data = json.loads(line)
+    assert data["eventid"] == "service_started"
 
-    with open(temp_log_dir / "cyanide-fs.json", "r") as f:
-        data = json.loads(f.read())
-        assert data["eventid"] == "command.input"
+    line = wait_for_log_line(temp_log_dir / "cyanide-fs.json")
+    assert line, "FS log line empty"
+    data = json.loads(line)
+    assert data["eventid"] == "command.input"
 
-    with open(temp_log_dir / "cyanide-ml.json", "r") as f:
-        data = json.loads(f.read())
-        assert data["eventid"] == "ml_thought"
+    line = wait_for_log_line(temp_log_dir / "cyanide-ml.json")
+    assert line, "ML log line empty"
+    data = json.loads(line)
+    assert data["eventid"] == "ml_thought"
 
-    with open(temp_log_dir / "cyanide-stats.json", "r") as f:
-        data = json.loads(f.read())
-        assert data["eventid"] == "stats"
+    line = wait_for_log_line(temp_log_dir / "cyanide-stats.json")
+    assert line, "Stats log line empty"
+    data = json.loads(line)
+    assert data["eventid"] == "stats"
 
 
 # Function 444: Runs unit tests for the log_command_routing functionality.
 def test_log_command_routing(temp_log_dir):
-    logger = CyanideLogger(str(temp_log_dir))
+    logger = CyanideLogger({"logging": {"directory": str(temp_log_dir)}})
     logger.log_event(
         "sess1",
         "command.input",
         {"protocol": "ssh", "src_ip": "1.2.3.4", "username": "root", "input": "uptime"},
     )
 
-    with open(temp_log_dir / "cyanide-fs.json", "r") as f:
-        data = json.loads(f.read())
-        assert data["eventid"] == "command.input"
-        assert data["input"] == "uptime"
+    line = wait_for_log_line(temp_log_dir / "cyanide-fs.json")
+    assert line, "FS log line empty for command"
+    data = json.loads(line)
+    assert data["eventid"] == "command.input"
+    assert data["input"] == "uptime"
 
 
 # Function 445: Runs unit tests for the log_event_async_routing functionality.
 def test_log_event_async_routing(temp_log_dir):
-    logger = CyanideLogger(str(temp_log_dir))
+    logger = CyanideLogger({"logging": {"directory": str(temp_log_dir)}})
     logger.log_event("sess3", "ml_anomaly", {"score": 0.9})
 
-    with open(temp_log_dir / "cyanide-ml.json", "r") as f:
-        data = json.loads(f.read())
-        assert data["eventid"] == "ml_anomaly"
-        assert data["score"] == 0.9
+    line = wait_for_log_line(temp_log_dir / "cyanide-ml.json")
+    assert line, "ML log line empty for anomaly"
+    data = json.loads(line)
+    assert data["eventid"] == "ml_anomaly"
+    assert data["score"] == 0.9

@@ -15,7 +15,7 @@ def mock_session():
     session.conn_id = "test_conn"
     session.channel = MagicMock()
     session.channel.read = AsyncMock()
-    # Mock fs
+
     session.fs = MagicMock()
     return session
 
@@ -23,7 +23,6 @@ def mock_session():
 @pytest.mark.asyncio
 async def test_rsync_handshake_and_push(mock_session):
     handler = RsyncHandler(mock_session)
-    # 31 as 4-byte little-endian
     mock_session.channel.read.side_effect = [struct.pack("<i", 31), b"\x00"]
 
     rc = await handler.handle("rsync --server -vlogDtpr . dest")
@@ -34,9 +33,7 @@ async def test_rsync_handshake_and_push(mock_session):
 @pytest.mark.asyncio
 async def test_rsync_pull(mock_session):
     handler = RsyncHandler(mock_session)
-    # Handshake 31
     mock_session.channel.read.side_effect = [struct.pack("<i", 31)]
-    # Pull = --sender
     rc = await handler.handle("rsync --server --sender -vlogDtpr . src")
     assert rc == 13
     mock_session.channel.write_stderr.assert_called()
@@ -46,7 +43,6 @@ async def test_rsync_pull(mock_session):
 async def test_rsync_handshake_fail(mock_session):
     """Test handshake failure when client version is invalid."""
     handler = RsyncHandler(mock_session)
-    # Return -1 for handshake
     mock_session.channel.read.side_effect = [b""]
     rc = await handler.handle("rsync --server . dest")
     assert rc == 1
@@ -57,11 +53,9 @@ async def test_rsync_push_upload_disabled(mock_session):
     """Test rsync push when upload is disabled in config."""
     mock_session.honeypot.config["ssh"]["rsync"]["allow_upload"] = False
     handler = RsyncHandler(mock_session)
-    # Handshake 31, then end of file list (0)
     mock_session.channel.read.side_effect = [struct.pack("<i", 31), b"\x00"]
     rc = await handler.handle("rsync --server . dest")
     assert rc == 13
-    # Check that denied reason was logged
     mock_session.honeypot.logger.log_event.assert_any_call("conn_test_conn", "rsync_denied", ANY)
 
 
@@ -69,15 +63,6 @@ async def test_rsync_push_upload_disabled(mock_session):
 async def test_rsync_file_list_parsing(mock_session):
     """Test minimal file list parsing."""
     handler = RsyncHandler(mock_session)
-    # Handshake 31
-    # File list:
-    # 1. flags=0x01 (just a file, no mtime/mode/size yet)
-    # 2. l2=5
-    # 3. name="test1"
-    # 4. size=varint(10)
-    # 5. mtime=int(1234567)
-    # 6. mode=int(0o644)
-    # 7. flags=0 (end)
     mock_session.channel.read.side_effect = [
         struct.pack("<i", 31),
         b"\x01",
@@ -90,7 +75,6 @@ async def test_rsync_file_list_parsing(mock_session):
     ]
     rc = await handler.handle("rsync --server . dest")
     assert rc == 13
-    # Verify file list event
     mock_session.honeypot.logger.log_event.assert_any_call("conn_test_conn", "rsync_filelist", ANY)
 
 

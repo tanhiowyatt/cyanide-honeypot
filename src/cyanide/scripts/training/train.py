@@ -20,16 +20,13 @@ from cyanide.ml.model import CommandAutoencoder
 
 
 class CommandDataset(Dataset):
-    # Function 1: Initializes the class instance and its attributes.
     def __init__(self, commands, tokenizer):
         self.commands = commands
         self.tokenizer = tokenizer
 
-    # Function 2: Performs operations related to len.
     def __len__(self):
         return len(self.commands)
 
-    # Function 3: Performs operations related to getitem.
     def __getitem__(self, idx):
         cmd = self.commands[idx]
         tokens = self.tokenizer.encode(cmd)
@@ -37,7 +34,6 @@ class CommandDataset(Dataset):
         return torch.tensor(normalized, dtype=torch.float32)
 
 
-# Function 4: Loads hacker commands from storage or configuration.
 def load_hacker_commands(path):
     """Load command strings from JSONL files."""
     commands = []
@@ -67,7 +63,6 @@ def load_hacker_commands(path):
     return list(set(commands))
 
 
-# Function 5: Performs operations related to train anomaly detector.
 def train_anomaly_detector(force=False):
     """
     Train PyTorch Autoencoder.
@@ -160,7 +155,6 @@ def train_anomaly_detector(force=False):
     print("[+] Anomaly Detector Training Complete.")
 
 
-# Function 6: Main entry point for the application execution.
 def main():
     parser = argparse.ArgumentParser(description="Cyanide ML Training Manager")
     parser.add_argument("--train-model", action="store_true", help="Train anomaly detector")

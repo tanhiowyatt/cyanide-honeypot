@@ -15,7 +15,6 @@ class CommandAutoencoder(nn.Module):
     Architecture: Input (512) -> Encoder -> Bottleneck (64) -> Decoder -> Output (512)
     """
 
-    # Function 125: Initializes the class instance and its attributes.
     def __init__(self, input_dim=512, latent_dim=64):
         super(CommandAutoencoder, self).__init__()
 
@@ -52,13 +51,11 @@ class CommandAutoencoder(nn.Module):
             self.device = torch.device("cuda")
         self.to(self.device)
 
-    # Function 126: Performs operations related to forward.
     def forward(self, x):
         latent = self.encoder(x)
         reconstructed = self.decoder(latent)
         return reconstructed
 
-    # Function 127: Performs operations related to preprocess.
     def preprocess(self, command):
         """Tokenize and normalize input command."""
         tokens = self.tokenizer.encode(command)
@@ -67,7 +64,6 @@ class CommandAutoencoder(nn.Module):
         tensor = torch.tensor([normalized], dtype=torch.float32).to(self.device)
         return tensor
 
-    # Function 128: Retrieves reconstruction error data.
     def get_reconstruction_error(self, x):
         """Calculate MSE reconstruction error."""
         self.eval()
@@ -76,7 +72,6 @@ class CommandAutoencoder(nn.Module):
             error = torch.mean((x - reconstructed) ** 2, dim=1)
         return error.item()
 
-    # Function 129: Performs operations related to predict.
     def predict(self, command):
         """
         Returns (is_anomaly, score, confidence)
@@ -93,7 +88,6 @@ class CommandAutoencoder(nn.Module):
 
         return is_anomaly, score, error
 
-    # Function 130: Performs operations related to save.
     def save(self, path):
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -110,7 +104,6 @@ class CommandAutoencoder(nn.Module):
         )
         logger.info(f"[*] Model saved to {path}")
 
-    # Function 131: Performs operations related to load.
     @staticmethod
     def load(path):
         """Secure model loading using weights_only=True."""

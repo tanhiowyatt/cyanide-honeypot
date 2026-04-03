@@ -103,7 +103,6 @@ async def test_start_telnet_service(server):
         mock_listen.assert_called()
         server.logger.log_event.assert_any_call("system", "service_started", ANY)
 
-    # Proxy mode
     server.config["telnet"]["backend_mode"] = "proxy"
     with patch("cyanide.core.server.TCPProxy") as mock_proxy:
         mock_proxy_inst = mock_proxy.return_value
@@ -120,7 +119,6 @@ async def test_start_smtp_service(server):
         await server._start_smtp_service()
         mock_listen.assert_called()
 
-    # Exception
     with patch("asyncio.start_server", side_effect=Exception("Failed")):
         await server._start_smtp_service()
         server.logger.log_event.assert_any_call("system", "smtp_error", ANY)
@@ -132,7 +130,6 @@ async def test_server_stop(server):
     server.ssh_server.close = MagicMock()
     server.ssh_server.wait_closed = AsyncMock()
 
-    # Use a real task to avoid loop issues with MagicMock(spec=Task)
     task = asyncio.create_task(asyncio.sleep(10))
     server.background_tasks = [task]
 
@@ -190,19 +187,14 @@ def test_fs_audit_hook(server):
 
 
 def test_get_filesystem(server):
-    # With persistence and cached IP
     server.vfs_persistence = True
-    # Key is now (ip, user)
     server.vfs_cache[("127.0.0.1", None)] = "cached_fs"
     assert server.get_filesystem("session1", "127.0.0.1") == "cached_fs"
-
-    # New FS
     server.vfs_persistence = False
     with patch("cyanide.core.server.FakeFilesystem", return_value="new_fs"):
         fs = server.get_filesystem("session1", "127.0.0.2")
         assert fs == "new_fs"
 
-    # Exception
     with patch("cyanide.core.server.FakeFilesystem", side_effect=[Exception("test"), "fallback"]):
         fs = server.get_filesystem("session1", "127.0.0.3")
         assert fs == "fallback"
@@ -230,7 +222,6 @@ def test_get_health_status(server):
 
 @pytest.mark.asyncio
 async def test_start_vm_pool(server):
-    # Disabled
     server.config["pool"] = {"enabled": False}
     with patch("cyanide.core.server.VMPool") as mock_pool:
         mock_pool.return_value.start = AsyncMock()
@@ -238,7 +229,6 @@ async def test_start_vm_pool(server):
         assert len(server.background_tasks) > 0
         mock_pool.return_value.start.assert_called()
 
-    # Enabled
     server.background_tasks = []
     server.config["pool"] = {"enabled": True, "mode": "libvirt"}
     with patch("cyanide.core.libvirt_pool.LibvirtPool"):
@@ -290,14 +280,12 @@ async def test_cleanup_loop(server):
         patch("asyncio.sleep", side_effect=[None, asyncio.CancelledError]) as mock_sleep,
     ):
 
-        # Disabled case
         mock_manager.return_value.enabled = False
         try:
             await server._cleanup_loop()
         except asyncio.CancelledError:
             pass
 
-        # Enabled case
         mock_sleep.side_effect = [None, None, asyncio.CancelledError]
         mock_manager.return_value.enabled = True
         mock_manager.return_value.interval = 3600

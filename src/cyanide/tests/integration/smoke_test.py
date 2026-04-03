@@ -5,7 +5,6 @@ import sys
 import time
 
 
-# Function 328: Performs operations related to check port.
 def check_port(host, port, timeout=5):
     try:
         with socket.create_connection((host, port), timeout=timeout):
@@ -14,7 +13,6 @@ def check_port(host, port, timeout=5):
         return False
 
 
-# Function 329: Performs operations related to check ssh functional.
 async def check_ssh_functional(host, port):
     """Try to login and execute a simple command."""
     try:
@@ -87,7 +85,6 @@ def check_smtp_functional(host, port):
         return False, str(e)
 
 
-# Function 330: Runs unit tests for the smoke_test functionality.
 def smoke_test():
     host = "127.0.0.1"
     ssh_port = int(os.getenv("CYANIDE_SSH_PORT", 2222))
@@ -105,7 +102,6 @@ def smoke_test():
     print("[*] Starting Smoke Test...")
     all_passed = True
 
-    # Wait for service startup
     for i in range(10):
         if check_port(host, metrics_port):
             break
@@ -119,7 +115,6 @@ def smoke_test():
             print(f"[-] {name} (Port {port}): DOWN")
             all_passed = False
 
-    # Functional SSH Test
     try:
         ok, msg = asyncio.run(check_ssh_functional(host, ssh_port))
         if ok:
@@ -131,7 +126,6 @@ def smoke_test():
         print(f"[-] SSH Functional Error: {e}")
         all_passed = False
 
-    # Functional SFTP Test
     try:
         ok, msg = asyncio.run(check_sftp_functional(host, ssh_port))
         if ok:
@@ -143,7 +137,6 @@ def smoke_test():
         print(f"[-] SFTP Functional Error: {e}")
         all_passed = False
 
-    # Functional Telnet Test
     try:
         ok, msg = asyncio.run(check_telnet_functional(host, telnet_port))
         if ok:
@@ -155,7 +148,6 @@ def smoke_test():
         print(f"[-] Telnet Functional Error: {e}")
         all_passed = False
 
-    # Functional SMTP Test
     try:
         ok, msg = check_smtp_functional(host, smtp_port)
         if ok:
@@ -167,7 +159,6 @@ def smoke_test():
         print(f"[-] SMTP Functional Error: {e}")
         all_passed = False
 
-    # Check /health endpoint with retries
     print("[*] Checking Health Endpoint...")
     max_retries = 5
     health_ok = False

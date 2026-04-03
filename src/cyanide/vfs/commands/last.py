@@ -5,7 +5,6 @@ from .base import Command
 
 
 class LastCommand(Command):
-    # Function 245: Executes the 'last' command logic within the virtual filesystem.
     async def execute(self, args, input_data=""):
         await asyncio.sleep(0)
         now = time.strftime("%a %b %d %H:%M")

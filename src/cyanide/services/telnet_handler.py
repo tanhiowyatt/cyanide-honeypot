@@ -16,7 +16,6 @@ class TelnetHandler:
     LOGIN_PROMPT = b"login: "
     PASSWORD_PROMPT = b"Password: "
 
-    # Function 195: Initializes the class instance and its attributes.
     def __init__(self, server, config: Dict):
         self.server = server
         self.config = config
@@ -25,7 +24,6 @@ class TelnetHandler:
         self.stats = server.stats
         self.session_timeout = config.get("session_timeout", 300)
 
-    # Function 196: Handles incoming connection events.
     async def handle_connection(self, reader, writer):
         """Handle Telnet connection."""
         src_ip, src_port = writer.get_extra_info("peername")
@@ -39,7 +37,6 @@ class TelnetHandler:
         commands: List[str] = []
 
         try:
-            # Initialize TTY and Mirroring early
             folder_name = f"telnet_{src_ip}_{session_id}"
             log_dir = Path(self.logger.log_dir) / "tty" / folder_name
             log_dir.mkdir(parents=True, exist_ok=True)
@@ -148,12 +145,10 @@ class TelnetHandler:
         for path in tty_paths.values():
             path.touch()
 
-        # Register paths for mirroring in the central logger
         self.logger.register_session_log(
             session_id, tty_paths["json"], tty_paths["ml"], src_ip=src_ip
         )
 
-        # Log initial session info
         self.logger.log_event(
             session_id,
             "session.start",

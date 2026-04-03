@@ -4,7 +4,6 @@ from .base import Command
 
 
 class FingerCommand(Command):
-    # Function 233: Executes the 'finger' command logic within the virtual filesystem.
     async def execute(self, args, input_data=""):
         await asyncio.sleep(0)
         import secrets

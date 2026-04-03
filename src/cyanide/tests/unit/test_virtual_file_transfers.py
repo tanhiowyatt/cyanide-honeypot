@@ -27,7 +27,6 @@ def mock_session(mock_logger):
     session.conn_id = "test_conn"
     session.channel = MagicMock()
 
-    # SFTP session context
     conn = MagicMock()
     conn.get_extra_info.return_value = "root"
     session.channel.get_connection.return_value = conn
@@ -52,22 +51,17 @@ def mock_process():
 
 @pytest.mark.asyncio
 async def test_rsync_handshake_and_error(mock_session, mock_process):
-    # Test RsyncHandler in process_factory mode
     import struct
 
-    # Server sends our version (31) and we read client version (31)
     mock_process.stdin.read.return_value = struct.pack("<i", 31)
 
     handler = RsyncHandler(mock_session, process=mock_process)
     rc = await handler.handle("rsync --server . /tmp/test")
 
-    # Return 13 (EACCES) for realistic permission denied behavior
     assert rc == 13
 
-    # Should have sent binary version greeting (decoded via latin-1 in handler)
     mock_process.channel.write.assert_any_call(struct.pack("<i", 31).decode("latin-1"))
 
-    # Should log operations
     mock_session.honeypot.logger.log_event.assert_called()
 
 
@@ -78,7 +72,6 @@ async def test_sftp_upload_via_handler(mock_session):
 
     import asyncssh
 
-    # Simulate SFTP upload
     handle = await handler.open(
         "/tmp/test.txt", asyncssh.FXF_WRITE | asyncssh.FXF_CREAT, asyncssh.SFTPAttrs()
     )
@@ -88,7 +81,6 @@ async def test_sftp_upload_via_handler(mock_session):
     assert mock_session.fs.exists("/tmp/test.txt")
     assert mock_session.fs.get_content("/tmp/test.txt") == b"hello sftp/scp"
 
-    # Check quarantine called
     mock_session.honeypot.save_quarantine_file.assert_called_with(
         "test.txt", b"hello sftp/scp", "conn_test_conn", "192.168.1.100"
     )

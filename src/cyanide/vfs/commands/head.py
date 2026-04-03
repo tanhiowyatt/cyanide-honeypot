@@ -5,7 +5,6 @@ from .base import Command
 
 
 class HeadCommand(Command):
-    # Function 238: Executes the 'head' command logic within the virtual filesystem.
     async def execute(self, args, input_data=""):
         await asyncio.sleep(0)
 
@@ -16,7 +15,6 @@ class HeadCommand(Command):
         try:
             parsed, unknown = parser.parse_known_args(args)
 
-            # Логируем мусорные аргументы для ML
             if unknown and self.emulator.logger:
                 self.emulator.logger.log_event(
                     self.emulator.session_id,
@@ -30,7 +28,6 @@ class HeadCommand(Command):
                 )
 
         except SystemExit:
-            # Логируем recon attempts для ML
             if self.emulator.logger:
                 self.emulator.logger.log_event(
                     self.emulator.session_id,

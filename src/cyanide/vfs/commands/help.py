@@ -6,7 +6,6 @@ from .base import Command
 class HelpCommand(Command):
     """Display information about builtin commands."""
 
-    # Function 239: Executes the 'help' command logic within the virtual filesystem.
     async def execute(self, args: list[str], input_data: str = "") -> tuple[str, str, int]:
         await asyncio.sleep(0)
         """Execute the help command.

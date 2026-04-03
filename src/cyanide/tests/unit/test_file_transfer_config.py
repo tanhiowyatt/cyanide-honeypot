@@ -2,7 +2,6 @@ from cyanide.core.config_schema import CyanideConfig
 
 
 def test_ssh_file_transfer_config():
-    # Test default values
     config = CyanideConfig(users=[{"user": "root", "pass": "admin"}])
     assert config.ssh.sftp_enabled is True
     assert config.ssh.scp_enabled is True
@@ -12,7 +11,6 @@ def test_ssh_file_transfer_config():
 
 
 def test_ssh_config_overrides():
-    # Test overrides
     raw_config = {
         "ssh": {
             "sftp_enabled": False,

@@ -9,13 +9,11 @@ class GeoIP:
     For production, replace with local MMDB or paid API.
     """
 
-    # Function 32: Initializes the class instance and its attributes.
     def __init__(self, cache_size=1000):
         self.base_url = "https://ip-api.com/json"
         self.cache: Dict[str, Any] = {}
         self.cache_size = cache_size
 
-    # Function 33: Performs operations related to lookup.
     async def lookup(self, ip: str) -> Optional[dict]:
         """
         Lookup IP details.
@@ -66,7 +64,6 @@ class GeoIP:
 
         return None
 
-    # Function 34: Performs operations related to lookup ptr.
     async def lookup_ptr(self, ip: str) -> Optional[str]:
         """Perform Reverse DNS (PTR) lookup for an IP."""
         if ip in ("127.0.0.1", "localhost", "::1"):

@@ -19,22 +19,16 @@ async def test_chmod(shell, mock_fs):
     cmd = ChmodCommand(shell)
     mock_fs.mkfile("/root/script.sh", perm="-rw-r--r--")
 
-    # Missing operand
     stdout, stderr, rc = await cmd.execute([])
     assert rc == 1
     assert "missing operand" in stderr
 
-    # Numeric mode 777
-    # Note: chmod.py updates the node object in memory.
-    # We must check the SAME node object or fix chmod.py to persist.
-    # For now, we fix the test to verify the logic on the node itself.
     node = mock_fs.get_node("/root/script.sh")
     with patch.object(shell, "resolve_path", return_value="/root/script.sh"):
         with patch.object(mock_fs, "get_node", return_value=node):
             await cmd.execute(["777", "script.sh"])
             assert node.perm == "-rwxrwxrwx"
 
-    # String mode +x
     node.perm = "-rw-r--r--"
     with patch.object(shell, "resolve_path", return_value="/root/script.sh"):
         with patch.object(mock_fs, "get_node", return_value=node):
@@ -49,7 +43,6 @@ async def test_rmdir(shell, mock_fs):
     cmd = RmdirCommand(shell)
     mock_fs.mkdir_p("/root/empty")
 
-    # Mock parent to avoid AttributeError
     mock_parent = MagicMock()
     node = mock_fs.get_node("/root/empty")
     node._parent = mock_parent
@@ -64,21 +57,14 @@ async def test_rmdir(shell, mock_fs):
 @pytest.mark.asyncio
 async def test_su(shell, mock_fs):
     cmd = SuCommand(shell)
-    # Ensure /home exists for su to succeed in creating home dir
     mock_fs.mkdir_p("/home")
 
-    # su to new user - needs password
-    # Use login shell '-' to ensure home directory is created
     stdout, stderr, rc = await cmd.execute(["-", "guest"])
     assert stdout == "Password: "
-
-    # Password success (fallback "admin")
-    # We need to ensure self.target_user is set (execute sets it)
     await cmd.execute(["-", "guest"])
     stdout, stderr, rc = cmd._on_password("admin")
     assert rc == 0
     assert shell.username == "guest"
-    # su command creates the home dir if it doesn't exist (only for login shell)
     assert mock_fs.exists("/home/guest")
 
 

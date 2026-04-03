@@ -4,7 +4,6 @@ from .base import Command
 
 
 class EnvCommand(Command):
-    # Function 229: Executes the 'env' command logic within the virtual filesystem.
     async def execute(self, args, input_data=""):
         await asyncio.sleep(0)
         user = self.emulator.username

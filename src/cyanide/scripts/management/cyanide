@@ -2,7 +2,6 @@
 import os
 import sys
 
-# Silence all technical noise (deprecation warnings and debug logs) at the earliest stage
 os.environ['PYTHONWARNINGS'] = 'ignore'
 import logging
 import warnings
@@ -19,10 +18,7 @@ import subprocess
 import time
 from pathlib import Path
 
-# --- Path Configuration ---
-# Get the directory where this script is located
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-# The project root is one level up from the scripts/ directory
 ROOT_DIR = os.path.dirname(os.path.dirname(SCRIPT_DIR))
 
 PID_FILE = os.path.join(ROOT_DIR, "var/lib/cyanide/run/cyanide.pid")
@@ -31,15 +27,10 @@ STDERR_LOG = os.path.join(ROOT_DIR, "var/log/cyanide/cyanide.err")
 CONFIG_FILE = os.path.join(ROOT_DIR, "configs/app.yaml")
 SRC_DIR = os.path.join(ROOT_DIR, "src")
 
-# Ensure src is in path
 if SRC_DIR not in sys.path:
     sys.path.insert(0, SRC_DIR)
 
-# --- Service Management ---
-
-# Function 316: Starts the main CyanideServer backend process.
 def start():
-    # Ensure dirs exist
     os.makedirs(os.path.dirname(PID_FILE), exist_ok=True)
     os.makedirs(os.path.dirname(STDOUT_LOG), exist_ok=True)
 
@@ -93,12 +84,10 @@ def stop():
         os.remove(PID_FILE)
     print("Stopped.")
 
-# Function 318: Restarts the CyanideServer service.
 def restart():
     stop()
     start()
 
-# Function 319: Retrieves and displays honeypot session statistics.
 def stats():
     try:
         import requests
@@ -138,14 +127,11 @@ def stats():
     except Exception as e:
         print(f"\033[1;31m[!] Error fetching stats: {e}\033[0m")
 
-# --- Main CLI ---
 
-# Function 323: Main entry point for the management command-line interface.
 def main():
     parser = argparse.ArgumentParser(description="Cyanide Honeypot Management Tool")
     subparsers = parser.add_subparsers(dest="command", help="Command to execute")
 
-    # Service subcommands
     subparsers.add_parser("start", help="Start the honeypot")
     subparsers.add_parser("stop", help="Stop the honeypot")
     subparsers.add_parser("restart", help="Restart the honeypot")
@@ -153,7 +139,6 @@ def main():
 
     args = parser.parse_args()
 
-    # Handle subcommands
     if args.command == "start":
         start()
     elif args.command == "stop":

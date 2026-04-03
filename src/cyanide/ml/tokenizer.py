@@ -7,7 +7,6 @@ class CharacterLevelTokenizer:
     Maps characters to integers.
     """
 
-    # Function 140: Initializes the class instance and its attributes.
     def __init__(self, max_length=512):
         self.max_length = max_length
         self.char_map = {}
@@ -18,7 +17,6 @@ class CharacterLevelTokenizer:
 
         self._build_vocab()
 
-    # Function 141: Performs operations related to build vocab.
     def _build_vocab(self):
         chars = "".join([chr(i) for i in range(32, 127)])
         self.vocab = ["<PAD>", "<UNK>"] + list(chars)
@@ -26,7 +24,6 @@ class CharacterLevelTokenizer:
         self.index_map = dict(enumerate(self.vocab))
         self.vocab_size = len(self.vocab)
 
-    # Function 142: Performs operations related to encode.
     def encode(self, text):
         """
         Encodes text to a list of integers with padding/truncation.
@@ -42,7 +39,6 @@ class CharacterLevelTokenizer:
 
         return tokens
 
-    # Function 143: Performs operations related to decode.
     def decode(self, tokens):
         """
         Decodes a list of integers back to text.
@@ -54,7 +50,6 @@ class CharacterLevelTokenizer:
             chars.append(self.index_map.get(t, ""))
         return "".join(chars)
 
-    # Function 144: Performs operations related to save.
     def save(self, path):
         with open(path, "w") as f:
             json.dump(
@@ -67,7 +62,6 @@ class CharacterLevelTokenizer:
                 indent=4,
             )
 
-    # Function 145: Performs operations related to load.
     def load(self, path):
         with open(path, "r") as f:
             data = json.load(f)

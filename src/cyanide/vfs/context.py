@@ -15,7 +15,6 @@ class Context:
     os_id: str = ""
     install_date: str = ""
 
-    # Function 280: Performs operations related to to dict.
     def to_dict(self) -> Dict[str, Any]:
         """Convert context to dictionary for Jinja2 rendering."""
         return asdict(self)

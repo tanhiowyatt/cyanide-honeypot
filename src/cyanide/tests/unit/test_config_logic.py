@@ -24,16 +24,13 @@ def test_apply_env_overrides():
 
 def test_get_val():
     config_data = {"server": {"host": "1.2.3.4"}}
-    # env var take precedence
     with patch.dict(os.environ, {"CYANIDE_SERVER_HOST": "5.6.7.8"}):
         val = _get_val(config_data, "server", "host", "HOST", "0.0.0.0")
         assert val == "5.6.7.8"
 
-    # from config_data
     val = _get_val(config_data, "server", "host", "HOST", "0.0.0.0")
     assert val == "1.2.3.4"
 
-    # default
     val = _get_val(config_data, "nonexistent", "key", "default")
     assert val == "default"
 
@@ -58,7 +55,6 @@ def test_load_config_no_file(tmp_path):
 def test_user_config_alias():
     from cyanide.core.config_schema import UserConfig
 
-    # Test that 'pass' field is correctly aliased to 'password'
     u = UserConfig(**{"user": "admin", "pass": "secret"})
     assert u.user == "admin"
     assert u.password == "secret"

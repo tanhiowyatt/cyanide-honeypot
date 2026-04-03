@@ -26,7 +26,6 @@ def test_restricted_unpickler_unsafe():
 
 
 def test_restricted_unpickler_codecs():
-    # Test _codecs access
     import _codecs
 
     data = pickle.dumps(_codecs.encode)

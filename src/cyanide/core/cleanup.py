@@ -6,7 +6,6 @@ from typing import Optional
 class CleanupManager:
     """Manages automatic cleanup of old logs and data."""
 
-    # Function 14: Initializes the class instance and its attributes.
     def __init__(self, config, logger=None):
         """Initialize with configuration dict.
 
@@ -55,7 +54,6 @@ class CleanupManager:
             if file_path.is_file():
                 self._process_file(file_path, cutoff_time, dry_run, stats)
 
-    # Function 15: Performs operations related to cleanup files.
     def cleanup_files(
         self, retention_days_override: Optional[int] = None, dry_run: bool = False
     ) -> dict:

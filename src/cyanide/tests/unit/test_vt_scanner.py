@@ -13,7 +13,6 @@ def scanner():
 @pytest.mark.asyncio
 async def test_scan_clean_file(scanner):
 
-    # Mock aiohttp.ClientSession.get
     mock_resp = MagicMock()
     mock_resp.status = 200
     mock_resp.json = AsyncMock(
@@ -70,12 +69,9 @@ async def test_scan_malicious_file(scanner):
 @pytest.mark.asyncio
 async def test_scan_upload_flow(scanner):
 
-    # Mock GET 404
     mock_get_resp = MagicMock()
     mock_get_resp.status = 404
     mock_get_resp.__aenter__.return_value = mock_get_resp
-
-    # Mock POST 200
     mock_post_resp = MagicMock()
     mock_post_resp.status = 200
     mock_post_resp.json = AsyncMock(return_value={"data": {"id": "analysis_id_123"}})

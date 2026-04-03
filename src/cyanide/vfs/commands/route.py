@@ -4,7 +4,6 @@ from .base import Command
 
 
 class RouteCommand(Command):
-    # Function 263: Executes the 'route' command logic within the virtual filesystem.
     async def execute(self, args, input_data=""):
         await asyncio.sleep(0)
         if "-n" in args:

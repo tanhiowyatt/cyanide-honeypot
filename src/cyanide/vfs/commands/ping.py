@@ -4,7 +4,6 @@ from .base import Command
 
 
 class PingCommand(Command):
-    # Function 255: Executes the 'ping' command logic within the virtual filesystem.
     async def execute(self, args, input_data=""):
         await asyncio.sleep(0)
         if not args:

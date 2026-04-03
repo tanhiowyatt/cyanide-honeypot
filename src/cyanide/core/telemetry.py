@@ -11,7 +11,6 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExport
 logger = logging.getLogger("cyanide.telemetry")
 
 
-# Function 94: Sets up initial configuration and state.
 def setup_telemetry(service_name: str, config: dict, version: str = "1.0.0"):
     """Initialize OpenTelemetry using configuration."""
     resource = Resource.create(

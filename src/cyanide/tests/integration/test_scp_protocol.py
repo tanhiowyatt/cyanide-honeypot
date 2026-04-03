@@ -8,7 +8,6 @@ import pytest
 
 from cyanide.core.server import CyanideServer
 
-# Test configurations
 HOST = "127.0.0.1"
 USERS = [
     ("root", "admin"),
@@ -45,7 +44,6 @@ async def scp_server(tmp_path):
     server = CyanideServer(config)
     server_task = asyncio.create_task(server.start())
 
-    # Wait for the server to bind to a port
     port = None
     for _ in range(30):
         if server.ssh_server and server.ssh_server.sockets:
@@ -126,7 +124,6 @@ async def test_scp_recursive_upload(scp_server, username, password):
             ) as conn:
                 await asyncssh.scp(up_dir, (conn, "/tmp/"), recurse=True)
 
-                # Verify recursion
                 res = await conn.run("ls -R /tmp/recursive_up", check=True)
                 stdout = str(res.stdout or "")
                 assert "file1.txt" in stdout

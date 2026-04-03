@@ -63,15 +63,12 @@ def test_split_ignore_quotes(emulator):
 
 @pytest.mark.asyncio
 async def test_execute_pipeline_redirection(emulator, mock_fs):
-    # Mock _execute_single_command to return custom output
     with patch.object(
         emulator, "_execute_single_command", AsyncMock(return_value=("output\n", "", 0))
     ):
-        # Test > redirection
         await emulator._execute_pipeline("echo something > /root/out.txt")
         assert mock_fs.get_content("/root/out.txt") == "output\n"
 
-        # Test >> redirection
         await emulator._execute_pipeline("echo more >> /root/out.txt")
         assert mock_fs.get_content("/root/out.txt") == "output\noutput\n"
 
@@ -94,18 +91,13 @@ def test_check_permission(emulator, mock_fs):
     mock_fs.mkfile("/root/secret", perm="-rw-------", owner="root")
     mock_fs.mkfile("/home/guest/pub", perm="-rw-r--r--", owner="guest")
 
-    # Root can do anything
     assert emulator.check_permission("/root/secret", "r") is True
 
-    # Guest cannot read root secret
     emulator.username = "guest"
     assert emulator.check_permission("/root/secret", "r") is False
 
-    # Guest can read their own pub
     assert emulator.check_permission("/home/guest/pub", "r") is True
 
-    # Guest cannot write to their own pub if it's read-only
-    # Update memory_overlay directly because nodes are transient
     mock_fs.memory_overlay["/home/guest/pub"]["perm"] = "-r--r--r--"
     assert emulator.check_permission("/home/guest/pub", "w") is False
 

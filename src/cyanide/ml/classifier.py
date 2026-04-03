@@ -15,7 +15,6 @@ class KnowledgeBase:
     Knowledge Base for classifying commands to MITRE ATT&CK techniques.
     """
 
-    # Function 109: Initializes the class instance and its attributes.
     def __init__(self):
         self.vectorizer = TfidfVectorizer(
             max_features=10000,
@@ -38,7 +37,6 @@ class KnowledgeBase:
         self.tfidf_matrix = None
         self.is_built = False
 
-    # Function 110: Loads data from storage or configuration.
     def load_data(self, kb_dir: Path):
         """Loads all KB data from JSONL files."""
         kb_dir = Path(kb_dir)
@@ -101,7 +99,6 @@ class KnowledgeBase:
         except (json.JSONDecodeError, IndexError):
             pass
 
-    # Function 111: Performs operations related to load jsonl db.
     def _load_jsonl_db(self, path, db_dict):
         if path.exists():
             with open(path, "r") as f:
@@ -113,7 +110,6 @@ class KnowledgeBase:
                     except json.JSONDecodeError:
                         continue
 
-    # Function 112: Performs operations related to build index.
     def build_index(self):
         """Builds TF-IDF index."""
         if not self.command_corpus:
@@ -125,7 +121,6 @@ class KnowledgeBase:
         self.is_built = True
         logger.info(f"[+] Index built: {self.tfidf_matrix.shape}")
 
-    # Function 113: Performs operations related to search.
     def search(self, query_command, top_k=5):
         """Search for similar commands."""
         if not self.is_built:
@@ -166,7 +161,6 @@ class KnowledgeBase:
 
         return results
 
-    # Function 114: Performs operations related to enrich technique details.
     def _enrich_technique_details(self, technique_id, technique_info):
         """Helper to build full technique context."""
         return {
@@ -185,7 +179,6 @@ class KnowledgeBase:
             "related_malware": self._get_related_malware(technique_id),
         }
 
-    # Function 115: Performs operations related to enrich technique.
     def enrich_technique(self, technique_id):
         """Public method to get enriched details for a technique ID (used by pipeline)."""
         technique_info = self.technique_db.get(technique_id)
@@ -193,7 +186,6 @@ class KnowledgeBase:
             return None
         return self._enrich_technique_details(technique_id, technique_info)
 
-    # Function 116: Performs operations related to get related groups.
     def _get_related_groups(self, technique_id):
         groups = []
         for rel in self.relationships.get("uses", []):
@@ -202,7 +194,6 @@ class KnowledgeBase:
                 groups.append({"id": rel["source_id"], "name": group_info.get("name", "Unknown")})
         return groups[:5]
 
-    # Function 117: Performs operations related to get related malware.
     def _get_related_malware(self, technique_id):
         malware = []
         for rel in self.relationships.get("uses", []):
@@ -211,7 +202,6 @@ class KnowledgeBase:
                 malware.append({"id": rel["source_id"], "name": mal_info.get("name", "Unknown")})
         return malware[:5]
 
-    # Function 118: Performs operations related to classify command.
     def classify_command(self, command):
         """Classify command and return MITRE context."""
         matches = self.search(command, top_k=3)
@@ -255,7 +245,6 @@ class KnowledgeBase:
         }
         return result
 
-    # Function 119: Performs operations related to fallback classify.
     def _fallback_classify(self, command):
         """Simple keyword matching fallback."""
         command_lower = command.lower()
@@ -286,7 +275,6 @@ class KnowledgeBase:
                 }
         return None
 
-    # Function 120: Performs operations related to save.
     def save(self, path):
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -308,7 +296,6 @@ class KnowledgeBase:
             )
         logger.info(f"[+] KB saved to {path}")
 
-    # Function 121: Performs operations related to load.
     def load(self, path):
         try:
             with open(path, "rb") as f:

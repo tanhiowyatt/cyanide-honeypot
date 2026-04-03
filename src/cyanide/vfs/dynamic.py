@@ -4,7 +4,6 @@ import time
 from typing import Any, Dict, Optional
 
 
-# Function 281: Provides dynamic content for virtual files.
 def uptime_provider(context: Any, args: Optional[Dict[str, Any]] = None) -> str:
     """Returns a realistic uptime string."""
     start_time = time.time() - secrets.SystemRandom().randint(3600, 86400 * 30)
@@ -13,7 +12,6 @@ def uptime_provider(context: Any, args: Optional[Dict[str, Any]] = None) -> str:
     return f"{uptime_sec:.2f} {idle_sec:.2f}\n"
 
 
-# Function 282: Provides dynamic content for virtual files.
 def cpuinfo_provider(context: Any, args: Optional[Dict[str, Any]] = None) -> str:
     """Returns a fake cpuinfo string."""
     return """processor\t: 0
@@ -35,12 +33,9 @@ power management:
 """
 
 
-# Global cache to track the last seen IP for each attacker (by their source IP)
-# This allows 'Last login' in the MOTD to reflect their own IP on subsequent logins.
 LAST_LOGINS: Dict[str, str] = {}
 
 
-# Function 282.1: Provides dynamic content for virtual files.
 def motd_provider(context: Any, args: Optional[Dict[str, Any]] = None) -> str:
     """Returns a realistic OS-specific MOTD banner."""
     args = args or {}
@@ -68,19 +63,15 @@ def motd_provider(context: Any, args: Optional[Dict[str, Any]] = None) -> str:
     else:
         banner_parts.append(f"Welcome to {os_name} ({kernel} {arch})\r\n")
 
-    # Add randomized 'Last login' info
     now = datetime.datetime.now()
     last_login_date = now - datetime.timedelta(days=secrets.SystemRandom().randint(1, 10))
     date_str = last_login_date.strftime("%a %b %d %H:%M:%S %Y")
 
-    # Check if we've seen this attacker before
     last_ip = LAST_LOGINS.get(src_ip)
     if not last_ip:
-        # If first time, use a plausible internal management IP
         mgmt_ips = ["192.168.1.10", "192.168.1.25", "10.0.0.5", "172.168.5.20"]
         last_ip = secrets.SystemRandom().choice(mgmt_ips)
 
-    # Update for NEXT time: store the current IP as the 'last seen' for this source
     if src_ip:
         LAST_LOGINS[src_ip] = src_ip
 

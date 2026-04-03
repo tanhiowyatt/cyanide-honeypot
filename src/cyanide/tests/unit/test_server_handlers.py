@@ -41,11 +41,9 @@ def test_server_is_valid_user(server):
 def test_server_fs_audit_hook(server):
     server.stats = MagicMock()
     server.logger = MagicMock()
-    # Test normal path
     server._fs_audit_hook("open", "/etc/passwd")
     assert server.logger.log_event.called
 
-    # Test honeytoken
     server._fs_audit_hook("open", "/etc/shadow")
     assert server.stats.on_honeytoken.called
 
@@ -80,7 +78,6 @@ async def test_server_handle_metrics_request(server):
     writer.drain = AsyncMock()
     writer.wait_closed = AsyncMock()
 
-    # Valid request
     reader.readuntil.return_value = b"GET /metrics HTTP/1.1\r\n\r\n"
     server.stats = MagicMock()
     server.stats.to_prometheus.return_value = "metrics"
@@ -88,10 +85,8 @@ async def test_server_handle_metrics_request(server):
     await server._handle_metrics_request(reader, writer)
     assert b"metrics" in writer.write.call_args[0][0]
 
-    # Incomplete request (timeout)
     reader.readuntil.side_effect = asyncio.TimeoutError
     await server._handle_metrics_request(reader, writer)
-    # should return early
 
 
 def test_server_parse_ssh_rekey():
@@ -107,11 +102,9 @@ def test_server_get_health_status(server):
     server.telnet_server = None
     server.stats.start_time = 0
 
-    # SSH enabled, Telnet disabled (default)
     status = json.loads(server._get_health_status())
     assert status["status"] == "healthy"
 
-    # SSH enabled, but server is None
     server.ssh_server = None
     status = json.loads(server._get_health_status())
     assert status["status"] == "unhealthy"

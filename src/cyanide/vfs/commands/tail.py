@@ -5,7 +5,7 @@ from .base import Command
 
 
 class TailCommand(Command):
-    # Function 270: Executes the 'tail' command logic within the virtual filesystem.
+
     async def execute(self, args, input_data=""):
         await asyncio.sleep(0)
 
@@ -16,7 +16,6 @@ class TailCommand(Command):
         try:
             parsed, unknown = parser.parse_known_args(args)
 
-            # Логируем мусорные аргументы для ML
             if unknown and self.emulator.logger:
                 self.emulator.logger.log_event(
                     self.emulator.session_id,
@@ -24,13 +23,12 @@ class TailCommand(Command):
                     {
                         "src_ip": self.emulator.src_ip,
                         "files": parsed.files,
-                        "unknown_args": unknown,  # [-f --follow --pwned]
+                        "unknown_args": unknown,
                         "full_cmd": " ".join(args),
                     },
                 )
 
         except SystemExit:
-            # Логируем recon attempts для ML
             if self.emulator.logger:
                 self.emulator.logger.log_event(
                     self.emulator.session_id,

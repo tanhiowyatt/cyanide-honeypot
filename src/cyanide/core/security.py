@@ -57,7 +57,6 @@ class RestrictedUnpickler(pickle.Unpickler):
         "torch.storage",
     }
 
-    # Function 34: Performs operations related to find class.
     def find_class(self, module, name):
         if module == "builtins" and name in self.SAFE_BUILTINS:
             return getattr(builtins, name)
@@ -75,18 +74,13 @@ class RestrictedUnpickler(pickle.Unpickler):
             f"RestrictedUnpickler: Unsafe class '{module}.{name}' detected."
         )
 
-
-# Alias for torch.load(..., pickle_module=security) compatibility
 Unpickler = RestrictedUnpickler
 
 
-# Function 35: Performs operations related to load.
 def load(file_obj, **kwargs):
     """Secure replacement for pickle.load()"""
     return RestrictedUnpickler(file_obj).load()
 
-
-# Function 36: Performs operations related to loads.
 def loads(data):
     """Secure replacement for pickle.loads()"""
     return RestrictedUnpickler(io.BytesIO(data)).load()

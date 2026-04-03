@@ -4,7 +4,6 @@ from .base import Command
 
 
 class AliasCommand(Command):
-    # Function 202: Executes the 'alias' command logic within the virtual filesystem.
     async def execute(self, args: list[str], input_data: str = "") -> tuple[str, str, int]:
         """Execute the alias command."""
         if not args:
@@ -46,7 +45,6 @@ class AliasCommand(Command):
 
 
 class UnaliasCommand(Command):
-    # Function 203: Executes the 'alias' command logic within the virtual filesystem.
     async def execute(self, args, input_data=""):
         await asyncio.sleep(0)
         if not args:

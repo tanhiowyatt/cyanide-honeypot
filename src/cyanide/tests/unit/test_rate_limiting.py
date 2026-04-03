@@ -3,9 +3,7 @@ import time
 from cyanide.services.session_manager import SessionManager
 
 
-# Function 457: Runs unit tests for the rate_limiting functionality.
 def test_rate_limiting():
-    # Enforce limit of 2 connections per minute
     cfg = {
         "max_sessions": 100,
         "max_sessions_per_ip": 10,
@@ -47,7 +45,6 @@ def test_rate_limiting():
         assert allowed
 
 
-# Function 458: Runs unit tests for the per_ip_limit functionality.
 def test_per_ip_limit():
     cfg = {"max_sessions": 100, "max_sessions_per_ip": 1}
     from unittest.mock import MagicMock

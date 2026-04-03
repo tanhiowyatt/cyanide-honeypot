@@ -52,7 +52,6 @@ EVENT_COMMAND_INPUT = "command.input"
 
 
 class ServiceRegistry:
-    # Function 37: Initializes the class instance and its attributes.
     def __init__(
         self,
         session: "SessionManager",
@@ -69,7 +68,6 @@ class ServiceRegistry:
 class CyanideServer:
     """Main honeypot server orchestrating SSH, Telnet."""
 
-    # Function 38: Initializes the class instance and its attributes.
     def __init__(self, config: Dict[str, Any]):
         """Initialize honeypot server with configuration."""
         self.config = config
@@ -201,7 +199,6 @@ class CyanideServer:
         self.vfs_cache: OrderedDict[tuple, FakeFilesystem] = OrderedDict()
         self.vfs_cache_limit = 100
 
-    # Function 40: Performs operations related to analyze command.
     def _analyze_command(self, cmd, username, src_ip, session_id, protocol, is_bot=False):
         """Delegated to AnalyticsService."""
         with self.tracer.start_as_current_span("analyze_command") as span:
@@ -213,12 +210,10 @@ class CyanideServer:
             span.set_attribute("bot.detected", is_bot)
             self.services.analytics.analyze_command(cmd, src_ip, session_id, is_bot=is_bot)
 
-    # Function 41: Handles event logging and telemetry.
     async def log_geoip(self, ip):
         """Delegated to AnalyticsService."""
         await self.services.analytics.log_geoip(ip)
 
-    # Function 43: Checks condition: is valid user.
     def is_valid_user(self, username, password):
         """Validate user credentials against configured users."""
         for user in self.users:
@@ -226,14 +221,10 @@ class CyanideServer:
                 return True
         return False
 
-    # Function 44: Performs operations related to fs audit hook.
     def _fs_audit_hook(self, action, path, fs=None, session_id="unknown", src_ip="unknown"):
         """Callback for filesystem auditing."""
         try:
-            # Hierarchical honeytoken resolution
-            # 1. Main config (override)
-            # 2. Profile config (VFS specific)
-            # 3. System defaults
+
             honeytokens = getattr(self.config, "honeytokens", [])
             if not honeytokens and fs and hasattr(fs, "honeytokens"):
                 honeytokens = fs.honeytokens
@@ -260,13 +251,10 @@ class CyanideServer:
         except Exception as e:
             logging.debug(f"Error in _fs_audit_hook: {e}")
 
-    # Function 45: Retrieves filesystem data.
     def get_filesystem(self, session_id="unknown", src_ip="unknown", username=None):
         """Create a fresh filesystem instance for a new session with LRU caching."""
-        # composite key for persistence: (ip, user)
         cache_key = (src_ip, username)
 
-        # Function 46: Performs operations related to audit hook.
         def audit_hook(action, path, fs_instance=None):
             self._fs_audit_hook(action, path, fs_instance, session_id, src_ip)
 
@@ -288,7 +276,7 @@ class CyanideServer:
             )
             if self.vfs_persistence and src_ip != "unknown":
                 if len(self.vfs_cache) >= self.vfs_cache_limit:
-                    self.vfs_cache.popitem(last=False)  # Remove oldest (LRU)
+                    self.vfs_cache.popitem(last=False)
                 self.vfs_cache[cache_key] = fs
             return fs
         except Exception as e:
@@ -298,7 +286,6 @@ class CyanideServer:
             traceback.print_exc()
             return FakeFilesystem(audit_callback=audit_hook, stats=self.stats)
 
-    # Function 48: Performs operations related to save quarantine file.
     def save_quarantine_file(
         self, filename: str, content: bytes, session_id="unknown", src_ip="unknown", protocol="ssh"
     ):
@@ -307,7 +294,6 @@ class CyanideServer:
             if not hasattr(self, "_quarantine_tasks"):
                 self._quarantine_tasks = set()
 
-            # Match the exact folder format used in _init_session_logging
             folder_name = f"{protocol}_{src_ip}_{session_id}"
 
             task = asyncio.create_task(
@@ -320,7 +306,6 @@ class CyanideServer:
         except RuntimeError:
             pass
 
-    # Function 49: Handles event logging and telemetry.
     def _log_tty(self, session_obj, direction: str, data: str):
         """Detailed logging: JSON (Detailed Audit) + Timing/TS (scriptreplay)."""
         if direction != "OUT" and not hasattr(session_obj, "tty_log_path_json"):
@@ -1879,7 +1864,6 @@ class SSHSession(asyncssh.SSHServerSession):
         task.add_done_callback(self._background_tasks.discard)
         return True
 
-    # Function 80: Performs operations related to async exec.
     async def _async_exec(self, command):
         try:
             self._ensure_tty_log()
@@ -1901,8 +1885,6 @@ class SSHSession(asyncssh.SSHServerSession):
             try:
                 stdout, stderr, rc = await shell.execute(command)
             except SystemExit as se:  # noqa: S5754
-                # We must not re-raise SystemExit to prevent a malicious user from
-                # crashing the server with a command like "mkdir --help" or argparse usage.
                 rc = se.code if isinstance(se.code, int) else 2
                 stdout, stderr = (
                     "",
@@ -1950,7 +1932,6 @@ class SSHSession(asyncssh.SSHServerSession):
         self.channel.exit(rc)
         self.channel.close()
 
-    # Function 81: Performs operations related to session ended.
     def session_ended(self):
         duration = time.time() - self.start_time
 

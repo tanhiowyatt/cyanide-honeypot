@@ -27,7 +27,6 @@ async def test_tcp_proxy_forward(tcp_proxy):
     writer = MagicMock()
     writer.drain = AsyncMock()
 
-    # Simulate reader returning data then EOF
     reader.read.side_effect = [b"hello", b""]
 
     await tcp_proxy.forward(reader, writer, "test")
@@ -48,7 +47,6 @@ async def test_tcp_proxy_handle_client(tcp_proxy):
 
     with patch("asyncio.open_connection", new_callable=AsyncMock) as mock_connect:
         mock_connect.return_value = (target_reader, target_writer)
-        # Mock forward to exit immediately
         with patch.object(tcp_proxy, "forward", new_callable=AsyncMock):
             await tcp_proxy.handle_client(client_reader, client_writer)
             mock_connect.assert_called_with("1.2.3.4", 80)

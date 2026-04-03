@@ -1,9 +1,6 @@
-# System
 .DS_Store
 .check-custom-os-verify.py
 .check-custom-os-verify.log
-
-# Python
 __pycache__/
 *.py[cod]
 *$py.class
@@ -24,22 +21,16 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-
-# Virtual Environment
 .venv
 venv/
 ENV/
 env/
 .tox/
-
-# Pytest / Coverage
 .pytest_cache/
 .coverage
 .coverage.*
 htmlcov/
 coverage.xml
-
-# Project Logs & Data
 *.log
 cnide.log
 cyanide.log
@@ -52,8 +43,5 @@ configs/profiles/*/.compiled.db
 .ruff_cache
 .venv
 example_prod_log.json   
-
-# Spurious test artifact dirs
 MagicMock/
-
 src/cyanide/configs/profiles/*/.compiled.db

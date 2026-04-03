@@ -14,8 +14,6 @@ def get_default_config_path() -> Path:
     3. Package internal (cyanide/configs/app.yaml)
     """
     # 1. Local Dev / Docker / CWD
-    # Search in package-relative ./src/cyanide/configs for dev repo
-    # or ./configs for Docker deployments
     search_paths = [Path("src/cyanide/configs/app.yaml"), Path("configs/app.yaml")]
     for p in search_paths:
         if p.exists():
@@ -44,8 +42,6 @@ def get_profiles_dir() -> Path:
     3. Package internal (cyanide/configs/profiles)
     """
     # 1. Local Dev / Docker / CWD
-    # Search in package-relative ./src/cyanide/configs/profiles for dev repo
-    # or ./configs/profiles for Docker deployments
     search_paths = [Path("src/cyanide/configs/profiles"), Path("configs/profiles")]
     for p in search_paths:
         if p.is_dir():

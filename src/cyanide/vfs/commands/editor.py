@@ -6,7 +6,6 @@ from .base import Command
 class EditorCommand(Command):
     """Mock text editors (vi, nano, etc)."""
 
-    # Function 227: Executes the 'editor' command logic within the virtual filesystem.
     async def execute(self, args: list[str], input_data: str = "") -> tuple[str, str, int]:
         if not args:
             return "", "No filename provided.\n", 1
@@ -29,7 +28,6 @@ class EditorCommand(Command):
 
         return prompt, "", 0
 
-    # Function 228: Performs operations related to on input.
     def _on_input(self, line: str) -> tuple[str, str, int]:
         stop_save = [":wq", "^X", "wq"]
         stop_abort = [":q!", "^C", "q!", ":q"]

@@ -8,7 +8,6 @@ class SessionManager:
     Manages active session counts and enforces connection limits.
     """
 
-    # Function 190: Initializes the class instance and its attributes.
     def __init__(self, config: Dict, logger):
         self.max_sessions = config.get("max_sessions", 100)
         self.max_sessions_per_ip = config.get("max_sessions_per_ip", 5)
@@ -27,7 +26,6 @@ class SessionManager:
         self.connection_history: Dict[str, List[float]] = {}
         self.logger = logger
 
-    # Function 191: Performs operations related to can accept.
     def can_accept(self, ip: str) -> tuple[bool, str]:
         """
         Check if a connection from IP can be accepted.
@@ -64,7 +62,6 @@ class SessionManager:
 
         return True, ""
 
-    # Function 192: Performs operations related to register session.
     def register_session(self, ip: str, session_id: Optional[str] = None) -> str:
         """
         Register a new session and return its ID.
@@ -82,7 +79,6 @@ class SessionManager:
         }
         return session_id
 
-    # Function 193: Performs operations related to unregister session.
     def unregister_session(self, session_id: str):
         """
         Unregister a session and cleanup stats.
@@ -113,7 +109,6 @@ class SessionManager:
         """Return session statistics."""
         return self.sessions.get(session_id)
 
-    # Function 194: Performs operations related to ban ip.
     def ban_ip(self, ip: str, duration: Optional[int] = None):
         """Manual ban."""
         if duration is None:

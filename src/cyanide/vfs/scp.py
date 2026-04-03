@@ -19,7 +19,6 @@ class ScpHandler:
         self.honeypot = session.honeypot
         self.fs = getattr(session, "fs", None)
         if not self.fs:
-            # Fallback if fs is not directly attached
             self.fs = self.honeypot.get_filesystem(
                 session_id=getattr(session, "session_id", "unknown"),
                 src_ip=getattr(session, "src_ip", "unknown"),
@@ -38,10 +37,8 @@ class ScpHandler:
         """Read n bytes from the appropriate input stream."""
         try:
             if self.process is not None:
-                # In process_factory mode, use stdin
                 data = await self.process.stdin.read(n)
             else:
-                # In direct session mode, use channel
                 data = await self.session.channel.read(n)
 
             if isinstance(data, str):
@@ -55,7 +52,6 @@ class ScpHandler:
         """Write data to the appropriate output stream."""
         try:
             if self.process is not None:
-                # If encoding is set, write() expects a string
                 self.process.channel.write(data.decode("latin-1"))
             else:
                 self.session.channel.write(data.decode("latin-1"))
@@ -93,7 +89,6 @@ class ScpHandler:
         if not self.fs:
             return
         try:
-            # Save raw bytes to VFS
             self.fs.mkfile(
                 target_path,
                 content=content,
@@ -114,27 +109,19 @@ class ScpHandler:
         mode_str, size_str, filename = match.groups()
         size = int(size_str)
 
-        # ACK metadata
         self._send_ack()
 
-        # Read the actual file content
         content = await self._read_file_data(size)
-
-        # In sink mode, common SCP clients send a null byte after file data.
-        # This is essentially an EOF marker for the file transfer.
         await self._read(1)
 
-        # Determine target path
         if self.fs and self.fs.is_dir(dest_base):
             target_path = os.path.join(dest_base, filename)
         else:
             target_path = dest_base
 
         try:
-            # Save to Virtual Filesystem
             self._save_to_vfs(target_path, content)
 
-            # Save to Quarantine and Log
             self.honeypot.save_quarantine_file(filename, content, self.session_id, self.src_ip)
 
             self.logger.log_event(
@@ -143,7 +130,6 @@ class ScpHandler:
                 {"filename": filename, "path": target_path, "size": size, "mode": mode_str},
             )
 
-            # Final ACK for the file
             self._send_ack()
             return 0
         except Exception as e:
@@ -184,14 +170,12 @@ class ScpHandler:
         """Extract is_sink, is_source and dest_dir from SCP command."""
         try:
             parts = shlex.split(command)
-            # Protocol hardening: SCP requires either -t (sink) or -f (source)
             is_sink = "-t" in parts
             is_source = "-f" in parts
 
             if not is_sink and not is_source:
                 return False, False, "."
 
-            # Find the path (usually the last argument that isn't a flag)
             path = "."
             for part in reversed(parts):
                 if not part.startswith("-"):
@@ -235,7 +219,6 @@ class ScpHandler:
         )
         logger.debug(f"SCP Source Mode: Waiting for initial ACK for {path}...")
 
-        # Wait for initial ACK from client
         initial_ack = await self._read(1)
         logger.debug(f"SCP Source Mode: Initial ACK received: {initial_ack!r}")
         if initial_ack != b"\0":
@@ -249,8 +232,6 @@ class ScpHandler:
         else:
             await self._send_file(path, node)
 
-        # Final ACK after all files are sent (optional but often expected)
-        # However, for ScpSource, it's usually the client that ACKs E or C.
         return 0
 
     def _perm_to_mode(self, perm: str) -> int:
@@ -292,10 +273,8 @@ class ScpHandler:
 
         logger.debug(f"SCP _send_file: Sending content ({size} bytes)...")
         self._write(content)
-        self._write(b"\0")  # End of file marker (null byte)
+        self._write(b"\0")
 
-        # Some clients send an ACK here, some don't.
-        # We'll use a short timeout to try reading it without blocking forever.
         try:
             import asyncio
 
@@ -322,7 +301,6 @@ class ScpHandler:
         if await self._read(1) != b"\0":
             return
 
-        # Send contents
         try:
             if self.fs is None:
                 return
@@ -337,7 +315,6 @@ class ScpHandler:
         except Exception as e:
             logger.error(f"Error sending SCP directory content: {e}")
 
-        # End of directory
         self._write(b"E\n")
         await self._read(1)
 
@@ -352,11 +329,9 @@ class ScpHandler:
             return await self._handle_source_mode(path)
 
         if not is_sink:
-            # Send standard SCP usage error for malformed/non-protocol commands
             self._write(b"\x01usage: scp [-f | -t] [-d] [-p] [-r] [-v] [path]\n")
             return 1
 
-        # Initial ACK to start the protocol
         self._send_ack()
 
         current_base = path
@@ -379,10 +354,8 @@ class ScpHandler:
                 if should_break:
                     break
             elif header_str.startswith("T"):
-                # Protocol hardening (T is for timestamps, ignore it with an ACK)
                 self._send_ack()
             else:
-                # Unknown command: send a NACK
                 self._write(f"\x01SCP: Unknown protocol command: {header_str}\n".encode("utf-8"))
                 return 1
 

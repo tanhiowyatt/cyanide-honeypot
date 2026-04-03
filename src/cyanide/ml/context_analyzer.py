@@ -8,7 +8,6 @@ class ContextAnalyzer:
     Analyzes URLs and sensitive file paths to increase risk score.
     """
 
-    # Function 122: Initializes the class instance and its attributes.
     def __init__(self):
         self.whitelist = {
             "github.com",
@@ -77,7 +76,6 @@ class ContextAnalyzer:
             "/etc/crontab": {"severity": "HIGH", "technique": "T1053.003"},
         }
 
-    # Function 123: Performs operations related to analyze url.
     def analyze_url(self, command: str) -> dict:
         """
         Analyzes URLs in command.
@@ -151,7 +149,6 @@ class ContextAnalyzer:
 
         return score, flags
 
-    # Function 124: Performs operations related to analyze file paths.
     def analyze_file_paths(self, command: str) -> dict:
         """
         Analyzes sensitive file paths.

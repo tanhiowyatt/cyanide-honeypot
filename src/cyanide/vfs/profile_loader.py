@@ -15,11 +15,10 @@ logger = logging.getLogger("cyanide.vfs.profile_loader")
 _MEMORY_CACHE: Dict[str, Dict[str, Any]] = {}
 _CACHE_LOCK = threading.RLock()
 
-CACHE_FORMAT_VERSION = 3  # Increment version for SQLite migration
+CACHE_FORMAT_VERSION = 3
 COMPILED_DB_NAME = ".compiled.db"
 
 
-# Function 312: Performs operations related to compute hash.
 def _compute_hash(base_file: Path, static_file: Path, rootfs_dir: Optional[Path] = None) -> str:
     """Compute SHA-256 hash of base.yaml, static.yaml, and optionally rootfs/ contents."""
     h = hashlib.sha256()
@@ -33,8 +32,6 @@ def _compute_hash(base_file: Path, static_file: Path, rootfs_dir: Optional[Path]
             h.update(f.read())
 
     if rootfs_dir and rootfs_dir.exists():
-        # Directory mtime is unstable in Docker (chown reset or layer caching).
-        # We instead hash only the existence and an optional marker file for development.
         h.update(b"rootfs_exists")
         marker = rootfs_dir / ".cyanide_vfs_marker"
         if marker.exists():
@@ -48,7 +45,6 @@ def _scan_filesystem(rootfs_dir: Path) -> Dict[str, Any]:
     manifest = {}
 
     for root, dirs, files in os.walk(rootfs_dir):
-        # Create directories
         for d in dirs:
             abs_path = Path(root) / d
             rel_path = "/" + str(abs_path.relative_to(rootfs_dir))
@@ -62,7 +58,6 @@ def _scan_filesystem(rootfs_dir: Path) -> Dict[str, Any]:
                 "mtime": datetime.datetime.fromtimestamp(stat.st_mtime).isoformat(),
             }
 
-        # Create files
         for f in files:
             abs_path = Path(root) / f
             rel_path = "/" + str(abs_path.relative_to(rootfs_dir))
@@ -95,7 +90,7 @@ def _compile_to_sqlite(manifest: Dict[str, Any], db_path: Path, target_hash: str
         try:
             db_path.unlink()
         except OSError:
-            pass  # Read-only filesystem, handled below by fallback
+            pass
 
     try:
         conn = sqlite3.connect(db_path)
@@ -103,7 +98,6 @@ def _compile_to_sqlite(manifest: Dict[str, Any], db_path: Path, target_hash: str
         logger.warning(
             f"Failed to open '{db_path}' for compilation (e.g. read-only/corrupt db): {e}. Falling back to in-memory db."
         )
-        # If we can't write to the filesystem, compile the profile strictly in-memory
         conn = sqlite3.connect(":memory:")
 
     try:
@@ -179,7 +173,6 @@ def _handle_dict_node(flat_map: Dict[str, Any], path: str, value: Dict[str, Any]
         flat_map.update(_flatten_nodes(value, path))
 
 
-# Function 312.1: Recursively flattens a nested dictionary of VFS nodes into a flat path map.
 def _flatten_nodes(nodes: Dict[str, Any], current_path: str = "") -> Dict[str, Any]:
     """
     Converts: { "etc": { "passwd": "..." } }
@@ -238,7 +231,6 @@ def _parse_generators(static_manifest: Dict[str, Any], generators: list):
                 }
 
 
-# Function 313: Performs operations related to parse yaml profile.
 def _parse_yaml_profile(base_file: Path, static_file: Path) -> Dict[str, Any]:
     """Parse profile from YAML files with support for hierarchical and flat formats."""
     if not base_file.exists():
@@ -252,27 +244,21 @@ def _parse_yaml_profile(base_file: Path, static_file: Path) -> Dict[str, Any]:
     honeytokens = base_data.get("honeytokens", [])
     static_manifest: Dict[str, Any] = {}
 
-    # 1. Base tree folders
     _parse_tree_folders(static_manifest, base_data.get("static_files", {}).get("tree_folders"))
 
-    # 2. Static data from static.yaml
     if static_file.exists():
         with open(static_file, "r", encoding="utf-8") as f:
             static_data = yaml.safe_load(f) or {}
 
-            # Explicit static map
             _parse_static_content(static_manifest, static_data.get("static", {}))
 
-            # Helper tree folders
             sh_data = static_data.get("static_files", {})
             _parse_tree_folders(static_manifest, sh_data.get("tree_folders"))
 
-            # Hierarchical nodes
             nodes = sh_data.get("nodes", static_data.get("nodes", {}))
             if nodes:
                 static_manifest.update(_flatten_nodes(nodes))
 
-            # Template generators
             _parse_generators(
                 static_manifest, sh_data.get("generators", static_data.get("generators", []))
             )
@@ -355,7 +341,6 @@ def _build_manifest(
     raise FileNotFoundError(f"No valid profile source found for '{profile_name}' in {profiles_dir}")
 
 
-# Function 314: Performs operations related to load.
 def load(profile_name: str, profiles_dir: Path) -> Dict[str, Any]:
     """
     Load profile data using SQLite backend.
@@ -368,7 +353,6 @@ def load(profile_name: str, profiles_dir: Path) -> Dict[str, Any]:
     target_hash = _compute_hash(base_file, static_file, rootfs_dir)
 
     with _CACHE_LOCK:
-        # 1. & 2. Cache Checks
         res = _check_memory_cache(profile_name, target_hash) or _check_disk_cache(
             profile_name, compiled_db, target_hash, base_file
         )
@@ -376,12 +360,9 @@ def load(profile_name: str, profiles_dir: Path) -> Dict[str, Any]:
             _MEMORY_CACHE[profile_name] = res
             return res
 
-        # 3. Rebuild Cache
         logger.info(f"Rebuilding SQLite VFS cache for profile '{profile_name}'...")
         manifest = _build_manifest(profile_name, rootfs_dir, base_file, static_file, profiles_dir)
         _compile_to_sqlite(manifest, compiled_db, target_hash)
-
-        # Build return dictionary directly to avoid recursive load loop if compilation fell back to in-memory db
         metadata, dynamic_files, honeytokens = {}, {}, []
         if base_file.exists():
             with open(base_file, "r") as f:
@@ -397,15 +378,12 @@ def load(profile_name: str, profiles_dir: Path) -> Dict[str, Any]:
             "metadata": metadata,
             "dynamic_files": dynamic_files,
             "honeytokens": honeytokens,
-            "static": (
-                manifest if not compiled_db.exists() else None
-            ),  # pass manifest strictly if memory bound
+            "static": (manifest if not compiled_db.exists() else None),
         }
         _MEMORY_CACHE[profile_name] = res
         return res
 
 
-# Function 315: Invalidates data or cache.
 def invalidate(profile_name: Optional[str] = None) -> None:
     """Clear memory cache. Disk cache is self-invalidating via hash."""
     with _CACHE_LOCK:

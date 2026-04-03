@@ -6,7 +6,6 @@ from typing import Any, Dict, List
 class StatsManager:
     """Manages real-time honeypot statistics and metrics."""
 
-    # Function 82: Initializes the class instance and its attributes.
     def __init__(self):
         self.start_time = time.time()
         self.active_sessions = 0
@@ -38,7 +37,6 @@ class StatsManager:
         self.recent_commands: List[Dict[str, Any]] = []
         self.max_recent = 50
 
-    # Function 83: Performs operations related to on connect.
     def on_connect(self, protocol: str, ip: str):
         self.active_sessions += 1
         self.total_sessions += 1
@@ -57,7 +55,6 @@ class StatsManager:
         else:
             self.auth_failures += 1
 
-    # Function 86: Performs operations related to on command.
     def on_command(self, protocol: str, ip: str, username: str, command: str):
         self.commands[command] += 1
 
@@ -74,11 +71,9 @@ class StatsManager:
         if len(self.recent_commands) > self.max_recent:
             self.recent_commands.pop()
 
-    # Function 87: Performs operations related to on honeytoken.
     def on_honeytoken(self, path: str):
         self.honeytoken_triggers[path] += 1
 
-    # Function 88: Performs operations related to on malware.
     def on_malware(self, filename: str, is_malicious: bool):
         self.malware_scans[filename] += 1
         if is_malicious:
@@ -93,7 +88,6 @@ class StatsManager:
         """Track 'command not found' events (confusion metric)."""
         self.command_not_found[cmd] += 1
 
-    # Function 91: Performs operations related to on traffic.
     def on_traffic(self, direction: str, size: int):
         """Track traffic metrics."""
         if direction == "in":
@@ -101,7 +95,6 @@ class StatsManager:
         else:
             self.bytes_out += size
 
-    # Function 92: Retrieves stats data.
     def get_stats(self) -> Dict[str, Any]:
         """Return statistics as a dictionary."""
         uptime = int(time.time() - self.start_time)
@@ -126,7 +119,6 @@ class StatsManager:
             "traffic": {"bytes_in": self.bytes_in, "bytes_out": self.bytes_out},
         }
 
-    # Function 93: Performs operations related to to prometheus.
     def to_prometheus(self) -> str:
         """Format metrics for Prometheus."""
         lines = []

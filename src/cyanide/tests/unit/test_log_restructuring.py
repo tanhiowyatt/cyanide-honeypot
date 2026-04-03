@@ -6,7 +6,6 @@ import pytest
 from cyanide.logger import CyanideLogger
 
 
-# Helper to wait for log file content to appear
 def wait_for_log_line(path, timeout=1.0):
     start_time = time.time()
     while time.time() - start_time < timeout:
@@ -19,7 +18,6 @@ def wait_for_log_line(path, timeout=1.0):
     return ""
 
 
-# Function 441: Handles event logging and telemetry.
 @pytest.fixture
 def temp_log_dir(tmp_path):
     log_dir = tmp_path / "var/log/cyanide"
@@ -27,19 +25,15 @@ def temp_log_dir(tmp_path):
     return log_dir
 
 
-# Function 442: Runs unit tests for the log_file_creation functionality.
 def test_log_file_creation(temp_log_dir):
-    # Instantiate logger to trigger file creation
     CyanideLogger({"logging": {"directory": str(temp_log_dir)}})
 
-    # Check if all four files are created as loggers are initialized (handlers open files)
     assert (temp_log_dir / "cyanide-server.json").exists()
     assert (temp_log_dir / "cyanide-fs.json").exists()
     assert (temp_log_dir / "cyanide-ml.json").exists()
     assert (temp_log_dir / "cyanide-stats.json").exists()
 
 
-# Function 443: Runs unit tests for the event_routing functionality.
 def test_event_routing(temp_log_dir):
     logger = CyanideLogger({"logging": {"directory": str(temp_log_dir)}})
 
@@ -52,7 +46,6 @@ def test_event_routing(temp_log_dir):
     # 4. Stats event
     logger.log_event("system", "stats", {"uptime": 100})
 
-    # Verify content in respective files using helper for reliable I/O
     line = wait_for_log_line(temp_log_dir / "cyanide-server.json")
     assert line, "Server log line empty"
     data = json.loads(line)
@@ -74,7 +67,6 @@ def test_event_routing(temp_log_dir):
     assert data["eventid"] == "stats"
 
 
-# Function 444: Runs unit tests for the log_command_routing functionality.
 def test_log_command_routing(temp_log_dir):
     logger = CyanideLogger({"logging": {"directory": str(temp_log_dir)}})
     logger.log_event(
@@ -90,7 +82,6 @@ def test_log_command_routing(temp_log_dir):
     assert data["input"] == "uptime"
 
 
-# Function 445: Runs unit tests for the log_event_async_routing functionality.
 def test_log_event_async_routing(temp_log_dir):
     logger = CyanideLogger({"logging": {"directory": str(temp_log_dir)}})
     logger.log_event("sess3", "ml_anomaly", {"score": 0.9})

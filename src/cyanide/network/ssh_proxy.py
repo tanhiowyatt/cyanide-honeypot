@@ -32,7 +32,6 @@ class CyanideSSHClientConnection(asyncssh.SSHClientConnection):
     Manages the SSH connection between the proxy and the backend honeypot/server.
     """
 
-    # Function 146: Initializes the class instance and its attributes.
     def __init__(self, server_channel_factory, session_id, src_ip, *args, **kwargs):
         """Initialize backend connection.
 
@@ -46,12 +45,10 @@ class CyanideSSHClientConnection(asyncssh.SSHClientConnection):
         self.src_ip = src_ip
         super().__init__(*args, **kwargs)
 
-    # Function 147: Performs operations related to connection made.
     def connection_made(self, conn):
         """Called when connection to backend is established."""
         pass
 
-    # Function 148: Performs operations related to session started.
     def session_started(self):
         """Called when session is started on backend."""
         pass
@@ -64,7 +61,6 @@ class CyanideSSHServer(asyncssh.SSHServer):
     via ProxyServerSession.
     """
 
-    # Function 149: Initializes the class instance and its attributes.
     def __init__(self, pool, target_host, target_port, fs):
         """Initialize SSH Proxy Server.
 
@@ -79,7 +75,6 @@ class CyanideSSHServer(asyncssh.SSHServer):
         self.target_port = target_port
         self.fs = fs
 
-    # Function 150: Performs operations related to connection made.
     def connection_made(self, conn):
         """Handle new incoming connection from attacker."""
         self._conn = conn
@@ -92,27 +87,22 @@ class CyanideSSHServer(asyncssh.SSHServer):
             )
         )
 
-    # Function 151: Performs operations related to password auth supported.
     def password_auth_supported(self):
         """Allow password auth."""
         return True
 
-    # Function 152: Performs operations related to validate password.
     def validate_password(self, username, password):
         """Validate password (always accept)."""
         return True
 
-    # Function 153: Performs operations related to public key auth supported.
     def public_key_auth_supported(self):
         """Allow public key auth."""
         return True
 
-    # Function 154: Performs operations related to validate public key.
     def validate_public_key(self, username, key):
         """Validate public key (always accept)."""
         return True
 
-    # Function 155: Performs operations related to session requested.
     async def session_requested(self):
         """Bridge a new session to the backend."""
         session = ProxyServerSession(
@@ -135,7 +125,6 @@ class ProxyServerSession(asyncssh.SSHServerSession):
     initiating connection to the backend and forwarding requests.
     """
 
-    # Function 156: Initializes the class instance and its attributes.
     def __init__(self, pool, target_host, target_port, session_id, src_ip, fs):
         """Initialize proxy server session.
 
@@ -162,7 +151,6 @@ class ProxyServerSession(asyncssh.SSHServerSession):
         self.request_event = asyncio.Event()
         self._background_tasks = set()
 
-    # Function 157: Performs operations related to connection made.
     def connection_made(self, chan):
         """Called when attacker channel is open."""
         self._chan = chan
@@ -170,7 +158,6 @@ class ProxyServerSession(asyncssh.SSHServerSession):
         self._background_tasks.add(task)
         task.add_done_callback(self._background_tasks.discard)
 
-    # Function 158: Performs operations related to connect backend.
     async def _connect_backend(self):
         """Establish connection to backend server and bridge channels."""
         target = await self._get_target()
@@ -230,7 +217,6 @@ class ProxyServerSession(asyncssh.SSHServerSession):
             term_size=self._chan.get_terminal_size(),
         )
 
-    # Function 159: Performs operations related to data received.
     def data_received(self, data, datatype):
         """Handle data from attacker."""
         log_entry = {
@@ -244,50 +230,42 @@ class ProxyServerSession(asyncssh.SSHServerSession):
         logger.info(json.dumps(log_entry))
         self.buffer.append(data)
 
-    # Function 160: Performs operations related to shell requested.
     def shell_requested(self):
         """Handle shell request."""
         self.pending_request = ("shell", None)
         self.request_event.set()
         return True
 
-    # Function 161: Performs operations related to exec requested.
     def exec_requested(self, command):
         """Handle exec request."""
         self.pending_request = ("exec", command)
         self.request_event.set()
         return True
 
-    # Function 162: Performs operations related to pty requested.
     def pty_requested(self, term_type, term_size, term_modes):
         """Handle PTY request."""
         return True
 
-    # Function 163: Performs operations related to terminal window resized.
     def terminal_window_resized(self, width, height, pixwidth, pixheight):
         """Handle window resize."""
         if self.backend_channel:
             self.backend_channel.change_terminal_size(width, height, pixwidth, pixheight)
 
-    # Function 164: Performs operations related to break received.
     def break_received(self, msec):
         """Handle break signal."""
         if self.backend_channel:
             self.backend_channel.send_break(msec)
 
-    # Function 165: Performs operations related to signal received.
     def signal_received(self, signal):
         """Handle POSIX signal."""
         if self.backend_channel:
             self.backend_channel.send_signal(signal)
 
-    # Function 166: Performs operations related to eof received.
     def eof_received(self):
         """Handle EOF from attacker."""
         if self.backend_channel:
             self.backend_channel.write_eof()
 
-    # Function 167: Performs operations related to connection lost.
     def connection_lost(self, exc):
         """Handle connection loss."""
         if self.send_task:
@@ -300,7 +278,6 @@ class ProxyServerSession(asyncssh.SSHServerSession):
             self._background_tasks.add(task)
             task.add_done_callback(self._background_tasks.discard)
 
-    # Function 168: Performs operations related to send loop.
     async def _send_loop(self):
         """Buffered send loop to backend."""
         try:
@@ -327,7 +304,6 @@ class ProxyClientChannel(asyncssh.SSHClientSession):
     to the attacker's channel (peer_channel).
     """
 
-    # Function 169: Initializes the class instance and its attributes.
     def __init__(self, session_id, src_ip, peer_channel):
         """Initialize proxy client session.
 
@@ -342,12 +318,10 @@ class ProxyClientChannel(asyncssh.SSHClientSession):
         self.buffer = []
         self.send_task = None
 
-    # Function 170: Performs operations related to connection made.
     def connection_made(self, chan):
         """Called when backend channel is open."""
         self.send_task = asyncio.create_task(self._send_loop())
 
-    # Function 171: Performs operations related to data received.
     def data_received(self, data, datatype):
         """Handle data from backend."""
         log_entry = {
@@ -360,13 +334,11 @@ class ProxyClientChannel(asyncssh.SSHClientSession):
         logger.info(json.dumps(log_entry))
         self.buffer.append(data)
 
-    # Function 172: Performs operations related to eof received.
     def eof_received(self):
         """Handle EOF from backend."""
         if self.peer_channel:
             self.peer_channel.write_eof()
 
-    # Function 173: Performs operations related to connection lost.
     def connection_lost(self, exc):
         """Handle backend connection loss."""
         if self.send_task:
@@ -374,7 +346,6 @@ class ProxyClientChannel(asyncssh.SSHClientSession):
         if self.peer_channel:
             self.peer_channel.close()
 
-    # Function 174: Performs operations related to send loop.
     async def _send_loop(self):
         """Buffered send loop to attacker."""
         try:
@@ -393,7 +364,6 @@ class ProxyClientChannel(asyncssh.SSHClientSession):
             pass
 
 
-# Function 175: Main entry point for the application execution.
 async def main():
     """Main entry point for proxy server."""
     dst_host = "127.0.0.1"
@@ -410,7 +380,6 @@ async def main():
 
     stop_event = asyncio.Event()
 
-    # Function 176: Performs operations related to factory.
     def factory():
         return CyanideSSHServer(pool=None, target_host=dst_host, target_port=dst_port, fs=fs)
 

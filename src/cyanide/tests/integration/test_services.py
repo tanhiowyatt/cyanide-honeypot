@@ -7,18 +7,13 @@ import telnetlib3
 
 from cyanide.core.server import CyanideServer
 
-# Mocks and fixtures would be better, but for integration we might want to spin up the server
-# However, spinning up the full server might be heavy.
-# Let's mock the server dependencies or use a light config.
 
-
-# Function 334: Performs operations related to server config.
 @pytest.fixture
 def server_config(tmp_path):
     return {
-        "ssh": {"enabled": True, "port": 0, "backend_mode": "emulated"},  # Port 0 for dynamic
+        "ssh": {"enabled": True, "port": 0, "backend_mode": "emulated"},
         "telnet": {"enabled": True, "port": 0, "backend_mode": "emulated"},
-        "metrics": {"enabled": False},  # Disable metrics for now to avoid port conflict
+        "metrics": {"enabled": False},
         "logging": {"directory": str(tmp_path / "logs")},
         "quarantine_path": str(tmp_path / "quarantine"),
         "users": [{"user": "root", "pass": "toor"}, {"user": "admin", "pass": "admin"}],
@@ -26,13 +21,11 @@ def server_config(tmp_path):
     }
 
 
-# Function 335: Performs operations related to honeypot server.
 @pytest_asyncio.fixture
 async def honeypot_server(server_config):
     server = CyanideServer(server_config)
     task = asyncio.create_task(server.start())
 
-    # Wait for servers to start and bind
     for _ in range(10):
         if server.ssh_server and server.telnet_server:
             break
@@ -48,7 +41,6 @@ async def honeypot_server(server_config):
         pass
 
 
-# Function 336: Runs unit tests for the ssh_connection functionality.
 @pytest.mark.asyncio
 async def test_ssh_connection(honeypot_server):
     """Test that SSH server accepts connections."""
@@ -68,7 +60,6 @@ async def test_ssh_connection(honeypot_server):
         pytest.fail(f"SSH connection failed: {e}")
 
 
-# Function 337: Runs unit tests for the ssh_auth_failure functionality.
 @pytest.mark.asyncio
 async def test_ssh_auth_failure(honeypot_server):
     """Test invalid SSH credentials."""
@@ -85,7 +76,6 @@ async def test_ssh_auth_failure(honeypot_server):
             pass
 
 
-# Function 338: Runs unit tests for the telnet_connection functionality.
 @pytest.mark.asyncio
 async def test_telnet_connection(honeypot_server):
     """Test Telnet connection and auth."""
@@ -93,7 +83,6 @@ async def test_telnet_connection(honeypot_server):
     print(f"Testing Telnet on port {port}")
     reader, writer = await telnetlib3.open_connection("127.0.0.1", port)
 
-    # Expect login prompt
     out = await reader.readuntil(b"login: ")
     assert b"login: " in out
     writer.write("root\n")  # type: ignore
@@ -102,7 +91,6 @@ async def test_telnet_connection(honeypot_server):
     assert b"Password: " in out
     writer.write("toor\n")  # type: ignore
 
-    # Expect shell prompt
     out = await reader.readuntil(b"$ ")
     assert b"root@server:~$" in out
 

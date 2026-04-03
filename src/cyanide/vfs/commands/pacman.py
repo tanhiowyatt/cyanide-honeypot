@@ -24,8 +24,6 @@ class PacmanCommand(Command):
             stdout += f"Packages (1) {package}-1.0.0-1\n\n"
             stdout += "Total Download Size:   0.50 MiB\nTotal Installed Size:  1.20 MiB\n\n"
             stdout += ":: Proceed with installation? [Y/n] "
-
-            # Simple simulation of "installation"
             stdout += "y\n"
             stdout += f"({package}) checking keys in keyring...\n"
             stdout += f"({package}) checking package integrity...\n"
@@ -35,7 +33,6 @@ class PacmanCommand(Command):
             stdout += ":: Processing package changes...\n"
             stdout += f"(1/1) installing {package} [######################] 100%\n"
 
-            # Create a fake binary if it's a specific package
             if package != "system":
                 self.fs.mkfile(
                     f"/usr/bin/{package}",

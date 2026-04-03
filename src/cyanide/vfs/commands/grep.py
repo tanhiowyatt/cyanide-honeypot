@@ -5,7 +5,6 @@ from .base import Command
 
 
 class GrepCommand(Command):
-    # Function 236: Executes the 'grep' command logic within the virtual filesystem.
     async def execute(self, args, input_data=""):
         await asyncio.sleep(0)
         """Execute the grep command."""
@@ -103,7 +102,6 @@ class GrepCommand(Command):
                     output += line
         return output
 
-    # Function 237: Performs operations related to get recursive files.
     def _get_recursive_files(self, path):
         """Helper to find all files recursively."""
         files = []

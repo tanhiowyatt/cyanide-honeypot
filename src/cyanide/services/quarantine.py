@@ -10,7 +10,6 @@ class QuarantineService:
     Manages quarantine directory and file saving with quota checks.
     """
 
-    # Function 186: Initializes the class instance and its attributes.
     def __init__(self, config: Dict, logger):
         self.logger = logger
         self.config = config
@@ -23,11 +22,9 @@ class QuarantineService:
         self.vt_scanner = None
         self._background_tasks: Set[asyncio.Task] = set()
 
-    # Function 187: Configures or sets scanner.
     def set_scanner(self, scanner):
         self.vt_scanner = scanner
 
-    # Function 188: Performs operations related to save file.
     async def save_file(
         self,
         filename: str,
@@ -56,22 +53,18 @@ class QuarantineService:
                 )
                 return None
 
-            # Format: filename_sessionid
             safe_name = f"{Path(filename).name}_{session_id}"
             target_path_main = self.quarantine_path / safe_name
 
-            # Always save to the main quarantine folder
             async with aiofiles.open(target_path_main, "wb") as f:
                 await f.write(content)
 
-            # Also save to the session-specific quarantine folder if sub_dir is provided
             if sub_dir:
                 log_dir_conf = self.config.get("logging", {}).get("directory", "var/log/cyanide")
                 log_base = Path(log_dir_conf) / "tty" / sub_dir
                 target_base_session = log_base / "quarantine"
                 target_base_session.mkdir(parents=True, exist_ok=True)
 
-                # Initialize missing log files if they don't exist (consistency for forenics)
                 for log_file in ["transcript.log", "timing.time", "ml_analysis.json"]:
                     p = log_base / log_file
                     if not p.exists():
@@ -98,7 +91,6 @@ class QuarantineService:
             )
             return None
 
-    # Function 189: Handles event logging and telemetry.
     async def _scan_and_log(self, filename: str, content: bytes, session_id: str, src_ip: str):
         """Background task to scan file and log results."""
         if not self.vt_scanner:

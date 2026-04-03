@@ -24,7 +24,6 @@ def smtp_handler(mock_server):
 def mock_streams():
     reader = AsyncMock(spec=asyncio.StreamReader)
     writer = MagicMock(spec=asyncio.StreamWriter)
-    # Mock peername for _init_session
     writer.get_extra_info.return_value = ("1.2.3.4", 12345)
     return reader, writer
 
@@ -39,7 +38,6 @@ async def test_smtp_session_init(smtp_handler, mock_streams):
     assert hostname == "test-smtp-server"
     assert peer == ("1.2.3.4", 12345)
 
-    # Verify logging
     smtp_handler.logger.log_event.assert_called_with(
         session_id, "connect", {"protocol": "smtp", "src_ip": "1.2.3.4", "src_port": 12345}
     )
@@ -56,12 +54,10 @@ async def test_smtp_helo_command(smtp_handler, mock_streams):
 @pytest.mark.asyncio
 async def test_smtp_mail_rcpt_commands(smtp_handler, mock_streams):
     reader, writer = mock_streams
-    # MAIL
     await smtp_handler._cmd_mail(
         reader, writer, ["FROM:<test@example.com>"], "1.2.3.4", "test-host"
     )
     writer.write.assert_any_call(b"250 2.1.0 Ok\r\n")
-    # RCPT
     await smtp_handler._cmd_rcpt(reader, writer, ["TO:<rcpt@example.com>"], "1.2.3.4", "test-host")
     writer.write.assert_any_call(b"250 2.1.5 Ok\r\n")
 
@@ -69,7 +65,6 @@ async def test_smtp_mail_rcpt_commands(smtp_handler, mock_streams):
 @pytest.mark.asyncio
 async def test_smtp_data_command(smtp_handler, mock_streams):
     reader, writer = mock_streams
-    # Simulate multi-line data ending with dot
     reader.readline.side_effect = [b"Subject: Test\r\n", b"Hello world\r\n", b".\r\n"]
 
     await smtp_handler._cmd_data(reader, writer, [], "1.2.3.4", "test-host")
@@ -100,9 +95,7 @@ async def test_smtp_unrecognized_command(smtp_handler, mock_streams):
 @pytest.mark.asyncio
 async def test_smtp_command_loop(smtp_handler, mock_streams):
     reader, writer = mock_streams
-    # Simulate a sequence of commands
     reader.readline.side_effect = [b"HELO test.com\r\n", b"QUIT\r\n"]
-    # at_eof should return True eventually
     reader.at_eof.side_effect = [False, False, True]
 
     await smtp_handler._command_loop(reader, writer, "sess123", "1.2.3.4", "test-host")
@@ -131,7 +124,6 @@ async def test_smtp_full_connection_flow(smtp_handler, mock_streams):
 @pytest.mark.asyncio
 async def test_smtp_error_handling(smtp_handler, mock_streams):
     reader, writer = mock_streams
-    # Simulate a crash during command loop
     with patch.object(
         smtp_handler, "_command_loop", side_effect=Exception("Connection reset by peer")
     ):
@@ -148,14 +140,11 @@ async def test_smtp_error_handling(smtp_handler, mock_streams):
 @pytest.mark.asyncio
 async def test_smtp_other_commands(smtp_handler, mock_streams):
     reader, writer = mock_streams
-    # VRFY
     await smtp_handler._cmd_vrfy(reader, writer, [], "1.2.3.4", "test-host")
     writer.write.assert_any_call(
         b"252 2.1.5 Cannot VRFY user, but will accept message and attempt delivery\r\n"
     )
-    # NOOP
     await smtp_handler._cmd_noop(reader, writer, [], "1.2.3.4", "test-host")
     writer.write.assert_any_call(b"250 2.0.0 Ok\r\n")
-    # RSET
     await smtp_handler._cmd_rset(reader, writer, [], "1.2.3.4", "test-host")
     writer.write.assert_any_call(b"250 2.0.0 Reset state\r\n")

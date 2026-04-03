@@ -6,7 +6,6 @@ class AnalyticsService:
     Handles ML analysis, GeoIP enrichment, and statistics.
     """
 
-    # Function 181: Initializes the class instance and its attributes.
     def __init__(self, config: Dict, logger, session_mgr=None):
         self.config = config
         self.logger = logger
@@ -41,7 +40,6 @@ class AnalyticsService:
         if self.ml_enabled:
             self._init_ml()
 
-    # Function 182: Performs operations related to init ml.
     def _init_ml(self):
         try:
             from pathlib import Path
@@ -90,14 +88,11 @@ class AnalyticsService:
             self.logger.log_event("system", "error", {"message": f"Failed to init ML model: {e}"})
             self.ml_enabled = False
 
-    # Function 183: Performs operations related to analyze command.
     def analyze_command(self, cmd: str, src_ip: str, session_id: str, is_bot: bool = False):
         """Analyze a command string for tools and anomalies."""
-        # Record command in session stats
         if self.session_mgr:
             self.session_mgr.record_command(session_id)
 
-        # Automated Tool Detection
         automated_tools = ["wget", "curl", "python ", "perl ", "ruby ", "gcc ", "chmod +x"]
         detected_tool = next((tool.strip() for tool in automated_tools if tool in cmd), None)
         if detected_tool:
@@ -107,7 +102,6 @@ class AnalyticsService:
                 {"src_ip": src_ip, "tool": detected_tool, "command": cmd},
             )
 
-        # ML Anomaly Detection
         if not self.ml_enabled or self.ml_pipeline is None:
             return
 
@@ -148,7 +142,6 @@ class AnalyticsService:
         except Exception as e:
             self.logger.log_event(session_id, "error", {"message": f"ML Error: {e}"})
 
-    # Function 184: Performs operations related to analyze file.
     def analyze_file(self, filename: str, content: bytes, session_id: str, src_ip: str):
         """Analyze uploaded file content and filename via ML."""
         if not self.ml_enabled or self.ml_pipeline is None:
@@ -191,7 +184,6 @@ class AnalyticsService:
         except Exception as e:
             self.logger.log_event(session_id, "error", {"message": f"ML File Analysis Error: {e}"})
 
-    # Function 185: Handles event logging and telemetry.
     def _identify_threats(self, ptr_data: Optional[str]) -> list[str]:
         """Identify known scanners and bots from reverse DNS (PTR) records."""
         if not ptr_data:
@@ -199,7 +191,6 @@ class AnalyticsService:
 
         threat_intel = []
         low_ptr = ptr_data.lower()
-        # Dictionary mapping for common scanner signatures
         signatures = {
             "shodan": "Shodan Scanner",
             "censys": "Censys Scanner",
@@ -228,7 +219,6 @@ class AnalyticsService:
 
         self.logger.geoip_cache[ip] = enriched_geo
 
-    # Function 185: Handles event logging and telemetry.
     async def log_geoip(self, ip: str):
         """Async GeoIP enrichment logging."""
         geo_data = await self.geoip.lookup(ip)

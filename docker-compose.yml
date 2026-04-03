@@ -5,10 +5,10 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "2222:2222" # SSH
-      - "2323:2323" # Telnet
-      - "2525:2525" # SMTP
-      - "9090:9090" # Metrics / Prometheus
+      - "2222:2222"
+      - "2323:2323"
+      - "2525:2525"
+      - "9090:9090"
     volumes:
       - ./src/cyanide/configs:/app/configs
       - ./var/log/cyanide:/app/var/log/cyanide

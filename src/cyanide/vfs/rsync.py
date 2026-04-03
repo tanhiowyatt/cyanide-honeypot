@@ -37,7 +37,6 @@ class RsyncHandler:
 
     def _write(self, data: bytes):
         if self.process is not None:
-            # If encoding is set, write() expects a string
             self.process.channel.write(data.decode("latin-1"))
         else:
             self.session.channel.write(data.decode("latin-1"))

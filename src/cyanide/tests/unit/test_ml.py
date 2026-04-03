@@ -41,7 +41,6 @@ def test_kb_classify_command(kb):
 
 
 def test_kb_fallback_classify(kb):
-    # a command not in the corpus but in the fallback list
     kb.is_built = False
     res = kb.classify_command("chmod 777")
     assert res.get("classified") is True

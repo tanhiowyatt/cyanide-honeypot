@@ -53,14 +53,12 @@ async def test_quarantine_save_file_success(quarantine_service, mock_logger):
     assert Path(path).name.startswith(filename)
     assert open(path, "rb").read() == content
 
-    # Verify analytics call
     mock_logger.services.analytics.analyze_file.assert_called_once()
 
 
 @pytest.mark.asyncio
 async def test_quarantine_quota_reached(quarantine_service, mock_logger, quarantine_dir):
     """Test that files are rejected when quota is reached."""
-    # Create a large dummy file to fill quota (1MB = 1024*1024 bytes)
     dummy_file = quarantine_dir / "large_file"
     with open(dummy_file, "wb") as f:
         f.write(b"0" * (1024 * 1024))
@@ -71,7 +69,6 @@ async def test_quarantine_quota_reached(quarantine_service, mock_logger, quarant
     path = await quarantine_service.save_file(filename, content, "sess_quota", "2.2.2.2")
 
     assert path is None
-    # Verify warning log
     mock_logger.log_event.assert_any_call(
         "sess_quota",
         "quarantine_warning",
@@ -99,8 +96,6 @@ async def test_quarantine_vt_scanner_integration(quarantine_service, mock_logger
     content = b"X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*"
 
     await quarantine_service.save_file(filename, content, "sess_vt", "3.3.3.3")
-
-    # Wait for background task
     await asyncio.gather(*quarantine_service._background_tasks)
 
     mock_scanner.scan.assert_called_once()
@@ -134,7 +129,6 @@ async def test_quarantine_vt_scanner_error_in_result(quarantine_service, mock_lo
 
     await quarantine_service.save_file(filename, content, "sess_vt_err", "5.5.5.5")
 
-    # Wait for background task
     await asyncio.gather(*quarantine_service._background_tasks)
 
     mock_scanner.scan.assert_called_once()
@@ -152,7 +146,6 @@ async def test_quarantine_vt_scanner_error_in_result(quarantine_service, mock_lo
 @pytest.mark.asyncio
 async def test_quarantine_save_file_exception(quarantine_service, mock_logger):
     """Test error handling when file write fails."""
-    # Use patch to make aiofiles.open fail
     with patch("aiofiles.open", side_effect=Exception("Permission denied")):
         path = await quarantine_service.save_file("fail.txt", b"data", "sess_err")
 
@@ -171,10 +164,8 @@ async def test_quarantine_scan_error_log(quarantine_service, mock_logger):
 
     quarantine_service.set_scanner(mock_scanner)
 
-    # We call _scan_and_log directly for easier testing of the background logic
     await quarantine_service._scan_and_log("test.sh", b"data", "sess_scan_err", "4.4.4.4")
 
-    # Corrected: restored missing session_id argument
     mock_logger.log_event.assert_any_call(
         "sess_scan_err",
         "ml_malware_scan_error",

@@ -26,7 +26,7 @@ def test_main_catch_exception():
         patch("cyanide.main.asyncio.run", side_effect=Exception("Test Error")),
         patch("cyanide.main.async_main", new_callable=MagicMock, return_value=None),
     ):
-        main()  # Should catch and not raise
+        main()
 
 
 @pytest.mark.asyncio

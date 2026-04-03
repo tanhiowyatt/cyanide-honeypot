@@ -15,13 +15,11 @@ from cyanide.core.server import CyanideServer  # noqa: E402
 CONFIG_PATH = get_default_config_path()
 
 
-# Function 106: Checks condition: is docker.
 def is_docker():
     """Detect if running inside a Docker container."""
     return os.path.exists("/.dockerenv") or os.environ.get("DOCKER_CONTAINER")
 
 
-# Function 107: Main entry point for the application execution.
 async def async_main():
     """Main entry point."""
     if not is_docker():
@@ -45,7 +43,6 @@ async def async_main():
     await server.start()
 
 
-# Function 108: Main entry point for the application execution.
 def main():
     """Synchronous entry point for console_scripts."""
     try:

@@ -6,7 +6,6 @@ from .base import Command
 
 
 class RmdirCommand(Command):
-    # Function 262: Executes the 'rmdir' command logic within the virtual filesystem.
     async def execute(self, args, input_data=""):
         await asyncio.sleep(0)
         if not args:

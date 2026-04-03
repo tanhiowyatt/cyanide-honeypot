@@ -55,7 +55,6 @@ async def test_scp_handler_direct_session_mode(mock_session):
 @pytest.mark.asyncio
 async def test_scp_upload_permission_denied(mock_session, mock_process):
     """Test placeholder for SCP upload permission verification."""
-    # In ScpHandler, if sink mode (-t) is used, it logs a scp_exec_detected event
     pass
 
 
@@ -63,11 +62,9 @@ async def test_scp_upload_permission_denied(mock_session, mock_process):
 async def test_scp_handler_read_error(mock_session, mock_process):
     """Test handler behavior on unexpected read errors from channel."""
     handler = ScpHandler(mock_session, process=mock_process)
-    # Simulate a timeout or connection close
     mock_process.stdin.read.side_effect = asyncio.TimeoutError()
 
     rc = await handler.handle("scp -t /tmp")
-    # _read_header will return "" which breaks the loop
     assert rc == 0
 
 
@@ -94,10 +91,6 @@ async def test_scp_source_send_file(mock_session, mock_process):
     handler = ScpHandler(mock_session, process=mock_process)
     mock_session.fs.mkfile("/src.txt", content="source data")
 
-    # Client reads \0, sends \0 (initial ACK)
-    # Then handler sends header: C0644 11 src.txt\n
-    # Client reads header, sends \0 (header ACK)
-    # Note: ScpHandler._send_file waits for Acks
     mock_process.stdin.read.side_effect = [
         b"\0",  # Initial ACK
         b"\0",  # Header ACK
@@ -107,10 +100,7 @@ async def test_scp_source_send_file(mock_session, mock_process):
     rc = await handler.handle("scp -f /src.txt")
 
     assert rc == 0
-    # Capture written data to confirm file was sent
     all_writes = "".join([call[0][0] for call in mock_process.channel.write.call_args_list])
-    # SCP protocol doesn't have a strong end-of-file for source mode that we track in rc,
-    # but we can check if content was written.
     assert "source data" in all_writes
     assert "C0644" in all_writes
 
@@ -121,7 +111,6 @@ async def test_scp_source_missing_initial_ack(mock_session, mock_process):
     handler = ScpHandler(mock_session, process=mock_process)
     mock_session.fs.mkfile("/src.txt", content="data")
 
-    # Client sends NACK/Error instead of initial ACK
     mock_process.stdin.read.side_effect = [b"\x01Error\n"]
 
     rc = await handler.handle("scp -f /src.txt")

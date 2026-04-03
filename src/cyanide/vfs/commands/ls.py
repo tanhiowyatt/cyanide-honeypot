@@ -11,7 +11,6 @@ from .base import Command
 class LsCommand(Command):
     """List directory contents."""
 
-    # Function 246: Executes the 'ls' command logic within the virtual filesystem.
     async def execute(self, args: list[str], input_data: str = "") -> tuple[str, str, int]:
         await asyncio.sleep(0)
         """Execute the ls command."""
@@ -89,7 +88,6 @@ class LsCommand(Command):
         stdout = "  ".join([n[1] for n in nodes_to_list if n[1]]) + "\n"
         return stdout, "", 0
 
-    # Function 247: Performs operations related to format long.
     def _format_long(self, nodes_with_names):
         """Format listing in long format (-l)."""
         output = ""
@@ -97,7 +95,6 @@ class LsCommand(Command):
             mtime = node.mtime
             if isinstance(mtime, str):
                 try:
-                    # Handle common ISO formats or fallback
                     from dateutil import parser  # type: ignore[import-untyped]
 
                     mtime = parser.parse(mtime)
@@ -135,7 +132,6 @@ class LsCommand(Command):
             res_out, _, _ = self._format_output(nodes, long_format)
             output += res_out
 
-            # Sort children to ensure deterministic output for tests
             for name in sorted(curr_node.children.keys()):
                 if not show_all and name.startswith("."):
                     continue

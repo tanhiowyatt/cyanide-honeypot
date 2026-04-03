@@ -21,7 +21,6 @@ def temp_profile_dir(tmp_path):
 
 
 def test_scan_filesystem(temp_profile_dir):
-    # Create a small dummy rootfs
     rootfs = temp_profile_dir / "rootfs"
     rootfs.mkdir()
     (rootfs / "etc").mkdir()
@@ -40,8 +39,8 @@ def test_flatten_nodes_edge_cases():
     nodes = {
         "etc": {
             "passwd": "root:x:0:0...",
-            "network": ["interfaces", "hosts"],  # List case
-            "ssh": {"sshd_config": {"content": "Port 22", "owner": "root"}},  # Dict with content
+            "network": ["interfaces", "hosts"],
+            "ssh": {"sshd_config": {"content": "Port 22", "owner": "root"}},
         }
     }
     flat = _flatten_nodes(nodes)
@@ -102,6 +101,5 @@ def test_load_nonexistent_profile(tmp_path):
 
 
 def test_invalidate_cache():
-    # Just ensure it doesn't crash and clears internal dict
     invalidate()
     invalidate("some_profile")

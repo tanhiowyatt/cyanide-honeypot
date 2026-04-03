@@ -20,7 +20,6 @@ def test_all_output_plugins_instantiation():
     ]
 
     for plugin_name in plugin_files:
-        # Mock dependencies that might be missing in test env
         modules_to_mock = {
             "psycopg": MagicMock(),
             "psycopg2": MagicMock(),
@@ -35,14 +34,12 @@ def test_all_output_plugins_instantiation():
 
         with patch.dict("sys.modules", modules_to_mock):
             try:
-                # Import the plugin
                 module_path = f"cyanide.output.{plugin_name}"
                 module = importlib.import_module(
                     module_path
                 )  # nosemgrep: python.lang.security.audit.non-literal-import.non-literal-import
                 PluginClass = getattr(module, "Plugin")
 
-                # Instantiate with dummy config
                 config = {
                     "enabled": True,
                     "host": "127.0.0.1",
@@ -58,7 +55,6 @@ def test_all_output_plugins_instantiation():
                     "target_port": 2525,
                 }
 
-                # Setup specific mocks for behavior checks
                 if (
                     plugin_name == "splunk_hec"
                     or plugin_name == "slack"
@@ -72,17 +68,14 @@ def test_all_output_plugins_instantiation():
                 plugin = PluginClass(config)
                 assert isinstance(plugin, OutputPlugin)
 
-                # Test write (hits structural lines)
                 plugin.write({"test": "data"})
 
-                # Cleanup if it has a conn (like SQLite) to avoid ResourceWarning
                 if hasattr(plugin, "conn") and plugin.conn:
                     try:
                         plugin.conn.close()
                     except Exception:
                         pass
             except Exception as e:
-                # Some plugins might fail on init due to complicated deps, ignoring
                 print(f"Skipping plugin {plugin_name} due to: {e}")
 
 
@@ -95,7 +88,6 @@ def test_proxy_basic_coverage():
 
     from cyanide.network.ssh_proxy import CyanideSSHServer
 
-    # Just init to hit lines
     ssh_p = CyanideSSHServer(None, "127.0.0.1", 22, MagicMock())
     assert ssh_p.target_host == "127.0.0.1"
 
@@ -148,12 +140,9 @@ async def test_telnet_handler_structural_coverage():
 
     handler = TelnetHandler(server, config)
 
-    # Mock reader/writer
     reader = AsyncMock()
     writer = MagicMock()
 
-    # Create task directly without patching create_task
-    # This schedules the coroutine so it doesn't cause a warning
     task = asyncio.create_task(handler.handle_connection(reader, writer))
     await asyncio.sleep(0.1)
     task.cancel()

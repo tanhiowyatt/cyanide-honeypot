@@ -25,12 +25,8 @@ def _get_service_status(config, service, default_port):
     return f"{port} ({enabled})"
 
 
-# Function 8: Performs operations related to fmt key.
 def fmt_key(k):
     return f"{CLR_KEY}{k}{RESET}"
-
-
-# Function 7: Performs operations related to print startup banner.
 def print_startup_banner(config, resolved_profile: str = ""):
     """Print logo and startup information in a dynamic colored fastfetch-style layout."""
     logo_raw = _get_logo_raw()

@@ -16,7 +16,6 @@ def test_ssh_config_forwarding_loading():
             "forward_redirect_rules": {"80": "1.1.1.1:80"},
         }
     }
-    # In practice, CyanideConfig is often initialized from a dict that matches it
     config = CyanideConfig(**data)
     assert config.ssh.forwarding_enabled is True
     assert config.ssh.forward_redirect_rules["80"] == "1.1.1.1:80"
@@ -25,19 +24,15 @@ def test_ssh_config_forwarding_loading():
 def test_ssh_forwarding_rejection():
     """Verify that forwarding is rejected when disabled."""
     mock_honeypot = MagicMock()
-    # Pydantic-like dict to match .get() calls in server.py
     mock_honeypot.config = {"ssh": {"forwarding_enabled": False}}
 
     factory = SSHServerFactory(mock_honeypot)
     factory.src_ip = "1.2.3.4"
     factory.conn_id = "test"
 
-    # Mock logger
     mock_honeypot.logger.log_event = MagicMock()
 
-    # -L: (dest_host, dest_port, src_host, src_port)
     assert factory.direct_tcpip_requested("host", 80, "src", 123) is False
-    # -R: (dest_host, dest_port, orig_host, orig_port)
     assert factory.connection_requested("host", 80, "orig", 443) is False
 
 
@@ -45,7 +40,6 @@ def test_ssh_forwarding_rejection():
 async def test_ssh_forwarding_policy_router():
     """Verify the policy router correctly identifies redirect targets."""
     mock_honeypot = MagicMock()
-    # Mocking the dictionary structure used in server.py
     mock_honeypot.config = {
         "ssh": {
             "forwarding_enabled": True,
@@ -58,10 +52,8 @@ async def test_ssh_forwarding_policy_router():
     factory.src_ip = "1.2.3.4"
     factory.conn_id = "test"
 
-    # Mock log_event
     mock_honeypot.logger.log_event = MagicMock()
 
-    # Mock open_connection to avoid real network
     with patch("asyncio.open_connection", new_callable=MagicMock) as mock_conn:
         mock_reader = MagicMock()
         f_read1: asyncio.Future = asyncio.Future()
@@ -79,22 +71,17 @@ async def test_ssh_forwarding_policy_router():
         mock_conn.return_value = f_conn
 
         chan = MagicMock()
-        # Mock chan.read() as a coroutine returning b""
         f_read: asyncio.Future = asyncio.Future()
         f_read.set_result(b"")
         chan.read.return_value = f_read
-
-        # Mock drain
         f_drain: asyncio.Future = asyncio.Future()
         f_drain.set_result(None)
         chan.drain.return_value = f_drain
 
         chan.at_eof.side_effect = [False, True]
 
-        # Test the redirect logic
         await factory.direct_tcpip(chan, "original.com", 80, "client.home", 123)
 
-        # Check call: (host, port)
         mock_conn.assert_called()
         args, kwargs = mock_conn.call_args
         assert args[0] == "redirect.server"

@@ -6,7 +6,6 @@ from .base import Command
 
 
 class CpCommand(Command):
-    # Function 219: Executes the 'cp' command logic within the virtual filesystem.
     async def execute(self, args, input_data=""):
         await asyncio.sleep(0)
         recursive = "-r" in args or "-R" in args or "--recursive" in args
@@ -45,7 +44,6 @@ class CpCommand(Command):
 
         return "", "", 0
 
-    # Function 220: Performs operations related to copy node.
     def _copy_node(self, src_node, parent_node, new_name):
         """Recursively copy a node (File or Directory) to a new parent with a new name."""
         if isinstance(src_node, File):

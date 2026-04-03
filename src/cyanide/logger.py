@@ -6,7 +6,6 @@ from typing import Any, Optional
 
 
 class CyanideLogger:
-    # Function 100: Initializes the class instance and its attributes.
     def __init__(self, config, async_logger=None):
         self.config = config or {}
         self.log_dir = Path(
@@ -27,19 +26,16 @@ class CyanideLogger:
         self.geoip_cache: dict[str, dict[str, Any]] = {}
         self.session_to_ip: dict[str, str] = {}
 
-        # Log paths are now consistently derived from unified config or defaults
         self.server_log_path = (self.log_dir / "cyanide-server.json").resolve()
         self.server_log = self._setup_logger("cyanide_server", self.server_log_path)
 
         self.fs_log_path = (self.log_dir / "cyanide-fs.json").resolve()
         self.fs_log = self._setup_logger("cyanide_fs", self.fs_log_path)
 
-        # ML log path from config if present, otherwise default
         ml_cfg = self.config.get("ml", {})
         ml_log_str = ml_cfg.get("ml_log", str(self.log_dir / "cyanide-ml.json"))
         self.ml_log_path = Path(ml_log_str).resolve()
 
-        # Ensure directory exists and file is touchable
         try:
             self.ml_log_path.parent.mkdir(parents=True, exist_ok=True)
             if not self.ml_log_path.exists():
@@ -117,7 +113,6 @@ class CyanideLogger:
 
         return plugins
 
-    # Function 101: Sets up initial configuration and state.
     def _setup_logger(self, name, path):
         logger = logging.getLogger(name)
         logger.setLevel(logging.INFO)
@@ -168,7 +163,6 @@ class CyanideLogger:
         logger.addHandler(handler)
         return logger
 
-    # Function 102: Handles event logging and telemetry.
     def _get_target_logger_info(self, event_type):
         """Routes event target logger and its path based on event_type."""
         if event_type in [
@@ -204,7 +198,6 @@ class CyanideLogger:
         if src_ip and src_ip in self.geoip_cache:
             return self.geoip_cache[src_ip]
 
-        # Handle local/private networks
         if src_ip and (
             src_ip in ("127.0.0.1", "localhost", "::1")
             or src_ip.startswith("192.168.")
@@ -220,7 +213,6 @@ class CyanideLogger:
 
     def _prepare_log_entry(self, session_id, event_type, data):
         """Constructs the log entry with strict field ordering."""
-        # Baseline entry for non-dict data
         if not isinstance(data, dict):
             return {
                 "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -229,25 +221,20 @@ class CyanideLogger:
                 "data": data,
             }
 
-        # Dict data processing
         payload = data.copy()
         payload.pop("session", None)
         payload.pop("eventid", None)
         payload.pop("timestamp", None)
 
-        # Resolve src_ip and sync with session cache
         src_ip = payload.pop("src_ip", None)
         if not src_ip and session_id in self.session_to_ip:
             src_ip = self.session_to_ip[session_id]
         if src_ip and session_id not in self.session_to_ip:
             self.session_to_ip[session_id] = src_ip
 
-        # Resolve geoip
         caller_geoip = payload.pop("geoip", None)
         resolved_geoip = self._resolve_geoip(src_ip, caller_geoip)
 
-        # Build entry with strict field order:
-        # timestamp → session → eventid → src_ip → [payload] → geoip
         entry: dict[str, Any] = {
             "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "session": session_id,
@@ -270,14 +257,12 @@ class CyanideLogger:
 
         paths = self.session_logs[session_id]
         try:
-            # Audit Mirroring
             if self.async_logger:
                 self.async_logger.log(paths["jsonl"], line)
             else:
                 with open(paths["jsonl"], "a") as f:
                     f.write(line)
 
-            # ML Mirroring
             if event_type.startswith("ml_") or event_type == "ml_thought":
                 if self.async_logger:
                     self.async_logger.log(paths["ml_json"], line)
@@ -287,7 +272,6 @@ class CyanideLogger:
         except Exception as e:
             logging.error(f"Failed to mirror event to session log {session_id}: {e}")
 
-    # Function 103: Handles event logging and telemetry.
     def _sanitize_log_entry(self, entry: Any) -> Any:
         """Deeply convert entry values to JSON-serializable types."""
         if isinstance(entry, dict):
@@ -296,7 +280,7 @@ class CyanideLogger:
             return [self._sanitize_log_entry(v) for v in entry]
         if isinstance(entry, Path):
             return str(entry)
-        if hasattr(entry, "item"):  # Handles most numpy types (score, error)
+        if hasattr(entry, "item"):
             return entry.item()
         return entry
 
@@ -315,8 +299,6 @@ class CyanideLogger:
                 f"ERROR: CyanideLogger failed to serialize event {event_type}: {e}", file=sys.stderr
             )
             return
-
-        # Global logging
         if self.async_logger:
             self.async_logger.log(log_path, line)
         else:
@@ -324,9 +306,7 @@ class CyanideLogger:
             for h in logger.handlers:
                 h.flush()
 
-        # Session-specific mirroring
         self._mirror_to_session(session_id, event_type, line)
 
-        # Output plugins
         for plugin in self.plugins:
             plugin.emit(entry.copy())

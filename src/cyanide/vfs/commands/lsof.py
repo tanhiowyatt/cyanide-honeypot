@@ -5,7 +5,6 @@ from .base import Command
 
 
 class LsofCommand(Command):
-    # Function 248: Executes the 'lsof' command logic within the virtual filesystem.
     async def execute(self, args, input_data=""):
         await asyncio.sleep(0)
         connections = self.get_random_connections()

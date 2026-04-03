@@ -4,7 +4,6 @@ import asyncssh
 import tempfile
 from pathlib import Path
 
-# Test configurations
 HOST = "127.0.0.1"
 PORT = 2222
 USERS = [
@@ -19,7 +18,6 @@ TARGET_DIRS = [
     "/home/user",
 ]
 
-# Writable temporary directory on volume
 TEMP_BASE = "/app/var/lib/cyanide/tmp"
 os.makedirs(TEMP_BASE, exist_ok=True)
 
@@ -41,24 +39,20 @@ async def test_upload_download(username, password, target_dir):
                 remote_path = f"{target_dir}/{filename}"
                 print(f"[*] Testing {username} -> {remote_path}...", end=" ")
                 
-                # Upload (to the directory)
                 try:
                     await asyncssh.scp(local_upload_path, (conn, target_dir))
                 except Exception as e:
                     print(f"UPLOAD FAILED ({e})")
                     return False
                 
-                # Download
                 try:
                     await asyncssh.scp((conn, remote_path), local_download_path)
                 except Exception as e:
                     print(f"DOWNLOAD FAILED ({e})")
-                    # Debug: List the directory to see where the file is
                     ls_res = await conn.run(f"ls -la {target_dir}", check=False)
                     print(f"DEBUG {target_dir} content:\n{ls_res.stdout}")
                     return False
-                
-                # Verify
+                            
                 try:
                     with open(local_download_path, "r") as f:
                         downloaded = f.read()

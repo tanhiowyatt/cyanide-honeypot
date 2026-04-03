@@ -5,12 +5,10 @@ import pytest
 
 from cyanide.vfs.engine import FakeFilesystem
 
-# Suppress noise from asyncssh/cryptography
 warnings.filterwarnings("ignore", message=".*ARC4 has been moved.*")
 warnings.filterwarnings("ignore", message=".*TripleDES has been moved.*")
 
 
-# Function 324: Performs operations related to mock config.
 @pytest.fixture
 def mock_config():
     """Return a standard test configuration dictionary."""
@@ -42,12 +40,10 @@ def mock_config():
     }
 
 
-# Function 325: Performs operations related to mock fs.
 @pytest.fixture
 def mock_fs():
     """Return a fresh FakeFilesystem instance."""
     fs = FakeFilesystem(os_profile="ubuntu")
-    # Create standard directories to prevent CWD fallback to /
     fs.mkdir_p("/home/testuser")
     fs.mkdir_p("/home/admin")
     fs.mkdir_p("/root")
@@ -55,41 +51,30 @@ def mock_fs():
     fs.mkdir_p("/etc")
     return fs
 
-
-# Function 326: Handles event logging and telemetry.
 @pytest.fixture
 def mock_logger(mocker, tmp_path):
     """Return a mocked CyanideLogger."""
     logger = mocker.MagicMock()
     logger.log_event = mocker.MagicMock()
-    # Ensure log_dir is a real string path to prevent 'MagicMock' directories in root
     logger.log_dir = str(tmp_path / "var/log/cyanide")
     return logger
 
-
-# Function 327: Performs operations related to mock server.
 @pytest.fixture
 def mock_server(mock_config, mock_logger, mocker):
     """Return a mocked CyanideServer instance."""
-    # Mock external dependencies
     mocker.patch("cyanide.core.server.CyanideLogger", return_value=mock_logger)
     mocker.patch("cyanide.core.server.VTScanner")
-    # mocker.patch("cyanide.core.server.GeoIP") # Not present in server.py
     mocker.patch("cyanide.core.server.VMPool")
     mocker.patch("cyanide.core.server.StatsManager")
-
-    # Mock socket and network calls to prevent actual binding
     mocker.patch("asyncssh.listen", new_callable=AsyncMock)
     mocker.patch("asyncio.start_server", new_callable=AsyncMock)
 
     from cyanide.core.server import CyanideServer
 
     server = CyanideServer(mock_config)
-    server.logger = mock_logger  # Ensure mocked logger is used
+    server.logger = mock_logger
 
-    # Clean up any created directories during tests
     yield server
-    # Teardown if needed
 
 
 def pytest_sessionfinish(session, exitstatus):

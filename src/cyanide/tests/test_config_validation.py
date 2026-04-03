@@ -2,13 +2,11 @@ import sys
 
 from pydantic import ValidationError
 
-# Add src to path
 sys.path.append("src")
 from cyanide.core.config_schema import CyanideConfig
 
 
 def test_config_validation():
-    # Test out of range port
     bad_config = {
         "ssh": {"port": 70000},
         "ml": {},
@@ -24,7 +22,6 @@ def test_config_validation():
     except ValidationError:
         print("SUCCESS: Caught out of range port 70000")
 
-    # Test valid port
     good_config = {
         "ssh": {"port": 2222},
         "ml": {},

@@ -30,7 +30,7 @@ def test_tokenizer_save_load(tmp_path):
     tokenizer = CharacterLevelTokenizer(max_length=128)
     tokenizer.save(path)
 
-    new_tokenizer = CharacterLevelTokenizer(max_length=1)  # dummy
+    new_tokenizer = CharacterLevelTokenizer(max_length=1)
     new_tokenizer.load(path)
 
     assert new_tokenizer.max_length == 128

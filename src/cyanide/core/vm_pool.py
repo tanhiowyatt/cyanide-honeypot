@@ -104,7 +104,7 @@ class SimplePool:
             return lease
         return target
 
-    async def release_target(self, lease):  # ← оставляем, если есть await внутри
+    async def release_target(self, lease):
         pass
 
 

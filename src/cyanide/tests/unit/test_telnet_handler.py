@@ -32,7 +32,6 @@ async def test_telnet_auth_success(telnet_handler, mock_server):
     writer.wait_closed = AsyncMock()
     writer.get_extra_info.return_value = ("1.2.3.4", 12345)
 
-    # Mock handlers to simulate success flow
     with patch.object(telnet_handler, "_prepare_session", return_value=("s1", MagicMock(), True)):
         with patch.object(telnet_handler, "_send_banner", return_value=5):
             with patch.object(telnet_handler, "_perform_auth", return_value=(True, "root", 10, 10)):
@@ -62,14 +61,12 @@ async def test_telnet_perform_auth(telnet_handler, mock_server):
     writer = MagicMock()
     writer.drain = AsyncMock()
 
-    # Success case
     reader.readuntil.side_effect = [b"root\n", b"cyanide\n"]
     mock_server.is_valid_user.return_value = True
     success, user, b_in, b_out = await telnet_handler._perform_auth(reader, writer, "s1", "1.2.3.4")
     assert success is True
     assert user == "root"
 
-    # Failure case
     reader.readuntil.side_effect = [b"root\n", b"wrong\n"]
     mock_server.is_valid_user.return_value = False
     success, user, b_in, b_out = await telnet_handler._perform_auth(reader, writer, "s1", "1.2.3.4")
@@ -85,7 +82,6 @@ async def test_telnet_run_shell(telnet_handler):
     shell.cwd = "/root"
     shell.execute.return_value = ("output\n", "", 0)
 
-    # Simulate: ls\n, then exit\n
     reader.readuntil.side_effect = [b"ls\n", b"exit\n"]
 
     b_in, b_out, cmds = await telnet_handler._run_shell(
@@ -104,12 +100,10 @@ async def test_telnet_run_shell_empty_cmd(telnet_handler):
     shell = AsyncMock()
     shell.cwd = "/root"
 
-    # Empty cmd (just \n), then exit
     reader.readuntil.side_effect = [b"\n", b"exit\n"]
     b_in, b_out, cmds = await telnet_handler._run_shell(
         reader, writer, shell, MagicMock(), "s1", "1.2.3.4", "root"
     )
-    # _run_shell skips empty cmd in 'commands' list on line 236: if not cmd: continue
     assert len(cmds) == 1
     assert cmds[0] == "exit"
 
@@ -121,7 +115,6 @@ async def test_telnet_run_shell_timeout(telnet_handler):
     writer.drain = AsyncMock()
     shell = AsyncMock()
 
-    # Simulate timeout
     reader.readuntil.side_effect = asyncio.TimeoutError
     b_in, b_out, cmds = await telnet_handler._run_shell(
         reader, writer, shell, MagicMock(), "s1", "1.2.3.4", "root"
@@ -156,7 +149,6 @@ async def test_telnet_send_banner_no_issue(mock_config):
     writer = MagicMock()
     writer.drain = AsyncMock()
 
-    # Signature is (writer, fs)
     result = await handler._send_banner(writer, m_fs)
 
     assert result > 0

@@ -46,5 +46,4 @@ def test_slack_write_exception(mock_post):
 def test_slack_no_webhook():
     config: Dict[str, Any] = {}
     plugin = Plugin(config)
-    # Should return early
     plugin.write({"test": "data"})

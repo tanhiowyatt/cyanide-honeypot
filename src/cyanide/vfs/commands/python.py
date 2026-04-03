@@ -4,7 +4,6 @@ from .base import Command
 
 
 class PythonCommand(Command):
-    # Function 259: Executes the 'python' command logic within the virtual filesystem.
     async def execute(self, args, input_data=""):
         await asyncio.sleep(0)
         if "-c" in args:
@@ -35,7 +34,6 @@ class PythonCommand(Command):
             0,
         )
 
-    # Function 260: Performs operations related to on input.
     def _on_input(self, line: str) -> tuple[str, str, int]:
         cmd = line.strip()
         if cmd in ("quit()", "exit()", "exit", "quit"):

@@ -4,7 +4,6 @@ from .base import Command
 
 
 class MvCommand(Command):
-    # Function 251: Executes the 'mv' command logic within the virtual filesystem.
     async def execute(self, args, input_data=""):
         await asyncio.sleep(0)
         if len(args) < 2:

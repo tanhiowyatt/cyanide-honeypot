@@ -30,13 +30,11 @@ async def test_scp_sink_file_upload(mock_session):
     rc = await handler.handle("scp -t /tmp/test.txt")
     assert rc == 0
 
-    # Check VFS save
     mock_session.fs.mkfile.assert_called_once()
     args, kwargs = mock_session.fs.mkfile.call_args
     assert args[0] == "/tmp/test.txt"
     assert kwargs["content"] == b"hello"
 
-    # Check quarantine
     mock_session.honeypot.save_quarantine_file.assert_called_with(
         "test.txt", b"hello", "conn_test_123", "1.2.3.4"
     )
@@ -62,13 +60,10 @@ async def test_scp_sink_invalid_header(mock_session):
 async def test_scp_sink_vfs_error(mock_session):
     handler = ScpHandler(mock_session)
     mock_session.channel.read.side_effect = [b"C0644 5 test.txt\n", b"hello"]
-    # Simulate VFS error
     mock_session.honeypot.save_quarantine_file.side_effect = Exception("Disk Full")
 
     rc = await handler.handle("scp -t /tmp")
     assert rc == 1
-
-    # Check error message sent to client
     found_error = False
     for call in mock_session.channel.write.call_args_list:
         if "\x01SCP: Internal error" in call.args[0]:
@@ -86,5 +81,4 @@ async def test_scp_sink_directory_creation(mock_session):
     assert rc == 0
 
     mock_session.fs.mkdir_p.assert_called_with("/tmp/subdir")
-    # Initial ACK + D ACK + E ACK
     assert mock_session.channel.write.call_count == 3

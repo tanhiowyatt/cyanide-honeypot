@@ -3,7 +3,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Mock libvirt before importing module
 sys.modules["libvirt"] = MagicMock()
 from cyanide.core.libvirt_pool import LibvirtPool  # noqa: E402
 
@@ -85,10 +84,8 @@ async def test_rebuild_vm(pool):
 
 def test_get_domain_ip(pool):
     dom = MagicMock()
-    # NAT case
     assert pool._get_domain_ip(dom) == "192.168.1.40"
 
-    # No NAT case
     pool.use_nat = False
     dom.interfaceAddresses.return_value = {
         "eth0": {"hwaddr": "mac", "addrs": [{"addr": "1.1.1.1"}]}

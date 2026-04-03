@@ -5,7 +5,6 @@ from .base import Command
 
 
 class SystemctlCommand(Command):
-    # Function 269: Executes the 'systemctl' command logic within the virtual filesystem.
     async def execute(self, args, input_data=""):
         await asyncio.sleep(0)
         if "status" in args:

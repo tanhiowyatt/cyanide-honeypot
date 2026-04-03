@@ -6,7 +6,6 @@ from .base import Command
 class SuCommand(Command):
     """Switch user ID or become superuser."""
 
-    # Function 266: Executes the 'su' command logic within the virtual filesystem.
     async def execute(self, args: list[str], input_data: str = "") -> tuple[str, str, int]:
         await asyncio.sleep(0)
         target_user = "root"
@@ -33,18 +32,15 @@ class SuCommand(Command):
 
     def _validate_password(self, password: str) -> bool:
         """Check password against config, fallbacks, and honeypot defaults."""
-        # Check against configured users from docker-compose / config
         for user_entry in self.fs.users:
             if user_entry.get("user") == self.target_user:
                 if user_entry.get("pass") == password:
                     return True
                 break
 
-        # Fallback for common honeypot passwords
         if password in ["root", "password", "cyanide", "admin"]:
             return True
 
-        # Treat empty password as success if not explicit in config (common in honeypots)
         return not password
 
     def _update_emulator_state(self):
@@ -59,7 +55,6 @@ class SuCommand(Command):
         if not self.fs.exists(self.emulator.cwd):
             self.fs.mkdir_p(self.emulator.cwd, owner=self.target_user)
 
-    # Function 267: Performs operations related to on password.
     def _on_password(self, password: str) -> tuple[str, str, int]:
         if self._validate_password(password.strip()):
             self._update_emulator_state()

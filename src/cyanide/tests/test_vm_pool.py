@@ -4,7 +4,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Mock libvirt before importing modules that depend on it
 mock_libvirt = MagicMock()
 sys.modules["libvirt"] = mock_libvirt
 
@@ -65,7 +64,6 @@ async def test_pool_reserve_release(mock_pool_config):
 
     pool = LibvirtPool(mock_pool_config)
 
-    # Test reserve triggers provision
     lease1 = await pool.reserve_target("session1", "ssh")
     assert lease1 is not None
     assert lease1.vm_id == "test-os-1"
@@ -76,26 +74,20 @@ async def test_pool_reserve_release(mock_pool_config):
     assert lease2.vm_id == "test-os-2"
     assert lease2.protocol == "telnet"
 
-    # Pool exhausted (max_vms is 2)
     lease3 = await pool.reserve_target("session3", "ssh")
     assert lease3 is None
 
-    # Test release
     await pool.release_target(lease1)
 
-    # State should immediately become rebuilding
     assert pool.vms["test-os-1"]["state"] == "rebuilding"
 
-    # Give the background task a moment to finish rebuilding
     for _ in range(20):
         if pool.vms["test-os-1"]["state"] == "ready":
             break
         await asyncio.sleep(0.1)
 
-    # State should be ready after revert completion
     assert pool.vms["test-os-1"]["state"] == "ready"
 
-    # Should be able to reserve again
     lease4 = await pool.reserve_target("session4", "ssh")
     assert lease4 is not None
     assert lease4.vm_id == "test-os-1"
@@ -121,12 +113,7 @@ async def test_vm_pool_wrapper(mock_pool_config):
 async def test_healthcheck_eviction(mock_pool_config, monkeypatch):
     """Test eviction flow if healthcheck fails."""
     pool = LibvirtPool(mock_pool_config)
-    # Manually inject a VM
     pool.vms["test-os-bad"] = {"state": "ready", "ip": "1.2.3.4", "last_used": 0}
-
-    # We simulate healthcheck evicting a VM. In the current implementation
-    # the exact eviction logic is a placeholder `pass`.
-    # We will test the manual eviction/rebuild cycle.
 
     pool.vms["test-os-bad"]["state"] = "rebuilding"
     await pool._rebuild_vm("test-os-bad")

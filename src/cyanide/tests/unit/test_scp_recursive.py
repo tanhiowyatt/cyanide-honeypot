@@ -67,7 +67,7 @@ async def test_scp_nested_directories(mock_session, mock_process):
         b"D0755 0 dir_b\n",
         b"C0644 4 file\n",
         b"data",
-        b"\0",  # Added NULL EOF marker
+        b"\0",
         b"E\n",
         b"E\n",
         b"E\n",
@@ -85,10 +85,8 @@ async def test_scp_invalid_dir_header(mock_session, mock_process):
     handler = ScpHandler(mock_session, process=mock_process)
     mock_session.fs.mkdir_p("/tmp")
 
-    # Invalid D header
     mock_process.stdin.read.side_effect = [b"D0755 broken_dir\n", b"E\n", b""]
 
     rc = await handler.handle("scp -r -t /tmp")
     assert rc == 0
-    # Error message should be written to channel
     assert mock_process.channel.write.called

@@ -13,7 +13,6 @@ class CyanideML:
     Enhanced with Security Rules and Context Analysis (Hybrid Detection).
     """
 
-    # Function 132: Initializes the class instance and its attributes.
     def __init__(self, model_dir="assets/models"):
         self.model_dir = Path(model_dir)
         self.anomaly_detector = CommandAutoencoder.load(self.model_dir / "cyanideML.pkl")
@@ -24,7 +23,6 @@ class CyanideML:
         self.rule_engine = SecurityRuleEngine()
         self.context_analyzer = ContextAnalyzer()
 
-    # Function 133: Performs operations related to analyze command.
     def analyze_command(self, command):
         """
         Multi-layer analysis: ML -> Rules -> Context -> Fusion
@@ -161,7 +159,6 @@ class CyanideML:
             "match_method": method,
         }
 
-    # Function 134: Performs operations related to determine severity.
     def _determine_severity(self, classification):
         """
         Determine severity based on MITRE tactics.

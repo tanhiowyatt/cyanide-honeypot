@@ -14,7 +14,6 @@ class CurlCommand(Command):
     If output is stdout, prints to terminal but STILL saves to quarantine for analysis.
     """
 
-    # Function 223: Executes the 'curl' command logic within the virtual filesystem.
     async def execute(self, args, input_data=""):
         """Execute the curl command."""
         parsed, unknown = self._parse_curl_args(args)

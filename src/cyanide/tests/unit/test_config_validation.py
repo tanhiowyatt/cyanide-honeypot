@@ -6,7 +6,6 @@ from pydantic import ValidationError
 from cyanide.core.config import load_config
 
 
-# Function 428: Performs operations related to valid config.
 @pytest.fixture
 def valid_config(tmp_path):
     cfg_path = tmp_path / "cyanide.yaml"
@@ -60,10 +59,8 @@ virustotal:
     return cfg_path
 
 
-# Function 429: Performs operations related to invalid config.
 @pytest.fixture
 def invalid_config(tmp_path):
-    # Invalid backend_mode
     cfg_path = tmp_path / "invalid.yaml"
     cfg_content = """
 ssh:
@@ -101,9 +98,7 @@ virustotal:
     return cfg_path
 
 
-# Function 430: Runs unit tests for the load_valid_config functionality.
 def test_load_valid_config(valid_config, monkeypatch):
-    # Clear environment variables that might interfere
     for key in list(os.environ.keys()):
         if key.startswith("CYANIDE_") or key in (
             "SSH_PORT",
@@ -119,8 +114,6 @@ def test_load_valid_config(valid_config, monkeypatch):
     assert config["rate_limit"]["max_connections_per_minute"] == 60
 
 
-# Function 431: Runs unit tests for the load_invalid_config functionality.
 def test_load_invalid_config(invalid_config):
-    # Expect ValidationError
     with pytest.raises(ValidationError):
         load_config(invalid_config)

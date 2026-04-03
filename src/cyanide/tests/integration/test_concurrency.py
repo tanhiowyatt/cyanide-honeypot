@@ -27,7 +27,6 @@ async def test_concurrency_load(base_config):
     server = CyanideServer(base_config)
     task = asyncio.create_task(server.start())
 
-    # Wait for start
     await asyncio.sleep(1)
     port = server.ssh_server.sockets[0].getsockname()[1]
 
@@ -38,18 +37,17 @@ async def test_concurrency_load(base_config):
             await conn.run("ls -la")
             await asyncio.sleep(0.1)
 
-    # Simulate 50 concurrent connections
     start_time = time.time()
     tasks = []
     for _ in range(50):
         tasks.append(asyncio.create_task(connect_and_ls()))
-        await asyncio.sleep(0.05)  # Stagger
+        await asyncio.sleep(0.05)
 
     await asyncio.gather(*tasks)
     duration = time.time() - start_time
 
     print(f"50 connections duration: {duration:.2f}s")
-    assert duration < 10  # Should be fast
+    assert duration < 10
 
     await server.stop()
     task.cancel()
@@ -57,14 +55,11 @@ async def test_concurrency_load(base_config):
 
 @pytest.mark.asyncio
 async def test_memory_leak_check(base_config):
-    # Very basic "stress" to see if it crashes or grows too much
-    # In a real environment we'd use psutil to monitor RSS
     server = CyanideServer(base_config)
     task = asyncio.create_task(server.start())
     await asyncio.sleep(1)
     port = server.ssh_server.sockets[0].getsockname()[1]
 
-    # Run 100 quick commands
     for _ in range(100):
         async with asyncssh.connect(
             "127.0.0.1", port=port, username="root", password="toor", known_hosts=None

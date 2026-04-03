@@ -23,9 +23,8 @@ def advanced_config(tmp_path: Path) -> dict[str, Any]:
         "users": [{"user": "root", "pass": "toor"}],
         "max_connections_per_minute": 1000,
         "max_sessions_per_ip": 100,
-        "shell": {"max_chain_depth": 50, "max_output_size": 1024},  # 1KB for easy testing
+        "shell": {"max_chain_depth": 50, "max_output_size": 1024}, 
     }
-
 
 @pytest.mark.asyncio
 async def test_log_correlation(advanced_config: dict[str, Any]) -> None:
@@ -56,7 +55,6 @@ async def test_log_correlation(advanced_config: dict[str, Any]) -> None:
         assert len(session_ids) > 0
         target_session = session_ids[0]
 
-        # Correlate with session-specific audit log
         audit_log = log_dir / "tty" / f"ssh_127.0.0.1_{target_session}" / "audit.json"
         assert audit_log.exists(), f"Audit log {audit_log} not found"
 

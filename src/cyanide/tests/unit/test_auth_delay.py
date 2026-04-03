@@ -37,11 +37,9 @@ async def test_telnet_auth_delay(mock_honeypot):
     writer = MagicMock()
     writer.drain = AsyncMock()
 
-    # Mock inputs for _perform_auth
     reader.readuntil.side_effect = [b"user\n", b"pass\n"]
 
     with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
-        # We need to run _perform_auth specifically
         success, user, b_in, b_out = await handler._perform_auth(
             reader, writer, "sess_id", "1.2.3.4"
         )

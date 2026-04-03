@@ -12,18 +12,15 @@ def emulator():
 
 @pytest.mark.asyncio
 async def test_complex_command_chains(emulator):
-    # Test &&
     out, err, code = await emulator.execute("echo A && echo B")
     assert "A" in out
     assert "B" in out
     assert code == 0
 
-    # Test ||
     out, err, code = await emulator.execute("false || echo C")
     assert "C" in out
     assert code == 0
 
-    # Test semicolon
     out, err, code = await emulator.execute("echo E; echo F")
     assert "E" in out
     assert "F" in out

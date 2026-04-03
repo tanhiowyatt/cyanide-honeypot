@@ -88,7 +88,6 @@ def test_kb_save(mock_dump, kb, tmp_path):
 @patch("joblib.load")
 def test_kb_load(mock_load, kb, tmp_path):
     load_path = tmp_path / "kb.pkl"
-    # Create the file structure to avoid FileNotFoundError in open()
     load_path.write_bytes(b"dummy")
     mock_load.return_value = {"is_built": True, "command_corpus": ["test"]}
     kb.load(load_path)

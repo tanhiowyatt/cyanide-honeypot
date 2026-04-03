@@ -39,8 +39,8 @@ def test_logger_time_rotating_handlers(temp_log_dir):
     assert len(server_logger.handlers) == 1
     handler = server_logger.handlers[0]
     assert isinstance(handler, logging.handlers.TimedRotatingFileHandler)
-    assert handler.when == "MIDNIGHT"  # timedrotatingfilehandler converts it to upper
-    assert handler.interval == 86400  # TimedRotatingFileHandler works natively in seconds
+    assert handler.when == "MIDNIGHT"
+    assert handler.interval == 86400
     assert handler.backupCount == 7
 
 
@@ -57,7 +57,6 @@ def test_logger_size_rotating_handlers(temp_log_dir):
     assert len(server_logger.handlers) == 1
     handler = server_logger.handlers[0]
     assert isinstance(handler, logging.handlers.RotatingFileHandler)
-    # TimedRotating subclassess Rotating so must check specific types accurately
     assert handler.maxBytes == 1024
     assert handler.backupCount == 3
 

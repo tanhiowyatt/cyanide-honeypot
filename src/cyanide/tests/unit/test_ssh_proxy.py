@@ -64,12 +64,10 @@ def test_proxy_session_requests(proxy_session):
 
 @pytest.mark.asyncio
 async def test_proxy_session_get_target(proxy_session):
-    # No pool
     host, port = await proxy_session._get_target()
     assert host == "1.2.3.4"
     assert port == 22
 
-    # With pool
     proxy_session.pool = AsyncMock()
     proxy_session.pool.reserve_target.return_value = MagicMock(host="10.0.0.1", port=2222)
     host, port = await proxy_session._get_target()

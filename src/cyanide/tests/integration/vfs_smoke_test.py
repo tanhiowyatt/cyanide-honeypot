@@ -3,13 +3,11 @@ import os
 import sys
 from pathlib import Path
 
-# Add src to sys.path
 sys.path.append(str(Path(__file__).parent.parent.parent / "src"))
 
 from cyanide.core.server import CyanideServer
 
 
-# Function 339: Runs unit tests for the smoke_test functionality.
 async def smoke_test():
     config = {
         "os_profile": "ubuntu",
@@ -17,7 +15,6 @@ async def smoke_test():
         "users": [{"user": "root", "pass": "root"}],
     }
 
-    # Ensure log dir exists
     os.makedirs("var/log/cyanide", exist_ok=True)
 
     server = CyanideServer(config)

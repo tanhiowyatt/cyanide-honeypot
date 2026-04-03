@@ -29,12 +29,10 @@ def test_dshield_write_and_flush(mock_post, dshield_plugin):
         "server_ip": "2.2.2.2",
     }
 
-    # Write first event - should be buffered
     dshield_plugin.write(event1)
     assert len(dshield_plugin.buffer) == 1
     assert mock_post.called is False
 
-    # Write second event - should trigger flush
     dshield_plugin.write(event1)
     assert len(dshield_plugin.buffer) == 0
     assert mock_post.called is True

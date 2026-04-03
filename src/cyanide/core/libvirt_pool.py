@@ -178,8 +178,6 @@ class LibvirtPool:
                         {"backend": "libvirt", "host": host, "port": port, "vm_id": vm_id},
                     )
                 if v["state"] == "leased":
-                    # We can't easily find the lease here without more lookup,
-                    # but we can force a rebuild of the VM.
                     v["state"] = "rebuilding"
                     task = asyncio.create_task(self._rebuild_vm(vm_id))
                     self._rebuild_tasks.add(task)
@@ -216,7 +214,6 @@ class LibvirtPool:
                 if await loop.run_in_executor(None, dom.isActive):
                     await loop.run_in_executor(None, dom.destroy)
                 if self.save_snapshots:
-                    # Snapshot reversion logic would go here if enabled.
                     pass
                 await loop.run_in_executor(None, dom.create)
             except Exception as e:
@@ -235,7 +232,6 @@ class LibvirtPool:
             async with self.lock:
                 for vm_id, v in self.vms.items():
                     if v["state"] == "ready":
-                        # Perform actual guest healthcheck (e.g. ping or SSH) here.
                         pass
 
     async def _recycle_loop(self):

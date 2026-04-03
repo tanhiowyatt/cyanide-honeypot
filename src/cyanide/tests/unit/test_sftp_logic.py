@@ -13,11 +13,10 @@ def mock_chan():
     conn = MagicMock(spec=asyncssh.SSHClientConnection)
     chan.get_connection.return_value = conn
     conn.get_extra_info.return_value = "root"
-    # Setup mock factory/honeypot context
     conn.cyanide_factory = MagicMock()
     conn.cyanide_factory.honeypot = MagicMock()
     fs = FakeFilesystem()
-    fs.mkdir_p("/tmp")  # Ensure /tmp exists
+    fs.mkdir_p("/tmp")
     conn.cyanide_factory.fs = fs
     conn.cyanide_factory.conn_id = "test_sftp_123"
     conn.cyanide_factory.src_ip = "1.2.3.4"
@@ -36,29 +35,21 @@ def sftp_handler(mock_chan):
 @pytest.mark.asyncio
 async def test_sftp_handler_read_write(sftp_handler):
     """Test CyanideSFTPHandler read and write operations."""
-    # Open a file to get a handle
     handle = await sftp_handler.open(
         "/tmp/test.txt", asyncssh.FXF_WRITE | asyncssh.FXF_CREAT, asyncssh.SFTPAttrs()
     )
-
-    # Test write
     await sftp_handler.write(handle, 0, b"initial data")
 
-    # Test read
     data = await sftp_handler.read(handle, 0, 7)
     assert data == b"initial"
 
-    # Test read out of bounds
     data = await sftp_handler.read(handle, 20, 5)
     assert data == b""
 
-    # Test write middle
     await sftp_handler.write(handle, 8, b"new")
-    # Verify buffer indirectly via read
     buffer_data = await sftp_handler.read(handle, 0, 20)
     assert buffer_data.startswith(b"initial new")
 
-    # Test write with extension
     await sftp_handler.write(handle, 15, b"end")
     final_data = await sftp_handler.read(handle, 0, 30)
     assert final_data[15:18] == b"end"
@@ -107,14 +98,12 @@ async def test_sftp_handler_permissions(sftp_handler, mock_chan):
     """Test upload/download permission enforcement."""
     config = mock_chan.get_connection().cyanide_factory.honeypot.config
 
-    # Disable uploads
     config["ssh"]["allow_upload"] = False
     with pytest.raises(asyncssh.SFTPPermissionDenied):
         await sftp_handler.open(
             "/test", asyncssh.FXF_WRITE | asyncssh.FXF_CREAT, asyncssh.SFTPAttrs()
         )
 
-    # Disable downloads
     config["ssh"]["allow_upload"] = True
     config["ssh"]["allow_download"] = False
     with pytest.raises(asyncssh.SFTPPermissionDenied):
@@ -125,7 +114,7 @@ async def test_sftp_handler_permissions(sftp_handler, mock_chan):
 async def test_sftp_upload_limit_exceeded(sftp_handler, mock_chan):
     """Test that session upload limit is enforced."""
     config = mock_chan.get_connection().cyanide_factory.honeypot.config
-    config["ssh"]["max_total_upload_mb_per_session"] = 0  # 0MB limit
+    config["ssh"]["max_total_upload_mb_per_session"] = 0
 
     handle = await sftp_handler.open(
         "/test", asyncssh.FXF_WRITE | asyncssh.FXF_CREAT, asyncssh.SFTPAttrs()
@@ -139,22 +128,18 @@ async def test_sftp_handler_ops(sftp_handler, mock_chan):
     """Test various SFTP handler operations (mkdir, remove, rename, stat)."""
     fs = mock_chan.get_connection().cyanide_factory.fs
 
-    # mkdir
     await sftp_handler.mkdir("/new_dir", asyncssh.SFTPAttrs())
     assert fs.exists("/new_dir")
 
-    # rename
     fs.mkfile("/old.txt", content="old")
     await sftp_handler.rename("/old.txt", "/new.txt")
     assert not fs.exists("/old.txt")
     assert fs.exists("/new.txt")
 
-    # stat
     attrs = await sftp_handler.stat("/new.txt")
     assert attrs.size == len("old")
     assert sftp_handler._get_node_content("/new.txt") == b"old"
 
-    # remove
     await sftp_handler.remove("/new.txt")
     assert not fs.exists("/new.txt")
 
@@ -190,7 +175,6 @@ async def test_sftp_handler_fstat_fsetstat(sftp_handler, mock_chan):
     assert attrs.size == 4
 
     await sftp_handler.fsetstat(handle, asyncssh.SFTPAttrs())
-    # Just check it logs or doesn't crash
 
 
 @pytest.mark.asyncio
@@ -258,13 +242,11 @@ async def test_sftp_handler_lstat(sftp_handler, mock_chan):
 async def test_sftp_handler_setstat(sftp_handler):
     """Test setstat logging."""
     await sftp_handler.setstat("/path", asyncssh.SFTPAttrs())
-    # No crash
 
 
 @pytest.mark.asyncio
 async def test_sftp_parse_mode_dir(sftp_handler):
     """Test directory mode parsing."""
-    # Mocking node for _get_attrs
     node = MagicMock()
     node.perm = "drwxr-xr-x"
     node.owner = "root"
@@ -272,4 +254,4 @@ async def test_sftp_parse_mode_dir(sftp_handler):
     node.size = 4096
 
     attrs = sftp_handler._get_attrs(node)
-    assert attrs.permissions & 0o40000  # S_IFDIR
+    assert attrs.permissions & 0o40000

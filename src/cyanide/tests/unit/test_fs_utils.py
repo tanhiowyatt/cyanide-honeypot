@@ -15,7 +15,6 @@ def test_list_profiles_empty():
 
 
 def test_list_profiles_with_data(tmp_path):
-    # Mocking filesystem structure
     profile_dir = tmp_path / "profiles"
     profile_dir.mkdir()
     ubuntu_dir = profile_dir / "ubuntu"

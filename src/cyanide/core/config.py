@@ -124,10 +124,6 @@ def _get_val(config_data, section, key, default=None, cast=str):
     return val
 
 
-# Users parsing is now handled by _get_val using cast="json"
-
-
-# Function 16: Loads config from storage or configuration.
 def load_config(path: Any = None):
     """Load and normalized configuration from YAML file and .env."""
     if path is None:
@@ -325,7 +321,6 @@ def load_config(path: Any = None):
         "users": get_val("auth", "users", [{"user": "root", "pass": "admin"}], cast="json"),
     }
 
-    # Ensure all Path objects in the returned dictionary are converted to strings for JSON serializability
     def stringify_paths(d):
         if isinstance(d, dict):
             return {k: stringify_paths(v) for k, v in d.items()}

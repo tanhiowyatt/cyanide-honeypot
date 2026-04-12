@@ -40,14 +40,24 @@ class Plugin(OutputPlugin):
             logging.error(f"[MongoDB] Connection failed: {e}")
             self.client = None
 
+    def _get_collection(self) -> Optional[pymongo.collection.Collection]:
+        if self.db is None:
+            return None
+        return self.db[self.collection]
+    
     def write(self, event: Dict[str, Any]):
         if not self.client:
             self._connect()
             if not self.client:
                 return
 
+        collection = self._get_collection()
+        if collection is None:
+            logging.error("[MongoDB] Collection not available")
+            return
+        
         try:
-            self.db[self.collection].insert_one(event.copy())
+            collection.insert_one(event.copy())
         except Exception as e:
             logging.error(f"[MongoDB] Write failure: {e}")
             self.client = None

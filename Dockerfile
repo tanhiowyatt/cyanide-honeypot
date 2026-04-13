@@ -48,4 +48,4 @@ RUN mkdir -p var/log/cyanide/tty var/log/cyanide/keys var/quarantine var/lib/cya
 USER cyanide
 EXPOSE 2222 2323 2525 9090
 
-ENTRYPOINT ["cyanide"]
+ENTRYPOINT ["cyanide-honeypot"]

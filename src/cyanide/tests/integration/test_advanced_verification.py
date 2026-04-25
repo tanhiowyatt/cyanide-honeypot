@@ -50,7 +50,7 @@ async def test_log_correlation(advanced_config: dict[str, Any]) -> None:
         await asyncio.sleep(1)
 
         log_dir = Path(advanced_config["logging"]["directory"])
-        fs_log = log_dir / "cyanide-fs.json"
+        fs_log = log_dir / "cyanide-vfs.json"
 
         with open(fs_log, "r") as f:
             fs_entries = [json.loads(line) for line in f if line.strip()]

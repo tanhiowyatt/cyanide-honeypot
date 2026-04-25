@@ -57,19 +57,31 @@ def test_server_route_metrics_request(server):
     content, ctype = server._route_metrics_request("/metrics")
     assert content == "prom_metrics"
 
-    content, ctype = server._route_metrics_request("/stats")
+    content, ctype = server._route_metrics_request("/logs/stats")
     assert "sessions" in content
 
     content, ctype = server._route_metrics_request("/health")
     assert "healthy" in content
 
-    content, ctype = server._route_metrics_request("/random")
-    assert "Metrics Server" in content
+    content, ctype = server._route_metrics_request("/")
+    assert "cyanide_control_plane" in content
 
-
-def test_server_route_metrics_logs(server):
-    content, ctype = server._route_metrics_request("/logs")
-    assert "restricted" in content
+    with (
+        patch("os.path.exists", return_value=True),
+        patch("os.path.isfile", return_value=True),
+        patch(
+            "builtins.open",
+            MagicMock(
+                return_value=MagicMock(
+                    __enter__=MagicMock(
+                        return_value=MagicMock(read=MagicMock(return_value="log content"))
+                    )
+                )
+            ),
+        ),
+    ):
+        content, ctype = server._route_metrics_request("/logs/server")
+        assert "log content" in content
 
 
 @pytest.mark.asyncio

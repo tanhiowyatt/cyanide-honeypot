@@ -7,8 +7,7 @@ class NcCommand(Command):
     async def execute(self, args, input_data=""):
         await asyncio.sleep(0.5)
 
-        if self.emulator.logger:
-            self.emulator.logger.log_event(self.emulator.session_id, "nc_execution", {"args": args})
+        self._log_event("nc_execution", {"args": args})
 
         if "--help" in args or "-h" in args:
             return "Usage: nc [options] [hostname] [port]\n", "", 0
@@ -19,12 +18,10 @@ class NcCommand(Command):
                 e_idx = args.index("-e")
                 if e_idx + 1 < len(args):
                     shell = args[e_idx + 1]
-                    if self.emulator.logger:
-                        self.emulator.logger.log_event(
-                            self.emulator.session_id,
-                            "nc_reverse_shell_attempt",
-                            {"shell": shell},
-                        )
+                    self._log_event(
+                        "nc_reverse_shell_attempt",
+                        {"shell": shell},
+                    )
                     # Simulate waiting for connection
                     await asyncio.sleep(2)
                     return "", "nc: connection timed out\n", 1

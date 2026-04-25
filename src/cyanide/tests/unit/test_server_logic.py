@@ -260,14 +260,14 @@ def test_route_metrics_request(server):
 
     res, ct = server._route_metrics_request("/metrics")
     assert "text/plain" in ct
-    res, ct = server._route_metrics_request("/stats")
+    res, ct = server._route_metrics_request("/logs/stats")
     assert ct == "application/json"
     res, ct = server._route_metrics_request("/health")
     assert ct == "application/json"
     res, ct = server._route_metrics_request("/logs/foo")
-    assert res == "Log access is restricted in metrics mode."
+    assert "Not Found" in res
     res, ct = server._route_metrics_request("/unknown")
-    assert "Cyanide Metrics Server" in res
+    assert "Not Found" in res
 
 
 @pytest.mark.asyncio

@@ -13,6 +13,16 @@ class GeoIP:
         self.base_url = "https://ip-api.com/json"
         self.cache: Dict[str, Any] = {}
         self.cache_size = cache_size
+        self._session: Optional[aiohttp.ClientSession] = None
+
+    async def _get_session(self) -> aiohttp.ClientSession:
+        if self._session is None or self._session.closed:
+            self._session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=3))
+        return self._session
+
+    async def close(self):
+        if self._session and not self._session.closed:
+            await self._session.close()
 
     async def lookup(self, ip: str) -> Optional[dict]:
         """
@@ -42,23 +52,23 @@ class GeoIP:
             return cast(Dict[Any, Any], self.cache[ip])
 
         try:
-            async with aiohttp.ClientSession() as session:
-                url = f"{self.base_url}/{ip}"
-                async with session.get(url, timeout=aiohttp.ClientTimeout(total=3)) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        if data.get("status") == "success":
-                            result = {
-                                "country": data.get("country"),
-                                "city": data.get("city"),
-                                "isp": data.get("isp"),
-                                "lat": data.get("lat"),
-                                "lon": data.get("lon"),
-                                "org": data.get("org"),
-                            }
-                            if len(self.cache) < self.cache_size:
-                                self.cache[ip] = result
-                            return result
+            session = await self._get_session()
+            url = f"{self.base_url}/{ip}"
+            async with session.get(url) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    if data.get("status") == "success":
+                        result = {
+                            "country": data.get("country"),
+                            "city": data.get("city"),
+                            "isp": data.get("isp"),
+                            "lat": data.get("lat"),
+                            "lon": data.get("lon"),
+                            "org": data.get("org"),
+                        }
+                        if len(self.cache) < self.cache_size:
+                            self.cache[ip] = result
+                        return result
         except Exception:
             pass
 

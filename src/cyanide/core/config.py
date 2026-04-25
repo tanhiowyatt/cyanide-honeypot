@@ -364,6 +364,11 @@ def _assemble_config_dict(config_data: dict) -> dict:
             "enabled": get_val("virustotal", "enabled", False, bool),
             "api_key": get_val("virustotal", "api_key", None),
         },
+        "ioc_reporting": {
+            "enabled": get_val("ioc_reporting", "enabled", True, bool),
+            "report_interval_hours": get_val("ioc_reporting", "report_interval_hours", 1, int),
+            "output_format": get_val("ioc_reporting", "output_format", "stix2.1"),
+        },
         "output": config_data.get("output", {}),
         "custom_profile": config_data.get("custom_profile", {}),
         "honeytokens": get_val("honeypot", "honeytokens", [], cast="json"),

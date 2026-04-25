@@ -23,12 +23,10 @@ class PythonCommand(Command):
         return self._start_interactive()
 
     def _log_execution(self, args: list[str], input_data: str):
-        if self.emulator.logger:
-            self.emulator.logger.log_event(
-                self.emulator.session_id,
-                "python_execution_attempt",
-                {"args": args, "input_len": len(input_data)},
-            )
+        self._log_event(
+            "python_execution_attempt",
+            {"args": args, "input_len": len(input_data)},
+        )
 
     def _handle_help(self) -> tuple[str, str, int]:
         return (
@@ -47,12 +45,10 @@ class PythonCommand(Command):
             c_idx = args.index("-c")
             if c_idx + 1 < len(args):
                 script = args[c_idx + 1]
-                if self.emulator.logger:
-                    self.emulator.logger.log_event(
-                        self.emulator.session_id,
-                        "python_script_payload",
-                        {"script": script},
-                    )
+                self._log_event(
+                    "python_script_payload",
+                    {"script": script},
+                )
                 return "", "", 0
             else:
                 return (
@@ -71,15 +67,13 @@ class PythonCommand(Command):
                 f"python: can't open file '{args[0]}': [Errno 2] No such file or directory\n",
                 2,
             )
-        if self.emulator.logger:
-            content = self.fs.get_content(target)
-            if isinstance(content, bytes):
-                content = content.decode("utf-8", "ignore")
-            self.emulator.logger.log_event(
-                self.emulator.session_id,
-                "python_file_run",
-                {"file": args[0], "content": content},
-            )
+        content = self.fs.get_content(target)
+        if isinstance(content, bytes):
+            content = content.decode("utf-8", "ignore")
+        self._log_event(
+            "python_file_run",
+            {"file": args[0], "content": content},
+        )
         return "", "", 0
 
     def _start_interactive(self) -> tuple[str, str, int]:
@@ -105,10 +99,7 @@ class PythonCommand(Command):
             return "", "", 0
 
         # Log interactive python session lines
-        if self.emulator.logger:
-            self.emulator.logger.log_event(
-                self.emulator.session_id, "python_repl_input", {"line": cmd}
-            )
+        self._log_event("python_repl_input", {"line": cmd})
 
         output = ""
         # Simple imitation of common Python errors/outputs

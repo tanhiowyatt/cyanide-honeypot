@@ -20,6 +20,7 @@ Whether you are looking to deploy Cyanide in your network or dive deep into its 
 | [**Quick Start**](user-reference/QuickStart.md) | Get Cyanide running in under 5 minutes using Docker. |
 | [**Detailed Configuration**](user-reference/AdvancedUsage.md) | A complete reference for environment variables and honeypot tuning. |
 | [**SIEM Integrations**](user-reference/Integrations.md) | Connecting to ELK, Splunk, Slack, and setting up alert rules. |
+| [**Threat Intelligence**](user-reference/ThreatIntelligence.md) | Automatic IOC extraction and STIX 2.1 reporting. |
 
 ### For Architects (Technical Reference)
 *Explore the internal mechanics, VFS logic, and machine learning components.*

@@ -59,6 +59,7 @@ services:
       - CYANIDE_TELNET_ENABLED=true
       - CYANIDE_TELNET_PORT=2323
       - CYANIDE_ML_ENABLED=true
+      - CYANIDE_ML_ONLINE_LEARNING=false
       - CYANIDE_ML_RETRAINING_INTERVAL_DAYS=7
       - CYANIDE_CLEANUP_ENABLED=true
       - CYANIDE_CLEANUP_INTERVAL=3600
@@ -73,15 +74,16 @@ services:
       - CYANIDE_SMTP_PORT=2525
       - CYANIDE_VIRUSTOTAL_ENABLED=true
       - CYANIDE_VIRUSTOTAL_API_KEY=
+      - CYANIDE_IOC_REPORTING_ENABLED=true
+      - CYANIDE_IOC_REPORTING_INTERVAL_HOURS=0.016
       - 'CYANIDE_AUTH_USERS=[{"user": "root", "pass": "admin"}, {"user": "admin", "pass": "admin"}, {"user": "user", "pass": "123456"}]'
-      - CYANIDE_HONEYPOT_PACKAGE_MANAGER=apt,dpkg  # Override package managers (e.g. apt,dpkg or yum,rpm)
-
+      - CYANIDE_HONEYPOT_PACKAGE_MANAGER=apt,dpkg # Override package managers (e.g. apt,dpkg or yum,rpm)
 
       - CYANIDE_OUTPUT_SQLITE_ENABLED=false
 
       - CYANIDE_OUTPUT_MYSQL_ENABLED=false
 
-      - CYANIDE_OUTPUT_POSTGRESQL_ENABLED=true
+      - CYANIDE_OUTPUT_POSTGRESQL_ENABLED=false
 
       - CYANIDE_OUTPUT_MONGODB_ENABLED=false
       - CYANIDE_OUTPUT_MONGODB_URI=mongodb://cyanide:password@mongodb:27017/cyanide?authSource=admin
@@ -95,8 +97,15 @@ services:
 
       - CYANIDE_OUTPUT_SYSLOG_ENABLED=false
 
-      # - CYANIDE_OUTPUT_SLACK_ENABLED=true
-      # - CYANIDE_OUTPUT_SLACK_WEBHOOK_URL=
+      - CYANIDE_OUTPUT_SLACK_ENABLED=false
+      - CYANIDE_OUTPUT_SLACK_WEBHOOK_URL=
+
+      - CYANIDE_OUTPUT_DISCORD_ENABLED=false
+      - CYANIDE_OUTPUT_DISCORD_WEBHOOK_URL=
+
+      - CYANIDE_OUTPUT_TELEGRAM_ENABLED=false
+      - CYANIDE_OUTPUT_TELEGRAM_TOKEN=
+      - CYANIDE_OUTPUT_TELEGRAM_CHAT_ID=
 
       - CYANIDE_OUTPUT_HPFEEDS_ENABLED=false
       - CYANIDE_OUTPUT_HPFEEDS_HOST=hpfeeds

@@ -199,7 +199,6 @@ class ShellEmulator:
 
     async def execute(self, command_line: str) -> tuple[str, str, int]:
         """Execute a shell command line dealing with chains, pipes, and redirections."""
-        # print(f"DEBUG: execute('{command_line}')")
         if self.pending_input_callback:
             callback = self.pending_input_callback
             self.pending_input_callback = None

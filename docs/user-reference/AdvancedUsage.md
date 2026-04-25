@@ -54,7 +54,11 @@ Click on a section below to expand the available settings.
 | `CYANIDE_ML_ENABLED` | `true` | Toggle the LSTM behavioral analysis engine. |
 | `CYANIDE_ML_THRESHOLD` | `0.8` | Anomaly score threshold for malicious flagging. |
 | `CYANIDE_ML_ONLINE_LEARNING` | `false` | If true, the model updates based on live traffic. |
+| `CYANIDE_ML_RETRAINING_INTERVAL_DAYS` | `7` | Days between automatic ML model retraining. |
 | `CYANIDE_VIRUSTOTAL_ENABLED` | `false` | Toggle automated malware scanning via VT API. |
+| `CYANIDE_IOC_REPORTING_ENABLED` | `true` | Enable automatic STIX 2.1 and MISP IOC reporting. |
+| `CYANIDE_IOC_REPORTING_INTERVAL_HOURS` | `1` | Hours between IOC report generations. |
+| `CYANIDE_IOC_REPORTING_OUTPUT_FORMAT` | `all` | Report format: `stix2.1`, `misp`, or `all`. |
 
 </details>
 
@@ -67,6 +71,33 @@ Click on a section below to expand the available settings.
 | `CYANIDE_LOGGING_LOGTYPE` | `plain` | Mode: `plain` or `rotating`. |
 | `CYANIDE_METRICS_ENABLED` | `true` | Export Prometheus metrics on port 9090. |
 | `CYANIDE_OTEL_ENABLED` | `false` | Enable OpenTelemetry tracing. |
+| `CYANIDE_OTEL_ENDPOINT` | `http://localhost:4318/v1/traces` | OTLP collector endpoint. |
+
+</details>
+
+### HTTP API Endpoints
+If the Metrics server is enabled (`CYANIDE_METRICS_ENABLED`), you can access real-time status and reports via:
+*   `/metrics`: Prometheus-compatible metrics.
+*   `/stats`: High-level JSON statistics summary.
+*   `/health`: Health check probe (returns HTTP 200 if OK).
+*   `/reports/stix`: Download the latest STIX 2.1 IOC bundle.
+*   `/reports/misp`: Download the latest MISP JSON report.
+
+> [!NOTE]
+> All endpoints except `/health` require a Bearer Token if `CYANIDE_METRICS_TOKEN` is configured.
+
+<details>
+<summary>05. Integrations (Webhooks)</summary>
+
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `CYANIDE_OUTPUT_SLACK_ENABLED` | `false` | Toggle Slack notification plugin. |
+| `CYANIDE_OUTPUT_SLACK_WEBHOOK_URL` | `None` | Incoming Webhook URL for Slack. |
+| `CYANIDE_OUTPUT_DISCORD_ENABLED` | `false` | Toggle Discord notification plugin. |
+| `CYANIDE_OUTPUT_DISCORD_WEBHOOK_URL` | `None` | Webhook URL for Discord. |
+| `CYANIDE_OUTPUT_TELEGRAM_ENABLED` | `false` | Toggle Telegram notification plugin. |
+| `CYANIDE_OUTPUT_TELEGRAM_TOKEN` | `None` | Telegram Bot Token. |
+| `CYANIDE_OUTPUT_TELEGRAM_CHAT_ID` | `None` | Target Chat ID for Telegram alerts. |
 
 </details>
 

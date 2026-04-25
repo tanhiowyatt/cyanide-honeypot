@@ -32,8 +32,8 @@ class CyanideLogger:
         self.server_log_path = (self.log_dir / "cyanide-server.json").resolve()
         self.server_log = self._setup_logger("cyanide_server", self.server_log_path)
 
-        self.fs_log_path = (self.log_dir / "cyanide-fs.json").resolve()
-        self.fs_log = self._setup_logger("cyanide_fs", self.fs_log_path)
+        self.fs_log_path = (self.log_dir / "cyanide-vfs.json").resolve()
+        self.fs_log = self._setup_logger("cyanide_vfs", self.fs_log_path)
 
         ml_cfg = self.config.get("ml", {})
         ml_log_str = ml_cfg.get("ml_log", str(self.log_dir / "cyanide-ml.json"))
@@ -82,6 +82,7 @@ class CyanideLogger:
         import importlib
 
         VALID_PLUGINS = {
+            "discord",
             "elasticsearch",
             "hpfeeds",
             "mongodb",
@@ -92,6 +93,7 @@ class CyanideLogger:
             "splunk_hec",
             "sqlite",
             "syslog",
+            "telegram",
             "mock_plugin",
             "failer",
         }
@@ -193,6 +195,8 @@ class CyanideLogger:
             "rsync_error",
             "scp_op",
             "sftp_op",
+            "ioc_extracted",
+            "ioc_report_generated",
         ]:
             return self.fs_log, self.fs_log_path
         if event_type.startswith("ml_") or event_type == "ml_thought":

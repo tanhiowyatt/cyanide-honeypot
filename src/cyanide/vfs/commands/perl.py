@@ -20,12 +20,10 @@ class PerlCommand(Command):
         return "", "", 0
 
     def _log_execution(self, args: list[str], input_data: str) -> None:
-        if self.emulator.logger:
-            self.emulator.logger.log_event(
-                self.emulator.session_id,
-                "perl_execution_attempt",
-                {"args": args, "input_len": len(input_data)},
-            )
+        self._log_event(
+            "perl_execution_attempt",
+            {"args": args, "input_len": len(input_data)},
+        )
 
     def _handle_version(self) -> tuple[str, str, int]:
         return (
@@ -39,12 +37,10 @@ class PerlCommand(Command):
             e_idx = args.index("-e")
             if e_idx + 1 < len(args):
                 script = args[e_idx + 1]
-                if self.emulator.logger:
-                    self.emulator.logger.log_event(
-                        self.emulator.session_id,
-                        "perl_script_payload",
-                        {"script": script},
-                    )
+                self._log_event(
+                    "perl_script_payload",
+                    {"script": script},
+                )
                 return "", "", 0
             else:
                 return "", "perl: -e requires an argument.\n", 1
@@ -60,13 +56,11 @@ class PerlCommand(Command):
                 2,
             )
 
-        if self.emulator.logger:
-            content = self.fs.get_content(target)
-            if isinstance(content, bytes):
-                content = content.decode("utf-8", "ignore")
-            self.emulator.logger.log_event(
-                self.emulator.session_id,
-                "perl_file_run",
-                {"file": args[0], "content": content},
-            )
+        content = self.fs.get_content(target)
+        if isinstance(content, bytes):
+            content = content.decode("utf-8", "ignore")
+        self._log_event(
+            "perl_file_run",
+            {"file": args[0], "content": content},
+        )
         return "", "", 0

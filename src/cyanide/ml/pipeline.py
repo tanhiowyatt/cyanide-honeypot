@@ -23,6 +23,12 @@ class CyanideML:
         self.rule_engine = SecurityRuleEngine()
         self.context_analyzer = ContextAnalyzer()
 
+    def retrain(self, commands):
+        """Retrain the anomaly detector and save the updated model."""
+        if self.anomaly_detector:
+            self.anomaly_detector.fit(commands)
+            self.anomaly_detector.save(self.model_dir / "cyanideML.pkl")
+
     def analyze_command(self, command):
         """
         Multi-layer analysis: ML -> Rules -> Context -> Fusion

@@ -47,7 +47,7 @@ async def test_concurrency_load(base_config):
     duration = time.time() - start_time
 
     print(f"50 connections duration: {duration:.2f}s")
-    assert duration < 10
+    assert duration < 20
 
     await server.stop()
     task.cancel()

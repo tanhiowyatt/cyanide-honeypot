@@ -29,7 +29,7 @@ async def test_tcp_proxy_forward(tcp_proxy):
 
     reader.read.side_effect = [b"hello", b""]
 
-    await tcp_proxy.forward(reader, writer, "test")
+    await tcp_proxy.forward(reader, writer, "test", "sess123")
     writer.write.assert_called_with(b"hello")
     assert writer.drain.called
 

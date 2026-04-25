@@ -36,11 +36,6 @@ class MkdirCommand(Command):
         parser.add_argument("path", nargs="+")
         return parser
 
-    def _log_event(self, event_type, data):
-        if self.emulator.logger:
-            data["src_ip"] = self.emulator.src_ip
-            self.emulator.logger.log_event(self.emulator.session_id, event_type, data)
-
     def _execute_mkdir_loop(self, parsed):
         for path_str in parsed.path:
             resolved = self.emulator.resolve_path(path_str)

@@ -29,7 +29,7 @@ def test_log_file_creation(temp_log_dir):
     CyanideLogger({"logging": {"directory": str(temp_log_dir)}})
 
     assert (temp_log_dir / "cyanide-server.json").exists()
-    assert (temp_log_dir / "cyanide-fs.json").exists()
+    assert (temp_log_dir / "cyanide-vfs.json").exists()
     assert (temp_log_dir / "cyanide-ml.json").exists()
     assert (temp_log_dir / "cyanide-stats.json").exists()
 
@@ -51,7 +51,7 @@ def test_event_routing(temp_log_dir):
     data = json.loads(line)
     assert data["eventid"] == "service_started"
 
-    line = wait_for_log_line(temp_log_dir / "cyanide-fs.json")
+    line = wait_for_log_line(temp_log_dir / "cyanide-vfs.json")
     assert line, "FS log line empty"
     data = json.loads(line)
     assert data["eventid"] == "command.input"
@@ -75,7 +75,7 @@ def test_log_command_routing(temp_log_dir):
         {"protocol": "ssh", "src_ip": "1.2.3.4", "username": "root", "input": "uptime"},
     )
 
-    line = wait_for_log_line(temp_log_dir / "cyanide-fs.json")
+    line = wait_for_log_line(temp_log_dir / "cyanide-vfs.json")
     assert line, "FS log line empty for command"
     data = json.loads(line)
     assert data["eventid"] == "command.input"

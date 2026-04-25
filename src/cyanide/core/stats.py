@@ -35,7 +35,7 @@ class StatsManager:
         self.bytes_out = 0
 
         self.recent_commands: List[Dict[str, Any]] = []
-        self.max_recent = 50
+        self.max_recent = 1000
 
     def on_connect(self, protocol: str, ip: str):
         self.active_sessions += 1

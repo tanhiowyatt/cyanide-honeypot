@@ -47,11 +47,9 @@ class GccCommand(Command):
                 perm="-rwxr-xr-x",
             )
 
-        if self.emulator.logger:
-            self.emulator.logger.log_event(
-                self.emulator.session_id,
-                "gcc_compilation",
-                {"args": args, "output": output_file},
-            )
+        self._log_event(
+            "gcc_compilation",
+            {"args": args, "output": output_file},
+        )
 
         return "", "", 0

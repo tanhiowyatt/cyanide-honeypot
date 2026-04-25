@@ -8,9 +8,8 @@ Please note we have a code of conduct, please follow it in all your interactions
 ## Pull Request Process
 
 1. **Tests & Linting**: Before submitting a PR, ensure that all tests pass and the code is properly formatted.
-   - Run tests: `pytest`
-   - Check types: `mypy src/cyanide`
-   - Lint & Format: `ruff check .` and `ruff format .`
+   - Run everything: `make check`
+   - Individual tasks: `make test`, `make lint`, `make format`, `make coverage`
 2. **Update Documentation**: If you add a new environment variable or feature, update the relevant file in `docs/user-reference/` or `docs/developer-reference/`.
 3. **Version Consistency**: Increase the version numbers in any examples files and the README.md to the new version that this Pull Request would represent. We use [SemVer](http://semver.org/).
 4. **Sign-off**: You may merge the Pull Request once you have the sign-off of two other developers.

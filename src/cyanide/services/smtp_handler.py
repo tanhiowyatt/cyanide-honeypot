@@ -1,9 +1,6 @@
 import asyncio
-import logging
 import time
 from typing import Any, Dict
-
-logger = logging.getLogger(__name__)
 
 
 class SMTPHandler:
@@ -29,9 +26,11 @@ class SMTPHandler:
         }
 
     def _init_session(self, writer: asyncio.StreamWriter):
+        import uuid
+
         peer = writer.get_extra_info("peername")
         src_ip = peer[0] if peer else "unknown"
-        session_id = f"smtp_{int(time.time())}"
+        session_id = f"smtp_{str(uuid.uuid4())[:8]}"
         hostname = self.server.config.get("honeypot", {}).get("hostname", "server01")
 
         if self.logger:
@@ -46,7 +45,7 @@ class SMTPHandler:
             )
         if self.stats:
             self.stats.on_connect("smtp", src_ip)
-        return src_ip, session_id, hostname, peer
+        return src_ip, session_id, hostname, time.time()
 
     async def _command_loop(self, reader, writer, session_id, src_ip, hostname):
         while not reader.at_eof():
@@ -90,7 +89,7 @@ class SMTPHandler:
         return True
 
     async def handle_connection(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
-        src_ip, session_id, hostname, _ = self._init_session(writer)
+        src_ip, session_id, hostname, start_time = self._init_session(writer)
 
         try:
             writer.write(f"220 {hostname} ESMTP Postfix\r\n".encode())
@@ -104,16 +103,22 @@ class SMTPHandler:
             if self.logger:
                 self.logger.log_event(session_id, "error", {"message": f"SMTP Error: {e}"})
         finally:
-            await self._cleanup(writer, session_id, src_ip)
+            await self._cleanup(writer, session_id, src_ip, start_time)
 
-    async def _cleanup(self, writer, session_id, src_ip):
+    async def _cleanup(self, writer, session_id, src_ip, start_time):
         writer.close()
         try:
             await writer.wait_closed()
         except Exception:
             pass
+
+        duration = time.time() - start_time
         if self.logger:
-            self.logger.log_event(session_id, "session.end", {"protocol": "smtp", "src_ip": src_ip})
+            self.logger.log_event(
+                session_id,
+                "session.end",
+                {"protocol": "smtp", "src_ip": src_ip, "duration": round(duration, 2)},
+            )
         if self.stats:
             self.stats.on_disconnect()
 

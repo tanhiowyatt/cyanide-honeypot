@@ -17,7 +17,7 @@ from .curl import CurlCommand
 from .doas import DoasCommand
 from .dpkg import DpkgCommand
 from .echo import EchoCommand
-from .editor import EditorCommand
+from .editor import EditorCommand, NanoCommand, VimCommand
 from .env import EnvCommand
 from .export import ExportCommand
 from .find import FindCommand
@@ -131,9 +131,9 @@ COMMAND_MAP = {
     "wget": WgetCommand,
     "ping": PingCommand,
     "uptime": UptimeCommand,
-    "vi": EditorCommand,
-    "vim": EditorCommand,
-    "nano": EditorCommand,
+    "vi": VimCommand,
+    "vim": VimCommand,
+    "nano": NanoCommand,
     "ed": EditorCommand,
 }
 

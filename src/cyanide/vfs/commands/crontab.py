@@ -110,21 +110,16 @@ class CrontabCommand(Command):
 
         # ML Analysis Check
         if self.emulator.analytics and self.emulator.analytics.is_malicious(cmd_str):
-            if self.emulator.logger:
-                self.emulator.logger.log_event(
-                    self.emulator.session_id,
-                    "cron_simulation_blocked",
-                    {"command": cmd_str, "reason": "ML flagged as malicious"},
-                )
+            self._log_event(
+                "cron_simulation_blocked",
+                {"command": cmd_str, "reason": "ML flagged as malicious"},
+            )
             return
 
         # Simulate delay (realistic for cron)
         await asyncio.sleep(5)
 
-        if self.emulator.logger:
-            self.emulator.logger.log_event(
-                self.emulator.session_id, "cron_simulation_start", {"command": cmd_str}
-            )
+        self._log_event("cron_simulation_start", {"command": cmd_str})
 
         # Basic simulation: handle redirection like echo "x" >> file
         try:

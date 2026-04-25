@@ -24,17 +24,14 @@ class CurlCommand(Command):
         is_valid, error, resolved_ip = self.validate_url(url)
 
         # ML: C2/DGA intelligence
-        if self.emulator.logger:
-            self.emulator.logger.log_event(
-                self.emulator.session_id,
-                "curl_url_resolve",
-                {
-                    "src_ip": self.emulator.src_ip,
-                    "url": url,
-                    "resolved_ip": resolved_ip or "unresolved",
-                    "is_valid": is_valid,
-                },
-            )
+        self._log_event(
+            "curl_url_resolve",
+            {
+                "url": url,
+                "resolved_ip": resolved_ip or "unresolved",
+                "is_valid": is_valid,
+            },
+        )
 
         if not is_valid:
             return "", f"curl: (1) {error}\n", 1
@@ -92,12 +89,10 @@ class CurlCommand(Command):
         try:
             return parser.parse_known_args(args)
         except SystemExit:
-            if self.emulator.logger:
-                self.emulator.logger.log_event(
-                    self.emulator.session_id,
-                    "curl_parse_fail",
-                    {"src_ip": self.emulator.src_ip, "full_cmd": " ".join(args)},
-                )
+            self._log_event(
+                "curl_parse_fail",
+                {"full_cmd": " ".join(args)},
+            )
             raise
 
     def _get_url(self, parsed, unknown):

@@ -20,10 +20,15 @@ class QuarantineService:
         self.quarantine_max_mb = config.get("quarantine_max_size_mb", 500)
 
         self.vt_scanner = None
+        self.ioc_reporter = None
         self._background_tasks: Set[asyncio.Task] = set()
 
     def set_scanner(self, scanner):
         self.vt_scanner = scanner
+
+    def set_ioc_reporter(self, reporter):
+        """Set the IOC reporter for this service."""
+        self.ioc_reporter = reporter
 
     async def save_file(
         self,
@@ -123,6 +128,15 @@ class QuarantineService:
                             "info": result.get("info"),
                             "analysis_id": result.get("analysis_id"),
                         },
+                    )
+
+                if self.ioc_reporter and result.get("sha256"):
+                    self.ioc_reporter.add_ioc(
+                        "file-hash",
+                        result["sha256"],
+                        f"Malware scan hash for {filename}",
+                        session_id,
+                        severity="high" if result.get("malicious", 0) > 0 else "medium",
                     )
         except Exception as e:
             self.logger.log_event(

@@ -36,12 +36,10 @@ class GrepCommand(Command):
         try:
             parsed, unknown = parser.parse_known_args(args)
 
-            if unknown and self.emulator.logger:
-                self.emulator.logger.log_event(
-                    self.emulator.session_id,
+            if unknown:
+                self._log_event(
                     "grep_unknown_args",
                     {
-                        "src_ip": self.emulator.src_ip,
                         "pattern": parsed.pattern,
                         "unknown_args": unknown,
                         "full_cmd": " ".join(args),
@@ -49,12 +47,10 @@ class GrepCommand(Command):
                 )
 
         except SystemExit:
-            if self.emulator.logger:
-                self.emulator.logger.log_event(
-                    self.emulator.session_id,
-                    "grep_parse_fail",
-                    {"src_ip": self.emulator.src_ip, "full_cmd": " ".join(args)},
-                )
+            self._log_event(
+                "grep_parse_fail",
+                {"full_cmd": " ".join(args)},
+            )
             raise
 
         recursive = "-r" in args or "-R" in args

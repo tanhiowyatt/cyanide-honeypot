@@ -11,6 +11,7 @@ Cyanide currently includes a wide variety of native output plugins:
 *   **Databases**: SQLite, MySQL, PostgreSQL, MongoDB, RethinkDB.
 *   **Analytics & SIEM**: Elasticsearch, Splunk (HEC), Syslog.
 *   **Specialized Alerting**: Slack (Webhooks), HPFeeds (Threat Intel).
+*   **Threat Intelligence**: STIX 2.1 & MISP (Structured IOC reports).
 
 ---
 
@@ -66,17 +67,31 @@ For specialized needs (e.g., calling an internal API), you can write a custom pl
 
 ---
 
-## Quick Integration: Slack Notifications
+## Quick Integration: Webhooks (Slack / Discord / Telegram)
 
-To get real-time alerts in Slack, simply add these environment variables:
+To get real-time alerts in your favorite chat platform, add these environment variables:
 
+### Slack
 ```bash
 CYANIDE_OUTPUT_SLACK_ENABLED=true
 CYANIDE_OUTPUT_SLACK_WEBHOOK_URL="https://hooks.slack.com/services/XXXX/YYYY/ZZZZ"
 ```
 
+### Discord
+```bash
+CYANIDE_OUTPUT_DISCORD_ENABLED=true
+CYANIDE_OUTPUT_DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/..."
+```
+
+### Telegram
+```bash
+CYANIDE_OUTPUT_TELEGRAM_ENABLED=true
+CYANIDE_OUTPUT_TELEGRAM_TOKEN="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
+CYANIDE_OUTPUT_TELEGRAM_CHAT_ID="987654321"
+```
+
 > [!TIP]
-> Combine Slack with **Honeytokens** for a zero-noise alerting system. You will only get a notification when someone actually tries to read your "secrets."
+> Combine Webhooks with **Honeytokens** for a zero-noise alerting system. You will only get a notification when someone actually tries to read your "secrets."
 
 ---
 <p align="center">

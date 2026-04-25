@@ -45,3 +45,4 @@ configs/profiles/*/.compiled.db
 example_prod_log.json   
 MagicMock/
 src/cyanide/configs/profiles/*/.compiled.db
+.vscode/

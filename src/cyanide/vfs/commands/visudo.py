@@ -38,10 +38,7 @@ class VisudoCommand(Command):
             target_file = "/etc/sudoers"
             content = "\n".join(self._capture_lines) + "\n" if self._capture_lines else ""
             self.fs.mkfile(target_file, content=content, owner="root")
-            if self.emulator.logger:
-                self.emulator.logger.log_event(
-                    self.emulator.session_id, "sudoers_modified", {"content": content}
-                )
+            self._log_event("sudoers_modified", {"content": content})
             return "visudo: /etc/sudoers: success\n", "", 0
 
         self._capture_lines.append(line.rstrip("\n"))

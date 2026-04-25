@@ -15,12 +15,10 @@ class TailCommand(Command):
         try:
             parsed, unknown = parser.parse_known_args(args)
 
-            if unknown and self.emulator.logger:
-                self.emulator.logger.log_event(
-                    self.emulator.session_id,
+            if unknown:
+                self._log_event(
                     "tail_unknown_args",
                     {
-                        "src_ip": self.emulator.src_ip,
                         "files": parsed.files,
                         "unknown_args": unknown,
                         "full_cmd": " ".join(args),
@@ -28,12 +26,10 @@ class TailCommand(Command):
                 )
 
         except SystemExit:
-            if self.emulator.logger:
-                self.emulator.logger.log_event(
-                    self.emulator.session_id,
-                    "tail_parse_fail",
-                    {"src_ip": self.emulator.src_ip, "full_cmd": " ".join(args)},
-                )
+            self._log_event(
+                "tail_parse_fail",
+                {"full_cmd": " ".join(args)},
+            )
             raise
 
         count = parsed.lines
@@ -44,7 +40,15 @@ class TailCommand(Command):
             lines = input_data.splitlines(keepends=True)
         else:
             path = self.emulator.resolve_path(files[0])
+            if self.fs.is_dir(path):
+                return "", f"tail: error reading '{files[0]}': Is a directory\n", 1
             if self.fs.is_file(path):
                 lines = self.get_content_str(path).splitlines(keepends=True)
+            else:
+                return (
+                    "",
+                    f"tail: cannot open '{files[0]}' for reading: No such file or directory\n",
+                    1,
+                )
 
         return "".join(lines[-count:]), "", 0

@@ -74,7 +74,7 @@ async def test_ssh_fingerprint(base_config, os_type, expected_banner):
         await asyncio.sleep(1.0)
 
         log_dir = Path(base_config["logging"]["directory"])
-        fs_log = log_dir / "cyanide-fs.json"
+        fs_log = log_dir / "cyanide-vfs.json"
         assert fs_log.exists()
 
         import json

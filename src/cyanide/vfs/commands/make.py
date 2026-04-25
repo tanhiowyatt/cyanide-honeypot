@@ -18,10 +18,7 @@ class MakeCommand(Command):
                 2,
             )
 
-        if self.emulator.logger:
-            self.emulator.logger.log_event(
-                self.emulator.session_id, "make_execution", {"args": args}
-            )
+        self._log_event("make_execution", {"args": args})
 
         # Simulate some build output
         output = "gcc -Wall -O2 -c main.c -o main.o\ngcc -Wall -O2 -c utils.c -o utils.o\ngcc main.o utils.o -o output\n"

@@ -31,12 +31,12 @@ def mock_streams():
 @pytest.mark.asyncio
 async def test_smtp_session_init(smtp_handler, mock_streams):
     _, writer = mock_streams
-    src_ip, session_id, hostname, peer = smtp_handler._init_session(writer)
+    src_ip, session_id, hostname, start_time = smtp_handler._init_session(writer)
 
     assert src_ip == "1.2.3.4"
     assert session_id.startswith("smtp_")
     assert hostname == "test-smtp-server"
-    assert peer == ("1.2.3.4", 12345)
+    assert isinstance(start_time, float)
 
     smtp_handler.logger.log_event.assert_called_with(
         session_id,
@@ -116,7 +116,7 @@ async def test_smtp_full_connection_flow(smtp_handler, mock_streams):
     with patch.object(
         smtp_handler,
         "_init_session",
-        return_value=("1.2.3.4", "sess123", "test-host", None),
+        return_value=("1.2.3.4", "sess123", "test-host", 100.0),
     ):
         await smtp_handler.handle_connection(reader, writer)
 
@@ -134,7 +134,7 @@ async def test_smtp_error_handling(smtp_handler, mock_streams):
         with patch.object(
             smtp_handler,
             "_init_session",
-            return_value=("1.2.3.4", "sess_err", "test-host", None),
+            return_value=("1.2.3.4", "sess_err", "test-host", 100.0),
         ):
             await smtp_handler.handle_connection(reader, writer)
 

@@ -12,6 +12,14 @@ class SuCommand(Command):
         login_shell = False
 
         if args:
+            if "-c" in args:
+                idx = args.index("-c")
+                if idx + 1 < len(args):
+                    cmd_line = args[idx + 1]
+                    import shlex
+
+                    return await self._execute_subcommand(shlex.split(cmd_line))
+
             if args[0] == "-":
                 login_shell = True
                 if len(args) > 1:

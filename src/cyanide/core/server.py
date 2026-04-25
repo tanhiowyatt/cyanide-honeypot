@@ -21,6 +21,7 @@ from cyanide import CyanideLogger
 from cyanide.core.emulator import ShellEmulator
 from cyanide.network.tcp_proxy import TCPProxy
 from cyanide.services.analytics import AnalyticsService
+from cyanide.services.ioc_reporter import IOCReporter
 from cyanide.services.quarantine import QuarantineService
 from cyanide.services.session_manager import SessionManager
 from cyanide.services.smtp_handler import SMTPHandler
@@ -49,11 +50,13 @@ class ServiceRegistry:
         session: "SessionManager",
         quarantine: "QuarantineService",
         analytics: "AnalyticsService",
+        ioc_reporter: "IOCReporter",
         telnet: Any = None,
     ):
         self.session = session
         self.quarantine = quarantine
         self.analytics = analytics
+        self.ioc_reporter = ioc_reporter
         self.telnet = telnet
 
 
@@ -147,10 +150,28 @@ class CyanideServer:
             raise
 
         try:
+            ioc_reporter = IOCReporter(config, self.logger)
+            analytics_svc.set_ioc_reporter(ioc_reporter)
+            quarantine_svc.set_ioc_reporter(ioc_reporter)
+            self.logger.log_event(
+                "system",
+                "service_init_status",
+                {"message": "IOCReporter initialized"},
+            )
+        except Exception as e:
+            self.logger.log_event(
+                "system",
+                "service_init_error",
+                {"service": "IOCReporter", "error": str(e)},
+            )
+            raise
+
+        try:
             self.services = ServiceRegistry(
                 session=session_mgr,
                 quarantine=quarantine_svc,
                 analytics=analytics_svc,
+                ioc_reporter=ioc_reporter,
                 telnet=None,
             )
             self.logger.services = self.services
@@ -174,6 +195,19 @@ class CyanideServer:
         self.smtp_server: Any = None
         self.metrics_server: Any = None
         self.background_tasks: List[asyncio.Task] = []
+
+        # IOC reporting configuration
+        ioc_conf = config.get("ioc_reporting", {})
+
+        # Explicitly check environment variable as fallback or priority
+        import os
+
+        env_interval = os.environ.get("CYANIDE_IOC_REPORTING_INTERVAL_HOURS")
+        ioc_interval_hours = (
+            env_interval if env_interval else ioc_conf.get("report_interval_hours", 1)
+        )
+
+        self.ioc_interval = max(60, float(ioc_interval_hours) * 3600)
 
         self.users = config.get("users", [])
 
@@ -394,18 +428,56 @@ class CyanideServer:
         return json.dumps(status_data)
 
     def _route_metrics_request(self, path: str) -> tuple[str, str]:
+        # Virtual path mapping for logs (Clean URLs without extensions)
+        log_mapping = {
+            "/logs/vfs": "cyanide-vfs.json",
+            "/logs/ml": "cyanide-ml.json",
+            "/logs/server": "cyanide-server.json",
+            "/logs/stats": "cyanide-stats.json",
+            "/logs/reports/stix": "reports/cyanide_iocs.stix.json",
+            "/logs/reports/misp": "reports/cyanide_iocs.misp.json",
+        }
+
         if path == "/metrics":
             return (
                 self.stats.to_prometheus(),
                 f"{CONTENT_TYPE_PLAIN}; version=0.0.4; charset=utf-8",
             )
-        if path == "/stats":
+        if path == "/logs/stats":
             return json.dumps(self.stats.get_stats(), indent=2), "application/json"
         if path == "/health":
             return self._get_health_status(), "application/json"
-        if path.startswith("/logs"):
-            return "Log access is restricted in metrics mode.", CONTENT_TYPE_PLAIN
-        return "Cyanide Metrics Server", CONTENT_TYPE_PLAIN
+
+        # Handle Root Index
+        if path == "/" or path == "":
+            index = {
+                "cyanide_control_plane": {
+                    "monitoring": ["/health", "/metrics"],
+                    "reports": ["/logs/reports/stix", "/logs/reports/misp"],
+                    "logs": [
+                        "/logs/ml",
+                        "/logs/server",
+                        "/logs/stats",
+                        "/logs/vfs",
+                    ],
+                },
+                "usage": "Use 'Authorization: Bearer <token>' for all endpoints except /health",
+            }
+            return json.dumps(index, indent=2), "application/json"
+
+        # Handle Virtual Log Access
+        if path in log_mapping:
+            import os
+
+            filename = log_mapping[path]
+            log_path = os.path.join(self.logger.log_dir, filename)
+
+            if os.path.exists(log_path) and os.path.isfile(log_path):
+                with open(log_path, "r") as f:
+                    return f.read(), "application/json"
+            return json.dumps({"error": f"Resource '{path}' not found"}), "application/json"
+
+        return json.dumps({"error": "Not Found", "path": path}), "application/json"
 
     async def _handle_metrics_request(self, reader, writer):
         try:
@@ -478,7 +550,6 @@ class CyanideServer:
             except Exception as e:
                 logging.debug(f"Metrics writer close error: {e}")
 
-    # Function 50: Performs operations related to start metrics server.
     async def start_metrics_server(self):
         """Start a lightweight HTTP server for metrics and stats."""
         metrics_conf = self.config.get("metrics", {})
@@ -509,7 +580,6 @@ class CyanideServer:
                 {"message": f"Metrics Server Error: {e}"},
             )
 
-    # Function 51: Retrieves host keys from disk or generates them if missing.
     def _get_host_keys(self) -> List[asyncssh.SSHKey]:
         """Load host keys from storage or generate persistent ones."""
         ssh_conf = self.config.get("ssh", {})
@@ -556,12 +626,16 @@ class CyanideServer:
         return loaded_keys
 
     def _start_vm_pool(self):
-        if self.config.get("pool", {}).get("enabled", False):
+        """Initialize and start the VM pool service."""
+        is_enabled = self.config.get("pool", {}).get("enabled", False)
+        if is_enabled:
             self.logger.log_event("system", "service_starting", {"service": "vm_pool"})
-            self.vm_pool = VMPool(self.config, logger=self.logger)
 
-            try:
-                self.background_tasks.append(asyncio.create_task(self.vm_pool.start()))
+        self.vm_pool = VMPool(self.config, logger=self.logger)
+
+        try:
+            self.background_tasks.append(asyncio.create_task(self.vm_pool.start()))
+            if is_enabled:
                 self.logger.log_event(
                     "system",
                     "service_started",
@@ -571,13 +645,10 @@ class CyanideServer:
                         "max_vms": self.config.get("pool", {}).get("max_vms"),
                     },
                 )
-            except Exception as e:
-                self.logger.log_event(
-                    "system", "service_error", {"service": "vm_pool", "error": str(e)}
-                )
-        else:
-            self.vm_pool = VMPool(self.config, logger=self.logger)
-            self.background_tasks.append(asyncio.create_task(self.vm_pool.start()))
+        except Exception as e:
+            self.logger.log_event(
+                "system", "service_error", {"service": "vm_pool", "error": str(e)}
+            )
 
     @staticmethod
     def _parse_ssh_rekey(limit: str) -> int:
@@ -756,6 +827,7 @@ class CyanideServer:
                 target_port=t_port,
                 protocol_name="ssh_proxy",
                 pool=self.vm_pool if backend_mode == "pool" else None,
+                logger=self.logger,
             )
             await self.ssh_proxy.start()
             self.logger.log_event(
@@ -798,6 +870,7 @@ class CyanideServer:
                 target_port=t_port,
                 protocol_name="telnet_proxy",
                 pool=self.vm_pool if backend_mode == "pool" else None,
+                logger=self.logger,
             )
             await self.telnet_proxy.start()
             self.logger.log_event(
@@ -839,6 +912,7 @@ class CyanideServer:
                     smtp_conf.get("target_host", "127.0.0.1"),
                     int(smtp_conf.get("target_port", 25255)),
                     protocol_name="smtp",
+                    logger=self.logger,
                 )
                 await self.smtp_server.start()
                 self.logger.log_event(
@@ -857,7 +931,6 @@ class CyanideServer:
                 {"message": f"Failed to start SMTP Service: {e}"},
             )
 
-    # Function 52: Performs operations related to start.
     async def start(self):
         """Start all honeypot services and enter main event loop."""
         self.async_logger.start()
@@ -886,6 +959,12 @@ class CyanideServer:
 
         self.background_tasks.append(asyncio.create_task(self._cleanup_loop()))
         self.background_tasks.append(asyncio.create_task(self._stats_logging_loop()))
+        self.background_tasks.append(asyncio.create_task(self._ioc_reporting_loop()))
+
+        if self.services.analytics.ml_online_learning:
+            self.background_tasks.append(
+                asyncio.create_task(self.services.analytics.run_online_learning_loop())
+            )
 
         try:
             self._stop_event = asyncio.Event()
@@ -894,7 +973,6 @@ class CyanideServer:
             await self.stop()
             raise
 
-    # Function 53: Performs operations related to stop.
     async def stop(self):
         """Stop all services."""
         self.logger.log_event("system", "system_status", {"message": "Stopping CyanideServer..."})
@@ -952,7 +1030,6 @@ class CyanideServer:
         if hasattr(self, "_stop_event"):
             self._stop_event.set()
 
-    # Function 54: Handles event logging and telemetry.
     async def _stats_logging_loop(self):
         """Periodically log statistics to cyanide-stats.json."""
         self.logger.log_event(
@@ -969,7 +1046,6 @@ class CyanideServer:
 
             await asyncio.sleep(60)
 
-    # Function 55: Performs operations related to cleanup loop.
     async def _cleanup_loop(self):
         """Background task for automatic file cleanup."""
         await asyncio.sleep(60)
@@ -990,38 +1066,48 @@ class CyanideServer:
             },
         )
 
-        self.logger.log_event(
-            "system",
-            "service_started",
-            {
-                "service": "cleanup_loop",
-                "interval": manager.interval,
-                "retention_days": manager.retention_days,
-            },
-        )
-
         while True:
+            await asyncio.sleep(manager.interval)
             try:
                 stats = manager.cleanup_files()
-                if stats["deleted"] > 0:
+                if stats and stats.get("deleted", 0) > 0:
                     self.logger.log_event(
                         "system",
                         "system_cleanup",
                         {
                             "deleted": stats["deleted"],
-                            "bytes_freed": stats["bytes_freed"],
+                            "bytes_freed": stats.get("bytes_freed", 0),
                         },
                     )
             except Exception as e:
                 self.logger.log_event("system", "cleanup_error", {"message": f"Cleanup Error: {e}"})
 
-            await asyncio.sleep(manager.interval)
+    async def _ioc_reporting_loop(self):
+        """Background task for automatic STIX 2.1 report generation."""
+        conf = self.config.get("ioc_reporting", {})
+        if not conf.get("enabled", True):
+            return
+
+        import logging
+
+        logging.info(f"[*] IOC Reporting loop started (interval: {self.ioc_interval}s)")
+
+        interval_hours = conf.get("report_interval_hours", 1)
+        interval = max(60, interval_hours * 3600)
+
+        while True:
+            try:
+                if hasattr(self.services, "ioc_reporter"):
+                    self.services.ioc_reporter.generate_reports()
+            except Exception as e:
+                self.logger.log_event("system", "error", {"message": f"IOC Reporting Error: {e}"})
+
+            await asyncio.sleep(interval)
 
 
 class SSHServerFactory(asyncssh.SSHServer):
     """SSH server factory."""
 
-    # Function 57: Initializes the class instance and its attributes.
     def __init__(self, honeypot: CyanideServer):
         super().__init__()
         self.honeypot = honeypot
@@ -1038,7 +1124,6 @@ class SSHServerFactory(asyncssh.SSHServer):
         self._captured_host_key_alg: Optional[str] = None
         self.conn_id = str(uuid.uuid4())[:8]  # Initialize with random ID
 
-    # Function 58: Performs operations related to connection made.
     def connection_made(self, conn):
         self.conn = conn
         self.conn_id = str(uuid.uuid4())[:8]
@@ -1206,7 +1291,6 @@ class SSHServerFactory(asyncssh.SSHServer):
                 return False
             return True
 
-    # Function 59: Performs operations related to connection lost.
     def connection_lost(self, exc):
         # Cancel and clear session-level background tasks
         for task in self._background_tasks:
@@ -1232,7 +1316,6 @@ class SSHServerFactory(asyncssh.SSHServer):
 
         self.honeypot.services.session.unregister_session("conn_" + self.conn_id)
 
-    # Function 60: Performs operations related to begin auth.
     async def begin_auth(self, username):
         """Called when authentication begins; handshake is guaranteed to be complete."""
         if not self._handshake_logged:
@@ -1242,16 +1325,13 @@ class SSHServerFactory(asyncssh.SSHServer):
             self._handshake_logged = True
         return True
 
-    # Function 61: Performs operations related to password auth supported.
     def password_auth_supported(self):
         return True
 
-    # Function 60.1: Performs operations related to publickey auth supported.
     def publickey_auth_supported(self):
         """Enable publickey auth to collect and log keys from attackers."""
         return True
 
-    # Function 60.2: Validates publickey and logs it.
     def validate_publickey(self, username, key):
         """Log public key attempt and always fail to force password auth (Cyanide behavior)."""
         fingerprint = key.get_fingerprint()
@@ -1269,7 +1349,6 @@ class SSHServerFactory(asyncssh.SSHServer):
         )
         return False
 
-    # Function 61: Performs operations related to validate password.
     async def validate_password(self, username, password):
         self.username = username
         success = self.honeypot.is_valid_user(username, password)
@@ -1292,6 +1371,11 @@ class SSHServerFactory(asyncssh.SSHServer):
             },
         )
 
+        # Extract IOCs from malicious login attempts
+        if not success:
+            analytics_svc = self.honeypot.services.analytics
+            analytics_svc.analyze_auth(username, password, self.src_ip, "conn_" + self.conn_id)
+
         if success:
             # Re-fetch VFS now that we have a verified username to support user-specific persistence
             self.fs = self.honeypot.get_filesystem(
@@ -1307,7 +1391,6 @@ class SSHServerFactory(asyncssh.SSHServer):
 
         return success
 
-    # Function 63: Performs operations related to session requested.
     def session_requested(self):
         logging.debug(f"session_requested for {self.src_ip} as {self.username}")
         sess = SSHSession(
@@ -1321,7 +1404,6 @@ class SSHServerFactory(asyncssh.SSHServer):
         self.sessions[self.conn_id] = sess
         return sess
 
-    # Function 62.1: Handles direct-tcpip requests (-L).
     def direct_tcpip_requested(self, dest_host, dest_port, src_host, src_port):
         self.honeypot.logger.log_event(
             "conn_" + self.conn_id,
@@ -1339,7 +1421,6 @@ class SSHServerFactory(asyncssh.SSHServer):
             return False
         return True
 
-    # Function 62.2: Handles remote port forwarding requests (-R).
     def connection_requested(self, dest_host, dest_port, orig_host, orig_port):
 
         self.honeypot.logger.log_event(
@@ -1356,7 +1437,6 @@ class SSHServerFactory(asyncssh.SSHServer):
             return False
         return True
 
-    # Function 62.3: Implements actual port forwarding proxy logic.
     async def direct_tcpip(self, chan, dest_host, dest_port, src_host, src_port):
         target_host, target_port, mode = self._get_forward_target(dest_host, dest_port)
 
@@ -1467,7 +1547,6 @@ class SSHServerFactory(asyncssh.SSHServer):
 class SSHSession(asyncssh.SSHServerSession):
     """SSH session handler."""
 
-    # Function 64: Initializes the class instance and its attributes.
     def __init__(
         self,
         honeypot: CyanideServer,
@@ -1497,7 +1576,6 @@ class SSHSession(asyncssh.SSHServerSession):
         self._background_tasks: set[asyncio.Task] = set()
         self._process_lock = asyncio.Lock()
 
-    # Function 65: Performs operations related to connection made.
     def connection_made(self, channel):
         super().connection_made(channel)
         self.channel = channel
@@ -1572,7 +1650,6 @@ class SSHSession(asyncssh.SSHServerSession):
             },
         )
 
-    # Function 67: Performs operations related to connection lost.
     def connection_lost(self, exc):
         """Log session disconnect."""
         # Cancel and clear session-level background tasks
@@ -1596,7 +1673,6 @@ class SSHSession(asyncssh.SSHServerSession):
         )
         self.honeypot.logger.unregister_session_log(self.session_id)
 
-    # Function 68: Performs operations related to terminal size changed.
     def terminal_size_changed(self, width, height, pixwidth, pixheight):
         """Log terminal resize events (SIGWINCH)."""
         self.honeypot.logger.log_event(
@@ -1609,11 +1685,9 @@ class SSHSession(asyncssh.SSHServerSession):
             },
         )
 
-    # Function 69: Performs operations related to shell requested.
     def shell_requested(self):
         logging.debug(f"shell_requested called for {self.src_ip}")
 
-        # Function 70: Performs operations related to q hook.
         def q_hook(f, c):
             self.honeypot.save_quarantine_file(f, c, self.session_id, self.src_ip)
 
@@ -1629,7 +1703,6 @@ class SSHSession(asyncssh.SSHServerSession):
         )
         return True
 
-    # Function 71: Performs operations related to get prompt.
     def _get_prompt(self):
         if not self.shell:
             return "$ "
@@ -1644,7 +1717,6 @@ class SSHSession(asyncssh.SSHServerSession):
             cwd = cwd.replace("/root", "~", 1)
         return f"{user}@server:{cwd}$ "
 
-    # Function 72: Performs operations related to session started.
     def session_started(self):
         self._ensure_tty_log()
         if self.shell:
@@ -1657,7 +1729,6 @@ class SSHSession(asyncssh.SSHServerSession):
             prompt = self._get_prompt()
             self._write(prompt)
 
-    # Function 72.1: Unified write method for SSH/Telnet.
     def _write(self, data):
         """Helper to write to channel/process and log."""
         if not data:
@@ -1676,7 +1747,6 @@ class SSHSession(asyncssh.SSHServerSession):
 
         self._log_tty("OUT", data)
 
-    # Function 73: Handles event logging and telemetry.
     def _ensure_tty_log(self):
         folder_name = f"ssh_{self.src_ip}_{self.session_id}"
         log_dir = Path(self.honeypot.logger.log_dir) / "tty" / folder_name
@@ -1697,6 +1767,12 @@ class SSHSession(asyncssh.SSHServerSession):
         ]:
             if not p.exists():
                 p.touch()
+        self.honeypot.logger.register_session_log(
+            self.session_id,
+            self.tty_log_path_json,
+            self.tty_log_path_ml,
+            src_ip=self.src_ip,
+        )
 
         # Log initial session info to the JSONL log
         self.honeypot.logger.log_event(
@@ -1704,18 +1780,15 @@ class SSHSession(asyncssh.SSHServerSession):
             "session.start",
             {
                 "protocol": "ssh",
-                "src_ip": self.src_ip,
                 "src_port": self.src_port,
                 "username": self.username,
                 "client_version": self.client_version,
             },
         )
 
-    # Function 74: Handles event logging and telemetry.
     def _log_tty(self, direction: str, data: str):
         self.honeypot._log_tty(self, direction, data)
 
-    # Function 75: Performs operations related to env received.
     def env_received(self, name, value):
         """Log client environment variables."""
         if isinstance(name, bytes):
@@ -1734,13 +1807,11 @@ class SSHSession(asyncssh.SSHServerSession):
         )
         return True
 
-    # Function 76: Performs operations related to data received.
     def data_received(self, data, datatype=None):
         task = asyncio.create_task(self._process_input(data))
         self._background_tasks.add(task)
         task.add_done_callback(self._background_tasks.discard)
 
-    # Function 77: Performs operations related to process input.
     async def _process_input(self, data):
         async with self._process_lock:
             try:
@@ -1855,6 +1926,17 @@ class SSHSession(asyncssh.SSHServerSession):
                 "ioc_detected",
                 {"src_ip": self.src_ip, "iocs": iocs, "cmd": cmd},
             )
+            # Register with IOCReporter
+            if hasattr(self.honeypot.services, "ioc_reporter"):
+                for ioc_val in iocs:
+                    ioc_type = "ipv4-addr" if re.match(ipv4_regex, ioc_val) else "url"
+                    self.honeypot.services.ioc_reporter.add_ioc(
+                        ioc_type,
+                        ioc_val,
+                        f"Detected in command: {cmd}",
+                        self.session_id,
+                        severity="high" if ioc_type == "url" else "medium",
+                    )
 
     async def _execute_shell_command(self, cmd, is_bot):
         """Log and execute the shell command."""
@@ -1912,14 +1994,12 @@ class SSHSession(asyncssh.SSHServerSession):
         self.honeypot.stats.on_traffic("out", len(prompt))
         self._log_tty("IN", cmd + "\n")
 
-    # Function 78: Performs operations related to close session.
     async def _close_session(self):
         await asyncio.sleep(0.01)
         self.channel.write_eof()
         self.channel.exit(0)
         self.channel.close()
 
-    # Function 79: Performs operations related to exec requested.
     def exec_requested(self, command):
         if not command or not command.strip():
             return False

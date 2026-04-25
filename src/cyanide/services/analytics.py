@@ -1,4 +1,5 @@
-from typing import Dict, Optional
+import asyncio
+from typing import Dict, List, Optional
 
 
 class AnalyticsService:
@@ -41,9 +42,65 @@ class AnalyticsService:
         self.ml_online_learning = config.get("ml", {}).get("online_learning", False)
         self.ml_pipeline = None
         self.kb = None
+        self.ioc_reporter = None
 
         if self.ml_enabled:
             self._init_ml()
+
+    def set_ioc_reporter(self, reporter):
+        """Set the IOC reporter for this service."""
+        self.ioc_reporter = reporter
+
+    async def run_online_learning_loop(self):
+        """Background task for periodic ML retraining based on accumulated data."""
+        if not self.ml_online_learning or not self.ml_enabled:
+            self.logger.log_event(
+                "system",
+                "ml_online_learning_status",
+                {"status": "disabled", "reason": "online_learning or ml disabled"},
+            )
+            return
+
+        interval_days = self.config.get("ml", {}).get("retraining_interval_days", 7)
+        interval_seconds = max(3600, interval_days * 86400)  # Min 1 hour
+
+        self.logger.log_event(
+            "system",
+            "ml_online_learning_status",
+            {"status": "starting", "interval_days": interval_days},
+        )
+
+        while True:
+            await asyncio.sleep(interval_seconds)
+            try:
+                self.logger.log_event(
+                    "system", "ml_retraining_start", {"message": "Starting periodic ML retraining"}
+                )
+
+                commands = self._fetch_training_data()
+                if commands and self.ml_pipeline:
+                    # Offload to thread to not block event loop if fit is heavy
+                    # However, fit is currently synchronous in model.py
+                    loop = asyncio.get_event_loop()
+                    await loop.run_in_executor(None, self.ml_pipeline.retrain, commands)
+
+                    self.logger.log_event(
+                        "system", "ml_retraining_complete", {"count": len(commands)}
+                    )
+                else:
+                    self.logger.log_event(
+                        "system", "ml_retraining_skipped", {"reason": "No training data found"}
+                    )
+            except Exception as e:
+                self.logger.log_event("system", "ml_retraining_error", {"error": str(e)})
+
+    def _fetch_training_data(self) -> List[str]:
+        """Fetches recent commands from StatsManager buffer for retraining."""
+        if not hasattr(self, "stats") or not self.stats:
+            return []
+
+        commands = [entry["command"] for entry in self.stats.recent_commands if "command" in entry]
+        return list(set(commands))  # Deduplicate
 
     def _init_ml(self):
         try:
@@ -115,6 +172,15 @@ class AnalyticsService:
                 {"src_ip": src_ip, "tool": detected_tool, "command": cmd},
             )
 
+            if self.ioc_reporter:
+                self.ioc_reporter.add_ioc(
+                    "domain" if "://" not in detected_tool else "url",
+                    cmd,
+                    f"Automated tool detection: {detected_tool}",
+                    session_id,
+                    severity="low",
+                )
+
         if not self.ml_enabled or self.ml_pipeline is None:
             return
 
@@ -139,6 +205,15 @@ class AnalyticsService:
             )
 
             if is_anomaly:
+                if self.ioc_reporter:
+                    self.ioc_reporter.add_ioc(
+                        "ipv4-addr",
+                        src_ip,
+                        f"Malicious source IP (anomaly score: {result['anomaly_score']})",
+                        session_id,
+                        severity="high",
+                    )
+
                 self.logger.log_event(
                     session_id,
                     "ml_anomaly",
@@ -152,18 +227,46 @@ class AnalyticsService:
                     },
                 )
 
+                if self.ioc_reporter:
+                    # Extract URLs or suspicious strings from the command
+                    import re
+
+                    urls = re.findall(r"https?://[^\s<>\"']+", cmd)
+                    for url in urls:
+                        self.ioc_reporter.add_ioc(
+                            "url",
+                            url,
+                            "Extracted from anomalous command",
+                            session_id,
+                            severity="high",
+                        )
+
+                    ips = re.findall(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", cmd)
+                    for ip in ips:
+                        self.ioc_reporter.add_ioc(
+                            "ipv4-addr",
+                            ip,
+                            "IP extracted from anomalous command",
+                            session_id,
+                            severity="high",
+                        )
+
         except Exception as e:
             self.logger.log_event(session_id, "error", {"message": f"ML Error: {e}"})
 
-    def is_malicious(self, cmd: str) -> bool:
-        """Check if command is malicious based on ML verdict."""
-        if not self.ml_enabled or self.ml_pipeline is None:
-            return False
-        try:
-            result = self.ml_pipeline.analyze_command(cmd)
-            return result.get("is_anomaly", False)
-        except Exception:
-            return False
+    def analyze_auth(self, username, password, src_ip, session_id):
+        """Analyze authentication attempt for IOC extraction."""
+        if self.ioc_reporter:
+            # Check if this user/pass combo is part of a common attack list
+            # For now, we log all failed attempts from known malicious IPs
+            # or simply log them as text IOCs
+            self.ioc_reporter.add_ioc(
+                "credential",
+                f"{username}:{password}",
+                "Credential attempt from attacker",
+                session_id,
+                severity="low",
+            )
 
     def analyze_file(self, filename: str, content: bytes, session_id: str, src_ip: str):
         """Analyze uploaded file content and filename via ML."""
@@ -204,6 +307,18 @@ class AnalyticsService:
                         "severity": result.get("severity"),
                     },
                 )
+
+                if self.ioc_reporter:
+                    import hashlib
+
+                    file_hash = hashlib.sha256(content).hexdigest()
+                    self.ioc_reporter.add_ioc(
+                        "file-hash",
+                        file_hash,
+                        f"Anomalous file upload: {filename}",
+                        session_id,
+                        severity=result.get("severity", "medium"),
+                    )
         except Exception as e:
             self.logger.log_event(session_id, "error", {"message": f"ML File Analysis Error: {e}"})
 

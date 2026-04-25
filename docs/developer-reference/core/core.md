@@ -26,7 +26,7 @@ The `CyanideServer` is the main entry point and lifecycle manager of the applica
 - **Service Initialization:** On startup, it initializes the asynchronous networking listeners (e.g., SSH, Telnet, SMTP) and binds them to the configured host and ports.
 - **Dependency Injection & Setup:** It sets up backend services shared across all sessions: `CyanideLogger` (rotation-capable centralized logging), `CleanupManager` (TTL-based quarantine/log sweep), `StatsManager` (Prometheus metrics), and `VMPool`.
 - **Connection Dispatching:** Evaluates backend configurations. If `proxy` or `pool` mode is selected, it leverages the `TCPProxy` class to silently intercept and forward traffic. If `emulated` mode is selected, it traps the attacker in the `ShellEmulator`.
-- **Health Checks & Monitoring:** Exposes HTTP endpoints (`/health`, `/metrics`, `/logs`) for orchestration probes (Docker/K8s) and SIEM observability.
+- **Health Checks & Monitoring:** Exposes a unified RESTful API at `http://localhost:9090/`. The root endpoint provides a dynamic index of monitoring paths (`/health`, `/metrics`) and strictly unified data paths (e.g., `/logs/vfs`, `/logs/server`, `/logs/reports/stix`). Deprecated aliases like `/reports/` and `/stats` have been removed.
 - **Session Finalization:** When a connection drops, it flushes telemetry events and triggers lease releases dynamically back to the `VMPool`.
 
 ## 2. Shell Emulator (`src/cyanide/core/emulator.py`)

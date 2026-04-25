@@ -37,15 +37,6 @@ class TelnetHandler:
         commands: List[str] = []
 
         try:
-            folder_name = f"telnet_{src_ip}_{session_id}"
-            log_dir = Path(self.logger.log_dir) / "tty" / folder_name
-            log_dir.mkdir(parents=True, exist_ok=True)
-
-            audit_json_path = log_dir / "audit.json"
-            ml_json_path = log_dir / "ml_analysis.json"
-            self.logger.register_session_log(
-                session_id, audit_json_path, ml_json_path, src_ip=src_ip
-            )
 
             self.logger.log_event(
                 session_id,
@@ -260,6 +251,7 @@ class TelnetHandler:
                 await asyncio.sleep(auth_delay)
 
         if not success:
+            self.services.analytics.analyze_auth(username, password, src_ip, session_id)
             resp = b"\r\nLogin incorrect\r\n"
             writer.write(resp)
             bytes_out += len(resp)

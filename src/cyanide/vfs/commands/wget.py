@@ -56,11 +56,6 @@ class WgetCommand(Command):
         parser.add_argument("url", nargs="?")
         return parser
 
-    def _log_event(self, event_type, data):
-        if self.emulator.logger:
-            data["src_ip"] = self.emulator.src_ip
-            self.emulator.logger.log_event(self.emulator.session_id, event_type, data)
-
     async def _handle_download(self, parsed, resolved_ip):
         url = parsed.url
         filename = parsed.output_document or PurePosixPath(url).name or "index.html"

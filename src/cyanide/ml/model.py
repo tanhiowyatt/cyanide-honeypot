@@ -104,6 +104,46 @@ class CommandAutoencoder(nn.Module):
         )
         logger.info(f"[*] Model saved to {path}")
 
+    def fit(self, commands, epochs=5, batch_size=32, lr=0.001):
+        """
+        Retrain the model on a list of commands.
+        """
+        if not commands:
+            return
+
+        self.train()
+        optimizer = torch.optim.Adam(self.parameters(), lr=lr)
+        criterion = nn.MSELoss()
+
+        # Tokenize and normalize all commands
+        vectors = []
+        for cmd in commands:
+            tokens = self.tokenizer.encode(cmd)
+            vocab_size = 128.0
+            normalized = [float(t) / vocab_size for t in tokens]
+            vectors.append(torch.tensor(normalized, dtype=torch.float32))
+
+        if not vectors:
+            return
+
+        dataset = torch.stack(vectors).to(self.device)
+
+        for epoch in range(epochs):
+            permutation = torch.randperm(dataset.size()[0])
+            for i in range(0, dataset.size()[0], batch_size):
+                indices = permutation[i : i + batch_size]
+                batch = dataset[indices]
+
+                optimizer.zero_grad()
+                reconstructed = self.forward(batch)
+                loss = criterion(reconstructed, batch)
+                loss.backward()
+                optimizer.step()
+
+        self.eval()
+        logger.info(f"[*] Model retrained on {len(commands)} commands.")
+        return loss.item() if "loss" in locals() else 0.0
+
     @staticmethod
     def load(path):
         """Secure model loading using weights_only=True."""

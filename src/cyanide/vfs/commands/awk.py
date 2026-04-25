@@ -49,12 +49,10 @@ class AwkCommand(Command):
         try:
             parsed, unknown = parser.parse_known_args(args)
 
-            if unknown and self.emulator.logger:
-                self.emulator.logger.log_event(
-                    self.emulator.session_id,
+            if unknown:
+                self._log_event(
                     "awk_unknown_args",
                     {
-                        "src_ip": self.emulator.src_ip,
                         "program": parsed.program,
                         "unknown_args": unknown,
                         "full_cmd": " ".join(args),
@@ -63,12 +61,10 @@ class AwkCommand(Command):
 
             return parsed, 0
         except SystemExit:
-            if self.emulator.logger:
-                self.emulator.logger.log_event(
-                    self.emulator.session_id,
-                    "awk_parse_fail",
-                    {"src_ip": self.emulator.src_ip, "full_cmd": " ".join(args)},
-                )
+            self._log_event(
+                "awk_parse_fail",
+                {"full_cmd": " ".join(args)},
+            )
             raise
 
     def _get_fields_to_print(self, program: str) -> list[int]:

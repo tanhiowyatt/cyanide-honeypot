@@ -59,6 +59,11 @@ ml:
   online_learning: false
   retraining_interval_days: 7
 
+ioc_reporting:
+  enabled: true
+  report_interval_hours: 1
+  output_format: stix2.1
+
 ssh:
   enabled: true
   listen_port: 2222
@@ -135,6 +140,14 @@ output:
     enabled: false
     webhook_url: ""
     username: "Cyanide Honeypot"
+  discord:
+    enabled: false
+    webhook_url: ""
+    username: "Cyanide Honeypot"
+  telegram:
+    enabled: false
+    token: ""
+    chat_id: ""
   hpfeeds:
     enabled: false
     host: hpfeeds.honeycloud.net

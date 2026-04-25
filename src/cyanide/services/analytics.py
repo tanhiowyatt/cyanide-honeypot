@@ -173,14 +173,35 @@ class AnalyticsService:
             )
 
             if self.ioc_reporter:
-                self.ioc_reporter.add_ioc(
-                    "domain" if "://" not in detected_tool else "url",
-                    cmd,
-                    f"Automated tool detection: {detected_tool}",
-                    session_id,
-                    severity="low",
-                )
+                import re
 
+                urls = set(re.findall(r"https?://[^\s<>\"']+", cmd))
+                for url in urls:
+                    self.ioc_reporter.add_ioc(
+                        "url",
+                        url,
+                        f"Automated tool detection: {detected_tool}",
+                        session_id,
+                        severity="low",
+                    )
+
+                url_domains = {
+                    re.sub(r"[:/].*$", "", re.sub(r"^https?://", "", url))
+                    for url in urls
+                }
+                domains = {
+                    domain
+                    for domain in re.findall(r"\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}\b", cmd)
+                    if domain not in url_domains
+                }
+                for domain in domains:
+                    self.ioc_reporter.add_ioc(
+                        "domain",
+                        domain,
+                        f"Automated tool detection: {detected_tool}",
+                        session_id,
+                        severity="low",
+                    )
         if not self.ml_enabled or self.ml_pipeline is None:
             return
 

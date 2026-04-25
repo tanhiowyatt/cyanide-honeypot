@@ -8,7 +8,7 @@ class AptCommand(Command):
         """Execute the apt command."""
         await asyncio.sleep(0)
         if not self.is_pkg_mgr_supported("apt"):
-            return "", f"bash: {args[0] if args else 'apt'}: command not found\n", 127
+            return "", "bash: apt: command not found\n", 127
 
         if not args:
             return (

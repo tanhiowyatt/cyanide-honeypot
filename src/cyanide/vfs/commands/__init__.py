@@ -36,6 +36,7 @@ from .last import LastCommand
 from .ls import LsCommand
 from .lsof import LsofCommand
 from .make import MakeCommand
+from .misc_sys import DateCommand, DfCommand
 from .mkdir import MkdirCommand
 from .mv import MvCommand
 from .nc import NcCommand
@@ -135,6 +136,8 @@ COMMAND_MAP = {
     "vim": VimCommand,
     "nano": NanoCommand,
     "ed": EditorCommand,
+    "date": DateCommand,
+    "df": DfCommand,
 }
 
 __all__ = ["COMMAND_MAP"] + list(COMMAND_MAP.keys())

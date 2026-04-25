@@ -9,7 +9,21 @@ class PingCommand(Command):
         if not args:
             return "", "ping: usage error: Destination address required\n", 1
 
-        hostname = args[0]
+        # Find the first non-flag argument as hostname
+        hostname = next((arg for arg in args if not arg.startswith("-")), None)
+
+        # If the last argument is a number (count for -c), the previous one might be hostname
+        # or it might be something like ping -c 1 8.8.8.8
+        # Let's be simple: last non-flag argument is usually the host
+        clean_args = [arg for arg in args if not arg.startswith("-")]
+        if not clean_args:
+            return "", "ping: usage error: Destination address required\n", 1
+
+        # In ping -c 1 8.8.8.8, args are ['-c', '1', '8.8.8.8']
+        # 1 is not a flag but it's a value for -c
+        # Standard ping usually has hostname last
+        hostname = clean_args[-1]
+
         is_valid, err, ip = self.validate_url(f"https://{hostname}")
         if not is_valid:
             return "", f"ping: {hostname}: {err}\n", 2

@@ -1,7 +1,7 @@
 import inspect
 import shlex
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, cast
 
 from cyanide.vfs.commands.base import Command
 from cyanide.vfs.engine import FakeFilesystem
@@ -364,6 +364,19 @@ class ShellEmulator:
             return "", "", 0
 
         cmd_name, params = self._resolve_alias(args[0], args[1:])
+
+        # Support direct execution of scripts (e.g. ./script.sh)
+        if cmd_name not in self.commands:
+            abs_path = self.resolve_path(cmd_name)
+            if self.fs.exists(abs_path) and not self.fs.is_dir(abs_path):
+                # Real bash check: must have +x for direct execution
+                if not self.check_permission(abs_path, "x"):
+                    return "", f"bash: {cmd_name}: Permission denied\n", 126
+
+                # If it's a file, execute it via bash
+                res = await self.commands["bash"].execute([cmd_name] + params, input_data)
+                return cast(tuple[str, str, int], res)
+
         return await self._run_command_instance(cmd_name, params, input_data)
 
     def _parse_redirections(self, cmd: str) -> tuple[str, Optional[str], bool]:

@@ -35,9 +35,9 @@ lint:
 	$(MYPY) src/
 
 format:
-	$(BLACK) src/
-	$(ISORT) src/
 	$(RUFF) check --fix src/
+	$(ISORT) src/
+	$(BLACK) src/
 
 test:
 	$(PYTEST)

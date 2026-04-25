@@ -7,7 +7,7 @@ class YumCommand(Command):
     async def execute(self, args: list[str], input_data: str = "") -> tuple[str, str, int]:
         await asyncio.sleep(0)
         if not self.is_pkg_mgr_supported("yum"):
-            return "", f"bash: {args[0] if args else 'yum'}: command not found\n", 127
+            return "", "bash: yum: command not found\n", 127
 
         if not args:
             return (

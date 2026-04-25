@@ -48,16 +48,20 @@ class ChmodCommand(Command):
 
         new_perms = list(perms)
         for w in who:
-            start_idx = {"u": 0, "g": 3, "o": 6}[w]
-            for i, char in enumerate("rwx"):
-                if char in what:
-                    if op == "+":
-                        new_perms[start_idx + i] = char
-                    elif op in ("-", "="):
-                        new_perms[start_idx + i] = char if op == "=" else "-"
-                elif op == "=":
-                    new_perms[start_idx + i] = "-"
+            self._update_perm_group(new_perms, w, op, what)
         return new_perms
+
+    def _update_perm_group(self, perms: list, group: str, op: str, what: str):
+        """Update a specific permission group (u, g, or o) based on operator."""
+        start_idx = {"u": 0, "g": 3, "o": 6}[group]
+        for i, char in enumerate("rwx"):
+            if char in what:
+                if op == "+":
+                    perms[start_idx + i] = char
+                elif op in ("-", "="):
+                    perms[start_idx + i] = char if op == "=" else "-"
+            elif op == "=":
+                perms[start_idx + i] = "-"
 
     def _octal_to_str(self, octal: int) -> list:
         """Convert octal mode (e.g. 0o755) to string list (e.g. ['r','w','x','r','-','x','r','-','x'])."""

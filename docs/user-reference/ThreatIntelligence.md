@@ -43,8 +43,8 @@ Collected IOCs can be retrieved remotely via the Cyanide Metrics API (if enabled
 
 | Format | Endpoint | Description |
 | :--- | :--- | :--- |
-| **STIX 2.1** | `GET /reports/stix` | Returns the latest STIX JSON Bundle. |
-| **MISP** | `GET /reports/misp` | Returns the latest MISP JSON Event. |
+| **STIX 2.1** | `GET /logs/reports/stix` | Returns the latest STIX JSON Bundle. |
+| **MISP** | `GET /logs/reports/misp` | Returns the latest MISP JSON Event. |
 
 > [!IMPORTANT]
 > Access to these endpoints requires the same Bearer Token as the `/metrics` endpoint (configured via `CYANIDE_METRICS_TOKEN`).
